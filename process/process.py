@@ -1,3 +1,4 @@
+import tempfile
 from ..scarches_api.utils import parameters
 import scanpy as sc
 import logging
@@ -16,7 +17,7 @@ class Process:
         sc.tl.umap(latent_adata)
         return latent_adata
 
-    def write_csv(self, obs_to_drop: list, latent_adata: sc.AnnData, predict_scanvi):
+    def write_csv(self, obs_to_drop: list, latent_adata: sc.AnnData, predict_scanvi, filename=tempfile.mktemp()):
         final = latent_adata.obs.drop(columns=obs_to_drop)
 
         final["x"] = list(map(lambda p: p[0], latent_adata.obsm["X_umap"]))
@@ -36,7 +37,9 @@ class Process:
             final['predicted'] = predictions
         except Exception as e:
             logging.warning(msg = e)
-        return
+
+        final.to_csv(filename)
+        return filename
 
     def make_cxg_complient(self, latent_adata: sc.AnnData):
         if "X_umap" not in latent_adata.obsm:
