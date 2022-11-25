@@ -39,7 +39,7 @@ class Post:
         final.to_csv(filename)
         return filename
 
-    def make_cxg_complient(self, latent_adata: sc.AnnData):
+    def make_cxg_compliant(self, latent_adata: sc.AnnData):
         if "X_umap" not in latent_adata.obsm:
             self.compute_umap(latent_adata)
         try:
