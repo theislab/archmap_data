@@ -13,6 +13,8 @@ import tempfile
 import sys
 import scvi
 
+#import process.processing as process
+
 
 def setup_modules():
     """
@@ -210,6 +212,50 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
                                   cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
                                   condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
                                   predictScanvi=True, configuration=configuration)
+
+
+
+    #
+    # Manually added find a way to automate the process of .csv and .cxg output
+    #
+
+    # adata_query_reference = source_adata.concatenate(anndata)
+
+    # anndata = scanpy.AnnData(model.get_latent_representation(adata_query_reference))
+
+    # unlabeled_category='Unknown'
+    # cell_type_key='cell_type'
+    # condition_key='study'
+
+    # latent = anndata
+    # latent.obs['cell_type'] = adata_query_reference.obs[cell_type_key].tolist()
+    # latent.obs['batch'] = adata_query_reference.obs[condition_key].tolist()
+    # latent.obs['type'] = adata_query_reference.obs['type'].tolist()
+
+    # #TODO: If any gene-filtering or reduction of the umap size are to occur, it's most probably supposed to be done below
+    # print("calculate neighbors")
+    # scanpy.pp.neighbors(latent)
+
+    # print("calculate leiden")
+    # scanpy.tl.leiden(latent)
+
+    # print("create umap")
+    # scanpy.tl.umap(latent)
+
+    # print("predicting")
+    # latent.obs['predicted'] = model.predict(adata_query_reference)
+
+    # cxgadata = latent
+
+    # print(cxgadata.raw)
+
+    # process.Postprocess.output_cxg(cxgadata, configuration)
+
+    #
+    # Manually added find a way to automate the process of .csv and .cxg output
+    #
+
+
     return model, query_latent
 
 
