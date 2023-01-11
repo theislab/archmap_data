@@ -1,0 +1,5 @@
+scib
+scib-metrics
+
+#extra dependency for scib
+#anndata2ri

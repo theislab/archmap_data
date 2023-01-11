@@ -185,22 +185,33 @@ class Preprocess:
             configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
             return configuration
 
-    def set_keys_alternative(configuration):
-        #TODO: Use relative path
-        model_path = "assets/scVI/fetal_immune/"
+    def set_keys_dynamic(configuration):
+        #Get relative model path
+        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.translate_atlas_to_directory(configuration) + "/"
 
-        #Get label names the model was setup with
-        attr_dict = _utils._load_saved_files(model_path, False, None)[0]
+        #Get label names the model was set up with
+        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
         registry = attr_dict.pop("registry_")
         setup_args = registry["setup_args"]
 
         #Set parameters according to model labels if provided
-        if setup_args["labels_key"] is not None:
-            configuration[parameters.CELL_TYPE_KEY] = setup_args["labels_key"]
-        if setup_args["batch_key"] is not None:
-            configuration[parameters.CONDITION_KEY] = setup_args["batch_key"]
-        if setup_args["unlabeled_category"] is not None:
-            configuration[parameters.UNLABELED_KEY] = setup_args["unlabeled_category"]
+        if "labels_key" in setup_args:
+            if setup_args["labels_key"] is not None:
+                configuration[parameters.CELL_TYPE_KEY] = setup_args["labels_key"]
+        if "batch_key" in setup_args:
+            if setup_args["batch_key"] is not None:
+                configuration[parameters.CONDITION_KEY] = setup_args["batch_key"]
+        if "unlabeled_category" in setup_args:
+            if setup_args["unlabeled_category"] is not None:
+                configuration[parameters.UNLABELED_KEY] = setup_args["unlabeled_category"]
+
+
+        #TODO: Incorporate information that is not stored in model
+        atlas = utils.get_from_config(configuration, 'atlas')
+        if atlas == 'Heart cell atlas':
+            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+        elif atlas == 'Fetal immune atlas':
+            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
 
         return
 
@@ -208,7 +219,22 @@ class Postprocess:
     def __init__(self):
         return
 
-    def output_csv(self, obs_to_drop: list, latent_adata: sc.AnnData, predict_scanvi, filename=tempfile.mktemp()):
+    def __prepare_output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, cell_type_key='cell_type', condition_key='study'):
+        latent_adata.obs['cell_type'] = combined_adata.obs[cell_type_key].tolist()
+        latent_adata.obs['batch'] = combined_adata.obs[condition_key].tolist()
+        latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
+
+        if "X_umap" not in latent_adata.obsm:
+            #Get specified amount of neighbours for computation
+            n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
+
+            sc.pp.neighbors(latent_adata, n_neighbors)
+            sc.tl.leiden(latent_adata)
+            sc.tl.umap(latent_adata)
+
+    def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
+        Postprocess.__prepare_output(latent_adata, combined_adata, config)
+        
         final = latent_adata.obs.drop(columns=obs_to_drop)
 
         final["x"] = list(map(lambda p: p[0], latent_adata.obsm["X_umap"]))
@@ -219,7 +245,7 @@ class Postprocess:
                 cell_types = list(map(lambda p: p, latent_adata.obs['cell_type']))
                 predictions = list(map(lambda p: p, latent_adata.obs['predicted']))
                 for i in range(len(cell_types)):
-                    if cell_types[i] == self.config[parameters.UNLABELED_KEY]:
+                    if cell_types[i] == config[parameters.UNLABELED_KEY]:
                         cell_types[i] = predictions[i]
                         predictions[i] = 'yes'
                     else:
@@ -229,10 +255,16 @@ class Postprocess:
         except Exception as e:
             logging.warning(msg = e)
 
-        final.to_csv(filename)
-        return filename
+        #Save as .csv
+        output_path = config[parameters.OUTPUT_PATH] + ".csv"
 
-    def output_cxg(latent_adata, config):
+        filename = tempfile.mktemp(suffix=".csv")
+        final.to_csv(filename)
+        utils.store_file_in_s3(filename, output_path)
+
+    def __output_cxg(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
+        Postprocess.__prepare_output(latent_adata, combined_adata, config)
+
         #Cellxgene data format requirements
         #1. Expression values in adata.X
         if latent_adata.X is None:
@@ -241,13 +273,7 @@ class Postprocess:
             except Exception as e:
                 logging.warning(msg = e)
 
-        #2. Embedding in adata.obsm
-        if "X_umap" not in latent_adata.obsm:
-            #Get specified amount of neighbours for computation
-            n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
-
-            sc.pp.neighbors(latent_adata, n_neighbors)
-            sc.tl.umap(latent_adata)
+        #2. Embedding in adata.obsm (Handled in __prepare_output as needed for .csv and .h5ad)
 
         #3. Unique var index identifier
         latent_adata.var_names_make_unique
@@ -256,9 +282,17 @@ class Postprocess:
         latent_adata.obs_names_make_unique
 
         #Save as .h5ad
-        #TODO: Check output_path parameter. Still usable if multiple outputs possible?
-        output_path = config[parameters.OUTPUT_PATH], "/output_cxg.h5ad"
+        output_path = config[parameters.OUTPUT_PATH] + "_cxg.h5ad"
 
         filename = tempfile.mktemp(suffix=".h5ad")
         sc.write(filename, latent_adata)
-        utils.store_file_in_s3(filename, "output_cxg.h5ad")
+        utils.store_file_in_s3(filename, output_path)
+
+    def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, output_types):
+        if(output_types.get("csv")):
+            #TODO: Change implementation of dropping unnecessary labels?
+            obs_to_drop = []
+
+            Postprocess.__output_csv(obs_to_drop, latent_adata, combined_adata, configuration, True)
+        if(output_types.get("cxg")):
+            Postprocess.__output_cxg(latent_adata, combined_adata, configuration)

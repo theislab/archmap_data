@@ -66,6 +66,8 @@ REFERENCE_DATA_PATH = 'reference_data'
 QUERY_DATA_PATH = 'query_data'
 # sets the path/s3 key of the output tsv file
 OUTPUT_PATH = 'output_path'
+# sets the output types
+OUTPUT_TYPE = 'output_type'
 # sets if the computation should run asynchronously
 RUN_ASYNCHRONOUSLY = 'async'
 # sets the max_epochs of the first totalVI stage

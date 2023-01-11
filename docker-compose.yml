@@ -1,0 +1,47 @@
+services:
+  # archmap:
+  #   build: .
+  #   ports:
+  #     - 9090:9090
+  #   depends_on:
+  #     - scarches
+
+  r:
+    build: ./metrics
+    ports:
+      - 3434:3434
+
+  scarches:
+    build:
+      context: ./mapping
+    ports:
+      - 8080:8080
+    environment:
+      - AWS_BUCKET=minio-bucket
+      - AWS_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY=minioadmin
+      - AWS_SECRET_KEY=minioadmin
+    depends_on:
+      - minio
+      - r
+
+  database:
+    image: mongo
+    ports:
+      - 27017:27017
+
+  minio:
+    build:
+      context: ./mapping/scarches_api
+      dockerfile: minio.Dockerfile
+    ports:
+      - 0.0.0.0:9000:9000
+      - 0.0.0.0:9001:9001
+
+  minioconfigure:
+    build:
+      context: ./mapping/scarches_api
+      dockerfile: minioconfig.Dockerfile
+    depends_on:
+      - minio
+

@@ -8,6 +8,8 @@ from scVI.scVI import compute_scVI
 from totalVI.totalVI import computeTotalVI
 from utils import utils, parameters
 
+from process.processing import Preprocess
+
 
 def default_config():
     """
@@ -22,6 +24,7 @@ def default_config():
         parameters.QUERY_DATA_PATH: 'pancreas_query.h5ad',
         parameters.RESULTING_MODEL_PATH: 'model.pt',
         parameters.OUTPUT_PATH: 'query.csv',
+        parameters.OUTPUT_TYPE: ["csv", "cxg"],
 
         parameters.USE_PRETRAINED_SCVI_MODEL: True,
         parameters.USE_PRETRAINED_TOTALVI_MODEL: True,
@@ -94,8 +97,13 @@ def query(user_config):
     start_time = time.time()
     configuration = merge_configs(user_config)
     #Sets the correct condition and cell_type key
-    configuration = utils.set_keys(configuration)
-    
+    #configuration = utils.set_keys(configuration)
+
+    ### NEW dynamic set_key function
+    Preprocess.set_keys_dynamic(configuration)
+
+
+
     model = utils.get_from_config(configuration, parameters.MODEL)
     configuration['atlas'] = utils.translate_atlas_to_directory(configuration)
     if model == 'scVI':

@@ -12,6 +12,8 @@ import sys
 import tempfile
 import scvi
 
+import process.processing as processing
+
 
 # def utils.get_from_config(configuration, key):
 #     if key in configuration:
@@ -212,10 +214,29 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'data/figures/query.pdf', color=['batch', 'cell_type'])
 
-    utils.write_full_adata_to_csv(model, source_adata, anndata,
-                                  key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
-                                  cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-                                  condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY), configuration=configuration)
+
+
+    ### NEW IMPLEMENTATION ###
+    #Get desired output types
+    output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+
+    #Get combined and latent data
+    combined_adata = source_adata.concatenate(anndata)
+    latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+
+    #Save output
+    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    ### NEW IMPLEMENTATION ###
+
+
+
+
+
+
+    # utils.write_full_adata_to_csv(model, source_adata, anndata,
+    #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
+    #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+    #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY), configuration=configuration)
 
     return model
 

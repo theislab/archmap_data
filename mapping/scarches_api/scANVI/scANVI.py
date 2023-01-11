@@ -13,7 +13,7 @@ import tempfile
 import sys
 import scvi
 
-#import process.processing as process
+import process.processing as processing
 
 
 def setup_modules():
@@ -123,12 +123,39 @@ def surgery(reference_latent, source_adata, anndata, configuration):
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(surgery_latent, 'figures/surgery.pdf', color=['batch', 'cell_type'])
 
+
+
+
+
+    ### NEW IMPLEMENTATION ###
+    #Check which output types are desired and save latent data
+    output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+
+    #Combine reference and query data
+    combined_adata = source_adata.concatenate(anndata)
+
+    latent_data = model.get_latent_representation(combined_adata)
+
+    for type in output_types:
+        if(type == 'csv'):
+            #TODO: Change implementation of dropping unnecessary labels?
+            obs_to_drop = []
+
+            processing.Postprocess.output_csv(obs_to_drop, latent_data, configuration, True)
+        elif(type == 'cxg'):
+            processing.Postprocess.output_cxg(latent_data, configuration)
+    ### NEW IMPLEMENTATION ###
+
+
+
+
+
     # utils.write_combined_csv(reference_latent, surgery_latent, key=utils.get_from_config(configuration, parameters.OUTPUT_PATH))
-    utils.write_full_adata_to_csv(model, source_adata, anndata,
-                                  key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
-                                  cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-                                  condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
-                                  predictScanvi=True, configuration=configuration)
+    # utils.write_full_adata_to_csv(model, source_adata, anndata,
+    #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
+    #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+    #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
+    #                               predictScanvi=True, configuration=configuration)
 
     model.save('scvi_model', overwrite=True)
     utils.delete_file('scvi_model/model.pt')
@@ -207,54 +234,26 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
-    utils.write_full_adata_to_csv(model, source_adata, anndata,
-                                  key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
-                                  cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-                                  condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
-                                  predictScanvi=True, configuration=configuration)
+    # utils.write_full_adata_to_csv(model, source_adata, anndata,
+    #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
+    #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+    #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
+    #                               predictScanvi=True, configuration=configuration)
 
 
 
-    #
-    # Manually added find a way to automate the process of .csv and .cxg output
-    #
 
-    # adata_query_reference = source_adata.concatenate(anndata)
+    ### NEW IMPLEMENTATION ###
+    #Get desired output types
+    output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
 
-    # anndata = scanpy.AnnData(model.get_latent_representation(adata_query_reference))
+    #Get combined and latent data
+    combined_adata = source_adata.concatenate(anndata)
+    latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
 
-    # unlabeled_category='Unknown'
-    # cell_type_key='cell_type'
-    # condition_key='study'
-
-    # latent = anndata
-    # latent.obs['cell_type'] = adata_query_reference.obs[cell_type_key].tolist()
-    # latent.obs['batch'] = adata_query_reference.obs[condition_key].tolist()
-    # latent.obs['type'] = adata_query_reference.obs['type'].tolist()
-
-    # #TODO: If any gene-filtering or reduction of the umap size are to occur, it's most probably supposed to be done below
-    # print("calculate neighbors")
-    # scanpy.pp.neighbors(latent)
-
-    # print("calculate leiden")
-    # scanpy.tl.leiden(latent)
-
-    # print("create umap")
-    # scanpy.tl.umap(latent)
-
-    # print("predicting")
-    # latent.obs['predicted'] = model.predict(adata_query_reference)
-
-    # cxgadata = latent
-
-    # print(cxgadata.raw)
-
-    # process.Postprocess.output_cxg(cxgadata, configuration)
-
-    #
-    # Manually added find a way to automate the process of .csv and .cxg output
-    #
-
+    #Save output
+    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    ### NEW IMPLEMENTATION ###
 
     return model, query_latent
 

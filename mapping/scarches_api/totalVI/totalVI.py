@@ -11,6 +11,8 @@ import scarches as sca
 import torch
 from utils import utils, parameters
 
+import process.processing as processing
+
 
 def setup_modules():
     """
@@ -236,7 +238,7 @@ def compute_final_umaps(adata_full_new, imputed_proteins_all, configuration):
     :return:
     """
     perm_inds = np.random.permutation(np.arange(adata_full_new.n_obs))
-    utils.write_latent_csv(adata_full_new[perm_inds], key=utils.get_from_config(configuration, parameters.OUTPUT_PATH))
+    # utils.write_latent_csv(adata_full_new[perm_inds], key=utils.get_from_config(configuration, parameters.OUTPUT_PATH))
     if utils.get_from_config(configuration, parameters.DEBUG):
         visualize_and_store_as_pdf("thirdumap.pdf",
                                    adata_full_new[perm_inds],
@@ -266,6 +268,22 @@ def compute_final_umaps(adata_full_new, imputed_proteins_all, configuration):
                                    save=True
                                    )
         """
+
+
+
+
+
+    ### NEW IMPLEMENTATION ###
+    #Get desired output types
+    output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+
+    #Get combined and latent data
+    combined_adata = adata_full_new
+    latent_adata = adata_full_new.obsm["X_totalVI"]
+
+    #Save output
+    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    ### NEW IMPLEMENTATION ###
 
 
 def computeTotalVI(configuration):

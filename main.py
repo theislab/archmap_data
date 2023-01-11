@@ -31,16 +31,16 @@ def dispose(filename):
         os.remove(filename)
 
 
-s3 = boto3.client('s3', endpoint_url=endpoint,
-                  aws_access_key_id=access_key, aws_secret_access_key=secret_key)
-print("starting download")
-s3.download_file(bucket, modelname, modelname)
-print("Download finished, loading model")
-clf = joblib.load(modelname)
-print("Model loaded, ready to dispose")
-dispose(modelname)
+# s3 = boto3.client('s3', endpoint_url=endpoint,
+#                   aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+# print("starting download")
+# s3.download_file(bucket, modelname, modelname)
+# print("Download finished, loading model")
+# clf = joblib.load(modelname)
+# print("Model loaded, ready to dispose")
+# dispose(modelname)
 
-db = MongoClient(database_uri).get_default_database()
+# db = MongoClient(database_uri).get_default_database()
 
 
 @app.route("/")
@@ -140,4 +140,5 @@ def download_file(url):
 
 
 if __name__ == "__main__":
+    #print("Debug")
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
