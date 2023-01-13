@@ -126,8 +126,32 @@ def prediction_value(cell_type):
     else:
         return "no"
 
+    
+def mark_uncertain_labels(query_adata, obs_col, uncertainty_threshold=0.2):
+    """
+    Label cells with uncertain predictions as "Unknown"
+    :param query_adata: AnnData object with labels and uncertainty
+    :param obs_col: Column with labels (probably, cell types) in `query_adata.obs` for which uncertainty is calculated. Uncertainty must be stored in "`obs_col`_uncertainty" .obs column
+    :param uncertainty_threshold: Predictions with higher uncertainty will be marked as "Unknown"
+    :return: Updated AnnData object with uncertain labels marked as "Unknown"
+    """
+    mask = query_adata.obs[obs_col + "_uncertainty"] > uncertainty_threshold
+    print(f"{obs_col}: {sum(mask) / len(mask)} unknown")
+    query_adata.obs[obs_col + "_pred"].loc[mask] = "Unknown"
+
+    return query_adata
+
 
 def knn_labels_transfer(source_adata, query_adata, n_neighbors=8, uncertainty_threshold=0.2):
+    """
+    Transfer cell labels using K-Nearest Neighbors classifier
+    :param source_adata: AnnData object with reference on which the classifier is trained
+    :param query_adata: AnnData object with query for which cell types are predicted
+    :param n_neighbors: How many nearest neighbors to use for the prediction
+    :param uncertainty_threshold: Predictions with higher uncertainty will be marked as "Unknown"
+    :return: Updated AnnData object with predicted labels and uncertainties
+    """
+
     @numba.njit
     def weighted_prediction(weights, ref_cats):
         """Get highest weight category."""
@@ -173,17 +197,50 @@ def knn_labels_transfer(source_adata, query_adata, n_neighbors=8, uncertainty_th
         p = numpy.asarray(source_adata.obs[l].cat.categories)[p]
         query_adata.obs[l + "_pred"], query_adata.obs[l + "_uncertainty"] = p, u
 
-        mask = query_adata.obs[l + "_uncertainty"] > uncertainty_threshold
-        print(f"{l}: {sum(mask) / len(mask)} unknown")
-        query_adata.obs[l + "_pred"].loc[mask] = "Unknown"
+        query_adata = mark_uncertain_labels(query_adata, obs_col=l, uncertainty_threshold=uncertainty_threshold)
 
     return query_adata
+
+
+def xgboost_labels_transfer(source_adata, query_adata, uncertainty_threshold=0.2, use_gpu=False):
+    """
+    Transfer cell labels using K-Nearest Neighbors classifier
+    :param source_adata: AnnData object with reference on which the classifier is trained
+    :param query_adata: AnnData object with query for which cell types are predicted
+    :param uncertainty_threshold: Predictions with higher uncertainty will be marked as "Unknown"
+    :return: Updated AnnData object with predicted labels and uncertainties
+    """
+    import xgboost
+
+    X_train = source_adata.X
+
+    label_keys = [f"ann_level_{i}" for i in range(1, 6)] + ["ann_finest_level"]
+
+    for l in label_keys:
+        y_train = source_adata.obs[l]
+
+        n_classes = len(numpy.unique(y_train))
+        objective = "binary:logistic" if n_classes == 2 else "multi:softprob"
+        
+        tree_method = "gpu_hist" if use_gpu else "hist"        
+        xgb_model = xgboost.XGBClassifier(tree_method=tree_method, objective=objective)
+        xgb_model.fit(X_train, y_train)
+
+        query_adata.obs[l] = xgb_model.predict(query_adata.X)
+        probs = xgb_model.predict_proba(query_adata.X)
+    
+        # Convert probabilities to uncertainties
+        df_probs = pd.DataFrame(probs, columns=xgb_model.classes_, index=query_adata.obs_names)
+        query_adata.obs[l + "_uncertainty"] = 1 - df_probs.max(1)
+
+        query_adata = mark_uncertain_labels(query_adata, obs_col=l, uncertainty_threshold=uncertainty_threshold)
+
 
 def transfer_labels(source_adata, query_adata, use_knn=True, n_neighbors=8, uncertainty_threshold=0.2):
     if use_knn:
         return knn_labels_transfer(source_adata, query_adata, n_neighbors=n_neighbors, uncertainty_threshold=uncertainty_threshold)
     else:
-        raise NotImplementedError()
+        return xgboost_labels_transfer(source_adata, query_adata, uncertainty_threshold=uncertainty_threshold)
 
 
 def write_full_adata_to_csv(model, source_adata, target_adata, key=None, filename=tempfile.mktemp(), drop_columns=None,
@@ -205,7 +262,7 @@ def write_full_adata_to_csv(model, source_adata, target_adata, key=None, filenam
 def write_adata_to_csv(model, adata=None, source_adata=None, target_adata=None, key=None, filename=tempfile.mktemp(),
                        drop_columns=None,
                        unlabeled_category='Unknown', cell_type_key='cell_type',
-                       condition_key='study', neighbors=8, predictScanvi=False, configuration=None):
+                       condition_key='study', use_knn=True, neighbors=8, predictScanvi=False, configuration=None):
     """
     Prepares the adata for csv export:\n
     This function computes the latent representation and
@@ -237,7 +294,7 @@ def write_adata_to_csv(model, adata=None, source_adata=None, target_adata=None, 
         
         query_emb = scanpy.AnnData(model.get_latent_representation())
         query_emb.obs_names = target_adata.obs_names
-        query_emb = transfer_labels(source_adata=source_adata, query_adata=query_emb, n_neighbors=neighbors)
+        query_emb = transfer_labels(source_adata=source_adata, query_adata=query_emb, use_knn=use_knn, n_neighbors=neighbors)
         query_emb.obs["dataset"] = "test_dataset_delorey_regev"
         # adata.obsm["X_mde"] = mde(adata.X, init="random")
         anndata = source_adata.concatenate(query_emb)
