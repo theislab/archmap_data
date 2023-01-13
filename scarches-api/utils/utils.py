@@ -235,6 +235,8 @@ def xgboost_labels_transfer(source_adata, query_adata, uncertainty_threshold=0.2
 
         query_adata = mark_uncertain_labels(query_adata, obs_col=l, uncertainty_threshold=uncertainty_threshold)
 
+    return query_adata
+
 
 def transfer_labels(source_adata, query_adata, use_knn=True, n_neighbors=8, uncertainty_threshold=0.2):
     if use_knn:
