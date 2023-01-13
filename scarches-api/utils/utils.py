@@ -137,7 +137,7 @@ def mark_uncertain_labels(query_adata, obs_col, uncertainty_threshold=0.2):
     """
     mask = query_adata.obs[obs_col + "_uncertainty"] > uncertainty_threshold
     print(f"{obs_col}: {sum(mask) / len(mask)} unknown")
-    query_adata.obs[obs_col + "_pred"].loc[mask] = "Unknown"
+    query_adata.obs.loc[mask, obs_col + "_pred"] = "Unknown"
 
     return query_adata
 
