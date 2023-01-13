@@ -127,6 +127,65 @@ def prediction_value(cell_type):
         return "no"
 
 
+def knn_labels_transfer(source_adata, query_adata, n_neighbors=8, uncertainty_threshold=0.2):
+    @numba.njit
+    def weighted_prediction(weights, ref_cats):
+        """Get highest weight category."""
+        N = len(weights)
+        predictions = numpy.zeros((N,), dtype=ref_cats.dtype)
+        uncertainty = numpy.zeros((N,))
+        for i in range(N):
+            obs_weights = weights[i]
+            obs_cats = ref_cats[i]
+            best_prob = 0
+            for c in numpy.unique(obs_cats):
+                cand_prob = numpy.sum(obs_weights[obs_cats == c])
+                if cand_prob > best_prob:
+                    best_prob = cand_prob
+                    predictions[i] = c
+                    uncertainty[i] = max(1 - best_prob, 0)
+
+        return predictions, uncertainty
+
+
+    def distances_to_affinities(distances):
+        stds = numpy.std(distances, axis=1)
+        stds = (2.0 / stds) ** 2
+        stds = stds.reshape(-1, 1)
+        distances_tilda = numpy.exp(-numpy.true_divide(distances, stds))
+
+        return distances_tilda / numpy.sum(distances_tilda, axis=1, keepdims=True)
+
+
+    X_train = source_adata.X
+
+    ref_nn_index = pynndescent.NNDescent(X_train)
+    ref_nn_index.prepare()
+    ref_neighbors, ref_distances = ref_nn_index.query(query_adata.X, k=n_neighbors)
+    weights = distances_to_affinities(ref_distances)
+
+    # for each annotation level, get prediction and uncertainty
+    label_keys = [f"ann_level_{i}" for i in range(1, 6)] + ["ann_finest_level"]
+
+    for l in label_keys:
+        ref_cats = source_adata.obs[l].cat.codes.to_numpy()[ref_neighbors]
+        p, u = weighted_prediction(weights, ref_cats)
+        p = numpy.asarray(source_adata.obs[l].cat.categories)[p]
+        query_adata.obs[l + "_pred"], query_adata.obs[l + "_uncertainty"] = p, u
+
+        mask = query_adata.obs[l + "_uncertainty"] > uncertainty_threshold
+        print(f"{l}: {sum(mask) / len(mask)} unknown")
+        query_adata.obs[l + "_pred"].loc[mask] = "Unknown"
+
+    return query_adata
+
+def transfer_labels(source_adata, query_adata, use_knn=True, n_neighbors=8, uncertainty_threshold=0.2):
+    if use_knn:
+        return knn_labels_transfer(source_adata, query_adata, n_neighbors=n_neighbors, uncertainty_threshold=uncertainty_threshold)
+    else:
+        raise NotImplementedError()
+
+
 def write_full_adata_to_csv(model, source_adata, target_adata, key=None, filename=tempfile.mktemp(), drop_columns=None,
                             unlabeled_category='', cell_type_key='', condition_key='', neighbors=8,
                             predictScanvi=False, configuration=None):
@@ -175,53 +234,10 @@ def write_adata_to_csv(model, adata=None, source_adata=None, target_adata=None, 
 
     #TODO: HARDCODING for the lung atlas------------------------------------------------
     if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
-        X_train = source_adata.X
-        ref_nn_index = pynndescent.NNDescent(X_train)
-        ref_nn_index.prepare()
+        
         query_emb = scanpy.AnnData(model.get_latent_representation())
         query_emb.obs_names = target_adata.obs_names
-        ref_neighbors, ref_distances = ref_nn_index.query(query_emb.X)
-
-        # convert distances to affinities
-        stds = numpy.std(ref_distances, axis=1)
-        stds = (2.0 / stds) ** 2
-        stds = stds.reshape(-1, 1)
-        ref_distances_tilda = numpy.exp(-numpy.true_divide(ref_distances, stds))
-        weights = ref_distances_tilda / numpy.sum(
-            ref_distances_tilda, axis=1, keepdims=True
-        )
-
-        @numba.njit
-        def weighted_prediction(weights, ref_cats):
-            """Get highest weight category."""
-            N = len(weights)
-            predictions = numpy.zeros((N,), dtype=ref_cats.dtype)
-            uncertainty = numpy.zeros((N,))
-            for i in range(N):
-                obs_weights = weights[i]
-                obs_cats = ref_cats[i]
-                best_prob = 0
-                for c in numpy.unique(obs_cats):
-                    cand_prob = numpy.sum(obs_weights[obs_cats == c])
-                    if cand_prob > best_prob:
-                        best_prob = cand_prob
-                        predictions[i] = c
-                        uncertainty[i] = max(1 - best_prob, 0)
-
-            return predictions, uncertainty
-
-        # for each annotation level, get prediction and uncertainty
-        label_keys = [f"ann_level_{i}" for i in range(1, 6)] + ["ann_finest_level"]
-        for l in label_keys:
-            ref_cats = adata.obs[l].cat.codes.to_numpy()[ref_neighbors]
-            p, u = weighted_prediction(weights, ref_cats)
-            p = numpy.asarray(adata.obs[l].cat.categories)[p]
-            query_emb.obs[l + "_pred"], query_emb.obs[l + "_uncertainty"] = p, u
-        uncertainty_threshold = 0.2
-        for l in label_keys:
-            mask = query_emb.obs[l + "_uncertainty"] > 0.2
-            print(f"{l}: {sum(mask) / len(mask)} unknown")
-            query_emb.obs[l + "_pred"].loc[mask] = "Unknown"
+        query_emb = transfer_labels(source_adata=source_adata, query_adata=query_emb, n_neighbors=neighbors)
         query_emb.obs["dataset"] = "test_dataset_delorey_regev"
         # adata.obsm["X_mde"] = mde(adata.X, init="random")
         anndata = source_adata.concatenate(query_emb)
