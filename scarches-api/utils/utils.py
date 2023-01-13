@@ -181,9 +181,7 @@ def knn_labels_transfer(source_adata, query_adata, n_neighbors=8, uncertainty_th
         return distances_tilda / numpy.sum(distances_tilda, axis=1, keepdims=True)
 
 
-    X_train = source_adata.X
-
-    ref_nn_index = pynndescent.NNDescent(X_train)
+    ref_nn_index = pynndescent.NNDescent(source_adata.X)
     ref_nn_index.prepare()
     ref_neighbors, ref_distances = ref_nn_index.query(query_adata.X, k=n_neighbors)
     weights = distances_to_affinities(ref_distances)
