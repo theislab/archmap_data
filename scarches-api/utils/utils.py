@@ -209,6 +209,7 @@ def xgboost_labels_transfer(source_adata, query_adata, uncertainty_threshold=0.2
     :return: Updated AnnData object with predicted labels and uncertainties
     """
     import xgboost
+    from sklearn.preprocessing import LabelEncoder
 
     X_train = source_adata.X
 
@@ -216,17 +217,19 @@ def xgboost_labels_transfer(source_adata, query_adata, uncertainty_threshold=0.2
 
     for l in label_keys:
         y_train = source_adata.obs[l]
+        labels_encoder = LabelEncoder()
+        labels_encoder.fit(y_train)
 
         n_classes = len(numpy.unique(y_train))
         objective = "binary:logistic" if n_classes == 2 else "multi:softprob"
         
         tree_method = "gpu_hist" if use_gpu else "hist"        
         xgb_model = xgboost.XGBClassifier(tree_method=tree_method, objective=objective)
-        xgb_model.fit(X_train, y_train)
+        xgb_model.fit(X_train, labels_encoder.transform(y_train))
 
-        query_adata.obs[l] = xgb_model.predict(query_adata.X)
+        query_adata.obs[l + "_pred"] = labels_encoder.inverse_transform(xgb_model.predict(query_adata.X))
+        
         probs = xgb_model.predict_proba(query_adata.X)
-    
         # Convert probabilities to uncertainties
         df_probs = pd.DataFrame(probs, columns=xgb_model.classes_, index=query_adata.obs_names)
         query_adata.obs[l + "_uncertainty"] = 1 - df_probs.max(1)
