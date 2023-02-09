@@ -216,13 +216,22 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
 
 
+
     ### NEW IMPLEMENTATION ###
+    source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
+
     #Get desired output types
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
 
     #Get combined and latent data
-    combined_adata = source_adata.concatenate(anndata)
+    combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
+    sca.models.SCVI.setup_anndata(combined_adata, batch_key="batch")
+
+    #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
+
     latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+    
+
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
@@ -243,7 +252,9 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
 def compute_scVI(configuration):
     setup()
-    source_adata, target_adata = utils.pre_process_data(configuration)
+    #source_adata, target_adata = utils.pre_process_data(configuration)
+    source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
+    sca.models.SCVI.setup_anndata(target_adata, batch_key="batch")
     print(source_adata)
     print(target_adata)
     model, reference_latent = create_scVI_model(source_adata, target_adata, configuration)

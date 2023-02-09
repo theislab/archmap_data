@@ -248,7 +248,9 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
 
     #Get combined and latent data
-    combined_adata = source_adata.concatenate(anndata)
+    combined_adata = source_adata.concatenate(anndata, batch_key='bkey')
+    #scarches.models.SCANVI.setup_anndata(combined_adata, batch_key="batch")
+    
     latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
 
     #Save output
@@ -406,7 +408,10 @@ def compute_scANVI(configuration):
 
     setup_modules()
 
-    source_adata, target_adata = utils.pre_process_data(configuration)
+    #source_adata, target_adata = utils.pre_process_data(configuration)
+    source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
+    target_adata = processing.Preprocess.scANVI_process_labels(configuration, source_adata, target_adata)
+    scarches.models.SCANVI.setup_anndata(target_adata, batch_key="batch")
 
     scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
 

@@ -400,6 +400,31 @@ def pre_process_data(configuration):
     # source_adata.raw = source_adata
     #-------------------------------------------------------------------
 
+
+
+    ### NEW IMPLEMENTATION ###
+    var_names = _utils._load_saved_files("assets/scVI/retina/", False, None,  "cpu")[1]
+
+    genes = source_adata.var.index[source_adata.var.index.isin(var_names)].tolist()
+
+    adata_sub = source_adata[:,genes].copy()
+    # Pad object with 0 genes if needed
+    # Genes to pad with
+    genes_to_add = set(var_names).difference(set(adata_sub.var_names))
+
+    genes_to_add = list(genes_to_add)
+
+    df_padding = pd.DataFrame(data=numpy.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
+    adata_padding = scanpy.AnnData(df_padding)
+    # Concatenate object
+    adata_sub = scanpy.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
+
+    # and order:
+    adata_sub = adata_sub[:,var_names].copy()
+    ### NEW IMPLEMENTATION ###
+    
+
+
     try:
         source_adata = remove_sparsity(source_adata)
     except Exception as e:
@@ -443,6 +468,12 @@ def translate_atlas_to_directory(configuration):
         return 'retina'
     elif atlas == 'Fetal immune atlas':
         return 'fetal_immune'
+    elif atlas == 'Glioblastoma':
+        return 'gb'
+    elif atlas == 'Developmental atlas':
+        return "developmental"
+    elif atlas == 'NSCLC':
+        return 'nsclc'
 
 
 def set_keys(configuration):

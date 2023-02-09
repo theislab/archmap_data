@@ -5,6 +5,8 @@ import scanpy as sc
 from scvi.model.base import _utils
 import pynndescent
 import logging
+import pandas as pd
+import numpy as np
 
 class Preprocess:
     def __init__(self):
@@ -109,6 +111,79 @@ class Preprocess:
         print(drop_list)
         return drop_list
 
+    def drop_unknown_batch_labels(configuration, adata):
+        #Get relative model path
+        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
+
+        #Get label names the model was set up with
+        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+        registry = attr_dict.pop("registry_") 
+
+        field_registries = registry["field_registries"]
+        for field in field_registries:
+            #Filter out all the batches the model doesnt know
+            if field == "batch":
+                batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY) 
+
+                state_registry = field_registries[field]["state_registry"]
+                categorical_mapping = state_registry["categorical_mapping"] 
+                adata = adata[adata.obs[batch_key].isin(categorical_mapping)].copy()
+
+            # #Filter out all the labels the model doesnt know
+            # if field == "labels":
+            #     labels_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+
+            #     state_registry = field_registries[field]["state_registry"]
+            #     categorical_mapping = state_registry["categorical_mapping"]
+            #     adata = adata[adata.obs[labels_key].isin(categorical_mapping)].copy()
+
+        return adata
+
+        # #Get batches the model knows
+        # state_registry_batch = model.adata_manager.get_state_registry("batch")
+        # batches = state_registry_batch["categorical_mapping"]
+
+        # #Filter out all the batches the model doesnt know
+        # adata = adata[adata.obs["batch"].isin(batches)].copy()
+
+    def conform_adata_to_model(configuration, adata):
+        #Get relative model path
+        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
+
+        #Get var_names from model
+        var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+
+        #If adata.var equals model.var nothing to conform
+        if(adata.n_vars == len(var_names)):
+            return adata
+
+        #Start conforming adata
+        # delete obsm and varm to enable concatenation
+        del adata.obsm
+        del adata.varm
+
+        #Get genes from adata that exist in var_names
+        genes = adata.var.index[adata.var.index.isin(var_names)].tolist()
+        #Get intersection of adata and var_names genes
+        adata_sub = adata[:,genes].copy()
+        #Pad object with 0 genes if needed
+        #Genes to pad with
+        genes_to_add = set(var_names).difference(set(adata_sub.var_names))
+        #Convert to list
+        genes_to_add = list(genes_to_add)
+
+        if len(genes_to_add) == 0:
+            return adata_sub
+
+        df_padding = pd.DataFrame(data=np.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
+        adata_padding = sc.AnnData(df_padding)
+        #Concatenate object
+        adata_sub = sc.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
+        #and order:
+        adata_sub = adata_sub[:,var_names].copy()
+        
+        return adata_sub
+
     def pre_process_data(configuration):
         """
         Used to pre-process the adata objects.\n
@@ -126,6 +201,9 @@ class Preprocess:
             ref_nn_index.prepare()
         # source_adata.raw = source_adata
         #-------------------------------------------------------------------
+
+        source_adata = Preprocess.conform_adata_to_model(configuration, source_adata)
+        target_adata = Preprocess.conform_adata_to_model(configuration, target_adata)
 
         try:
             source_adata = utils.remove_sparsity(source_adata)
@@ -194,16 +272,24 @@ class Preprocess:
         registry = attr_dict.pop("registry_")
         setup_args = registry["setup_args"]
 
-        #Set parameters according to model labels if provided
-        if "labels_key" in setup_args:
-            if setup_args["labels_key"] is not None:
-                configuration[parameters.CELL_TYPE_KEY] = setup_args["labels_key"]
-        if "batch_key" in setup_args:
-            if setup_args["batch_key"] is not None:
-                configuration[parameters.CONDITION_KEY] = setup_args["batch_key"]
-        if "unlabeled_category" in setup_args:
-            if setup_args["unlabeled_category"] is not None:
-                configuration[parameters.UNLABELED_KEY] = setup_args["unlabeled_category"]
+        #Get parameters from config
+        cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        condition_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
+        unlabeled_key = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+
+        #Use manual input if possible, fallback to saved model if necessary
+        if cell_type_key == "cell_type":
+            if "labels_key" in setup_args:
+                if setup_args["labels_key"] is not None:
+                    configuration[parameters.CELL_TYPE_KEY] = setup_args["labels_key"]
+        if condition_key == "study":
+            if "batch_key" in setup_args:
+                if setup_args["batch_key"] is not None:
+                    configuration[parameters.CONDITION_KEY] = setup_args["batch_key"]
+        if unlabeled_key == "Unknown":
+            if "unlabeled_category" in setup_args:
+                if setup_args["unlabeled_category"] is not None:
+                    configuration[parameters.UNLABELED_KEY] = setup_args["unlabeled_category"]
 
 
         #TODO: Incorporate information that is not stored in model
@@ -215,11 +301,33 @@ class Preprocess:
 
         return
 
+    def scANVI_process_labels(configuration, source_adata, target_adata):
+        #Get relative model path
+        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
+
+        #Get model configuration
+        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+
+        #Get cell type labels that are unique to target_adata
+        cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        cell_type_differences = set(target_adata.obs[cell_type_key]).difference(source_adata.obs[cell_type_key])
+
+        #If target_adata not a subset of source_adata prepare for unlabeled scANVI
+        if len(cell_type_differences) > 0:
+            target_adata.obs['orig_cell_types'] = target_adata.obs[cell_type_key].copy()
+            target_adata.obs[cell_type_key] = attr_dict["unlabeled_category_"]
+
+        return target_adata
+
 class Postprocess:
     def __init__(self):
         return
 
-    def __prepare_output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, cell_type_key='cell_type', condition_key='study'):
+    def __prepare_output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
+        #Get labels from config
+        cell_type_key = utils.get_from_config(config, parameters.CELL_TYPE_KEY)
+        condition_key = utils.get_from_config(config, parameters.CONDITION_KEY)
+
         latent_adata.obs['cell_type'] = combined_adata.obs[cell_type_key].tolist()
         latent_adata.obs['batch'] = combined_adata.obs[condition_key].tolist()
         latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
@@ -276,10 +384,10 @@ class Postprocess:
         #2. Embedding in adata.obsm (Handled in __prepare_output as needed for .csv and .h5ad)
 
         #3. Unique var index identifier
-        latent_adata.var_names_make_unique
+        latent_adata.var_names_make_unique()
 
         #4. Unique obs index identifier
-        latent_adata.obs_names_make_unique
+        latent_adata.obs_names_make_unique()
 
         #Save as .h5ad
         output_path = config[parameters.OUTPUT_PATH] + "_cxg.h5ad"
