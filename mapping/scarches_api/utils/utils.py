@@ -470,10 +470,14 @@ def translate_atlas_to_directory(configuration):
         return 'fetal_immune'
     elif atlas == 'Glioblastoma':
         return 'gb'
-    elif atlas == 'Developmental atlas':
-        return "developmental"
     elif atlas == 'NSCLC':
         return 'nsclc'
+    elif atlas == 'Hypomap':
+        return 'hypomap'
+    elif atlas == 'Tonsil atlas':
+        return 'tonsil'
+    elif atlas == 'Gut atlas':
+        return 'gut'
 
 
 def set_keys(configuration):

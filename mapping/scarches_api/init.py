@@ -21,6 +21,7 @@ def default_config():
         parameters.ATLAS: 'Pancreas',
 
         parameters.REFERENCE_DATA_PATH: 'pancreas_source.h5ad',
+        parameters.USE_REFERENCE_EMBEDDING: False,
         parameters.QUERY_DATA_PATH: 'pancreas_query.h5ad',
         parameters.RESULTING_MODEL_PATH: 'model.pt',
         parameters.OUTPUT_PATH: 'query.csv',
@@ -36,15 +37,15 @@ def default_config():
         # parameters.SCANVI_COMPARE_OBSERVED_AND_PREDICTED_CELLTYPES: False,
         # parameters.SCANVI_PREDICT_CELLTYPES: True,
 
-        parameters.CONDITION_KEY: 'study',
-        parameters.CELL_TYPE_KEY: 'cell_type',
+        parameters.CONDITION_KEY: None,
+        parameters.CELL_TYPE_KEY: None,
         parameters.PRETRAINED_MODEL_PATH: '',
         parameters.NUMBER_OF_LAYERS: 2,
         parameters.ENCODE_COVARIATES: True,
         parameters.DEEPLY_INJECT_COVARIATES: False,
         parameters.USE_LAYER_NORM: 'both',
         parameters.USE_BATCH_NORM: 'none',
-        parameters.UNLABELED_KEY: 'Unknown',
+        parameters.UNLABELED_KEY: None,
         parameters.SCANVI_MAX_EPOCHS: 20,
         parameters.SCANVI_MAX_EPOCHS_QUERY: 100,
         parameters.SCVI_MAX_EPOCHS: 400,
@@ -100,7 +101,7 @@ def query(user_config):
     #configuration = utils.set_keys(configuration)
 
     ### NEW dynamic set_key function
-    Preprocess.set_keys_dynamic(configuration)
+    #Preprocess.set_keys_dynamic(configuration)
 
 
 

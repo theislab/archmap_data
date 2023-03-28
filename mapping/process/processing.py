@@ -2,6 +2,7 @@ import tempfile
 from scarches_api.utils import parameters
 import scarches_api.utils.utils as utils
 import scanpy as sc
+import scarches as sca
 from scvi.model.base import _utils
 import pynndescent
 import logging
@@ -146,12 +147,20 @@ class Preprocess:
         # #Filter out all the batches the model doesnt know
         # adata = adata[adata.obs["batch"].isin(batches)].copy()
 
-    def conform_adata_to_model(configuration, adata):
+    def conform_vars(configuration, adata):
         #Get relative model path
         model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
         #Get var_names from model
         var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+
+        # test if adata.var.index has gene names or ensembl names:
+        n_gene_ids = sum(adata.var.index.isin(var_names))
+
+        if "gene_ids" in adata.var.columns:
+            adata.var.index = adata.var["gene_ids"]
+        elif "ensembl" in adata.var.columns:
+            adata.var.index = adata.var["ensembl"]
 
         #If adata.var equals model.var nothing to conform
         if(adata.n_vars == len(var_names)):
@@ -184,6 +193,15 @@ class Preprocess:
         
         return adata_sub
 
+    def conform_obs(configuration, source_adata, target_adata):
+        #Conform labels if different among source and query
+        cell_type_key_config = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        batch_key_config = utils.get_from_config(configuration, parameters.CONDITION_KEY)
+
+        # if cell_type_key_config not in target_adata.obs.columns:
+
+        return
+            
     def pre_process_data(configuration):
         """
         Used to pre-process the adata objects.\n
@@ -195,15 +213,19 @@ class Preprocess:
         source_adata.obs["type"] = "reference"
         target_adata.obs["type"] = "query"
         #TODO: HARDCODING---------------------------------------------------
-        if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
-            X_train = source_adata.X
-            ref_nn_index = pynndescent.NNDescent(X_train)
-            ref_nn_index.prepare()
-        # source_adata.raw = source_adata
-        #-------------------------------------------------------------------
+        # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+        #     X_train = source_adata.X
+        #     ref_nn_index = pynndescent.NNDescent(X_train)
+        #     ref_nn_index.prepare()
+        # # source_adata.raw = source_adata
+        # #-------------------------------------------------------------------
 
-        source_adata = Preprocess.conform_adata_to_model(configuration, source_adata)
-        target_adata = Preprocess.conform_adata_to_model(configuration, target_adata)
+        #Set label keys
+        Preprocess.set_keys_dynamic(configuration, target_adata, source_adata)
+
+        #Adjust .var according to model
+        source_adata = Preprocess.conform_vars(configuration, source_adata)
+        target_adata = Preprocess.conform_vars(configuration, target_adata)
 
         try:
             source_adata = utils.remove_sparsity(source_adata)
@@ -263,45 +285,238 @@ class Preprocess:
             configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
             return configuration
 
-    def set_keys_dynamic(configuration):
+    def __get_keys_model(configuration):
         #Get relative model path
-        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.translate_atlas_to_directory(configuration) + "/"
+        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
         #Get label names the model was set up with
-        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
-        registry = attr_dict.pop("registry_")
-        setup_args = registry["setup_args"]
+        try:
+            attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+        except:
+            if utils.get_from_config(configuration, parameters.MODEL) == "scANVI":
+                sca.models.SCANVI.convert_legacy_save(model_path, model_path, True)
+            if utils.get_from_config(configuration, parameters.MODEL) == "scVI":
+                sca.models.SCVI.convert_legacy_save(model_path, model_path, True)
 
-        #Get parameters from config
-        cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-        condition_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
-        unlabeled_key = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+        #Get model data registry and labels
+        #Data management can be different among models, no clear indication in docs
+        #Docs: https://docs.scvi-tools.org/en/stable/tutorials/notebooks/data_tutorial.html
+        cell_type_key_model = None
+        condition_key_model = None
+        unlabeled_key_model = None
 
-        #Use manual input if possible, fallback to saved model if necessary
-        if cell_type_key == "cell_type":
-            if "labels_key" in setup_args:
-                if setup_args["labels_key"] is not None:
-                    configuration[parameters.CELL_TYPE_KEY] = setup_args["labels_key"]
-        if condition_key == "study":
-            if "batch_key" in setup_args:
-                if setup_args["batch_key"] is not None:
-                    configuration[parameters.CONDITION_KEY] = setup_args["batch_key"]
-        if unlabeled_key == "Unknown":
-            if "unlabeled_category" in setup_args:
-                if setup_args["unlabeled_category"] is not None:
-                    configuration[parameters.UNLABELED_KEY] = setup_args["unlabeled_category"]
+        if("registry_" not in attr_dict):
+            data_registry = attr_dict["scvi_setup_dict_"]["categorical_mappings"]
+
+            cell_type_key_model = data_registry["_scvi_labels"]["original_key"]
+            condition_key_model = data_registry["_scvi_batch"]["original_key"]
+        else:
+            data_registry = attr_dict["registry_"]["field_registries"]
+
+            cell_type_key_model = data_registry["labels"]["state_registry"]["original_key"]
+            condition_key_model = data_registry["batch"]["state_registry"]["original_key"]
+
+        if "unlabeled_category_" in attr_dict:
+            if attr_dict["unlabeled_category_"] is not None:
+                unlabeled_key_model = attr_dict["unlabeled_category_"]
+
+        return cell_type_key_model, condition_key_model, unlabeled_key_model
+
+    def __get_keys_user(configuration):
+        #Get parameters from user input
+        cell_type_key_user = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        condition_key_user = utils.get_from_config(configuration, parameters.CONDITION_KEY)
+        unlabeled_key_user = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+
+        return cell_type_key_user, condition_key_user, unlabeled_key_user
+
+    def set_keys_dynamic(configuration, target_adata, source_adata):
+        # #Get relative model path
+        # model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.translate_atlas_to_directory(configuration) + "/"
+
+        # #Get label names the model was set up with
+        # attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+
+        # #Get model data registry and labels
+        # #Data management can be different among models, no clear indication in docs
+        # #Docs: https://docs.scvi-tools.org/en/stable/tutorials/notebooks/data_tutorial.html
+        # cell_type_key_model = None
+        # condition_key_model = None
+        # unlabeled_key_model = None
+
+        # if("registry_" not in attr_dict):
+        #     data_registry = attr_dict["scvi_setup_dict_"]["categorical_mappings"]
+
+        #     cell_type_key_model = data_registry["_scvi_labels"]["original_key"]
+        #     condition_key_model = data_registry["_scvi_batch"]["original_key"]
+        # else:
+        #     data_registry = attr_dict["registry_"]["field_registries"]
+
+        #     cell_type_key_model = data_registry["labels"]["state_registry"]["original_key"]
+        #     condition_key_model = data_registry["batch"]["state_registry"]["original_key"]
+
+        # #Get parameters from config
+        # cell_type_key_config = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        # condition_key_config = utils.get_from_config(configuration, parameters.CONDITION_KEY)
+        # unlabeled_key_config = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+
+        # #Use manual input if possible, fallback to saved model if necessary
+        # if cell_type_key_config == "cell_type":
+        #     if cell_type_key_model is not None:
+        #         #if setup_args["labels_key"] is not None:
+        #         configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+        # if condition_key_config == "study":
+        #     if condition_key_model is not None:
+        #         #if setup_args["batch_key"] is not None:
+        #         configuration[parameters.CONDITION_KEY] = condition_key_model
+        # if unlabeled_key_config == "Unknown":
+        #     if unlabeled_key_model is not None:
+        #         #if setup_args["unlabeled_category"] is not None:
+        #         configuration[parameters.UNLABELED_KEY] = unlabeled_key_model
 
 
-        #TODO: Incorporate information that is not stored in model
-        atlas = utils.get_from_config(configuration, 'atlas')
-        if atlas == 'Heart cell atlas':
-            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
-        elif atlas == 'Fetal immune atlas':
-            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+        # #TODO: Incorporate information that is not stored in model
+        # atlas = utils.get_from_config(configuration, 'atlas')
+        # if atlas == 'Heart cell atlas':
+        #     configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+        # elif atlas == 'Fetal immune atlas':
+        #     configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+
+        # return
+
+
+
+
+        #Get labels stored in model
+        cell_type_key_model, condition_key_model, unlabeled_key_model = Preprocess.__get_keys_model(configuration)
+
+        #Get labels from user input
+        cell_type_key_user, condition_key_user, unlabeled_key_user = Preprocess.__get_keys_user(configuration)
+
+        #Get model
+        model_type = utils.get_from_config(configuration, parameters.MODEL)
+
+        #Preliminary check for unsupervised model (unlabeled data)
+        if model_type == "scVI":
+            if cell_type_key_model == "_scvi_labels":
+                cell_type_key_model = None
+
+        #Check for cell type input from model and user
+        if cell_type_key_user is None:
+            #If user none, model none
+            if cell_type_key_model is None:
+                #Unsupervised approach with scVI
+                print("No cell type input provided")
+                target_adata.obs["CellType"] = "Unlabeled"
+                configuration[parameters.CELL_TYPE_KEY] = "CellType"
+            #If user none, model input
+            else:
+                #Unsupervised approach with scANVI
+                if cell_type_key_model not in target_adata.obs.columns:
+                    target_adata.obs[cell_type_key_model] = unlabeled_key_model
+                    configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+        else:
+            #If user input, model none
+            if cell_type_key_model is None:
+                #Unsupervised approach with scVI
+                configuration[parameters.CELL_TYPE_KEY] = cell_type_key_user
+            #If user input, model input
+            else:
+                #Get cell type labels that are unique to target_adata
+                cell_type_differences = set(target_adata.obs[cell_type_key_user]).difference(source_adata.obs[cell_type_key_model])
+
+                #If target_adata not a subset of source_adata prepare for unlabeled scANVI
+                if len(cell_type_differences) > 0:
+                    target_adata.obs['orig_cell_types'] = target_adata.obs[cell_type_key_user].copy()
+                    del target_adata.obs[cell_type_key_user]
+                    target_adata.obs[cell_type_key_model] = unlabeled_key_model
+
+                    configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+
+
+        #Check for condition input from model and user
+        if condition_key_user is None:
+            #If user none, model none
+            if condition_key_model is None:
+                #Set custom name for custom condition key
+                target_adata.obs["batch"] = "query_batch"
+
+                configuration[parameters.CONDITION_KEY] = "batch"
+            #If user none, model input
+            else:
+                # #Set artificial name for model condition key
+                # target_adata.obs[condition_key_model] = "query_batch"
+                # source_adata.obs[condition_key_model] = "reference_batch"
+
+                configuration[parameters.CONDITION_KEY] = condition_key_model
+        else:
+            #If user input, model none
+            if condition_key_model is None:
+                #Set user input for custom condition key
+                target_adata.obs["batch"] = condition_key_user
+
+                configuration[parameters.CONDITION_KEY] = condition_key_user
+            #If user input, model input
+            else:
+                #Set custom name for model condition key
+                target_adata.obs.rename({condition_key_user: condition_key_model}, axis=1, inplace=True)
+                source_adata.obs.rename({condition_key_user: condition_key_model}, axis=1, inplace=True)
+
+                configuration[parameters.CONDITION_KEY] = condition_key_model
+
+
+        #Check for unlabeled input from model and user
+        if unlabeled_key_user is None:
+            #If user none, model none
+            if unlabeled_key_model is None:
+                #Set custom name for custom condition key
+                configuration[parameters.UNLABELED_KEY] = "unlabeled"
+            #If user none, model input
+            else:
+                #Set custom name for model condition key
+                configuration[parameters.UNLABELED_KEY] = unlabeled_key_model
+        else:
+            #If user input, model none
+            if unlabeled_key_model is None:
+                #Set user input for custom condition key
+                configuration[parameters.UNLABELED_KEY] = unlabeled_key_user
+            #If user input, model input
+            else:
+                #Get cell type labels that are unique to target_adata
+                configuration[parameters.UNLABELED_KEY] = unlabeled_key_model
+
+
+        # if cell_type_key_model is not cell_type_key_user:
+        #     if cell_type_key_user is not None and cell_type_key_model is not None:
+        #         target_adata.obs.rename(columns={cell_type_key_user : cell_type_key_model}, inplace=True)
+        #         configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+        #     else:
+        #         raise Exception("No cell type key specified")
+            
+        # if condition_key_model is not condition_key_user:
+        #     #If condition key is provided rename to match model else create a new column with input "query_dataset"
+        #     if condition_key_user is not None:
+        #         target_adata.obs.rename(columns={condition_key_user : condition_key_model}, inplace=True)
+        #     else:
+        #         target_adata.obs[condition_key_model] = "query_dataset"
+
+        #     configuration[parameters.CONDITION_KEY] = condition_key_model
+
+        # if unlabeled_key_model is not unlabeled_key_user:
+        #     configuration[parameters.UNLABELED_KEY] = unlabeled_key_model
 
         return
 
     def scANVI_process_labels(configuration, source_adata, target_adata):
+        '''
+        If the cell types in target_adata are equal to or a subset of the reference data cell types,
+        one can just pass the adata without further preprocessing.
+
+        If however there are new cell types in target_adata use scANVI in unsupervised manner
+
+        (https://scarches.readthedocs.io/en/latest/scanvi_surgery_pipeline.html)
+        '''
+
         #Get relative model path
         model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
@@ -331,6 +546,8 @@ class Postprocess:
         latent_adata.obs['cell_type'] = combined_adata.obs[cell_type_key].tolist()
         latent_adata.obs['batch'] = combined_adata.obs[condition_key].tolist()
         latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
+        if("uncertainty" in combined_adata.obs):
+            latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
 
         if "X_umap" not in latent_adata.obsm:
             #Get specified amount of neighbours for computation

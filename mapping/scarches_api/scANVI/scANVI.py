@@ -244,12 +244,32 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
 
     ### NEW IMPLEMENTATION ###
-    #Get desired output types
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+    labels_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+    unlabeled_category = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+    batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
+
+    anndata.obs["predictions"] = model.predict()
+    anndata.obs[labels_key] = anndata.obs["predictions"]
+    del anndata.obs["predictions"]
+
+    predict = model.predict(soft=True)
+
+    #Reset index else max function not working
+    old_index = predict.index
+    predict.reset_index(drop=True, inplace=True)    
+
+    maxv = predict.max(axis=1)
+
+    #Set index back to original
+    maxv.set_axis(old_index, inplace=True)
+
+    #Add uncertainty (1 - probability)
+    anndata.obs["uncertainty"] = 1 - maxv
 
     #Get combined and latent data
     combined_adata = source_adata.concatenate(anndata, batch_key='bkey')
-    #scarches.models.SCANVI.setup_anndata(combined_adata, batch_key="batch")
+    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key, unlabeled_category, batch_key)
     
     latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
 
@@ -410,8 +430,8 @@ def compute_scANVI(configuration):
 
     #source_adata, target_adata = utils.pre_process_data(configuration)
     source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
-    target_adata = processing.Preprocess.scANVI_process_labels(configuration, source_adata, target_adata)
-    scarches.models.SCANVI.setup_anndata(target_adata, batch_key="batch")
+    #target_adata = processing.Preprocess.scANVI_process_labels(configuration, source_adata, target_adata)
+    #scarches.models.SCANVI.setup_anndata(target_adata, labels_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY), unlabeled_category=utils.get_from_config(configuration, parameters.UNLABELED_KEY), batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
     scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
 

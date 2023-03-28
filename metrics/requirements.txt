@@ -1,5 +1,12 @@
 scib
 scib-metrics
 
+xgboost==1.7.4
+
+scvi-tools==0.20.0
+scArches~=0.5.2
+annoy==1.17.1
+scanorama==1.7.3
+
 #extra dependency for scib
 #anndata2ri

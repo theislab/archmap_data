@@ -218,19 +218,32 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
 
     ### NEW IMPLEMENTATION ###
-    source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
-
     #Get desired output types
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+    use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
 
-    #Get combined and latent data
-    combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
-    sca.models.SCVI.setup_anndata(combined_adata, batch_key="batch")
+    #If not using reference embedding we have to get latent representation of combined adata
+    if not use_embedding:
+        #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)    
 
-    #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
+        #Get combined and latent data
+        combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
+        #sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
-    latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
-    
+        #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
+
+        latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+    else:
+        # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
+        import anndata as ad
+
+        test = sc.pp.subsample(source_adata, 0.01, copy = True)
+
+        combined_adata = ad.concat([test, query_latent], axis=0,
+                              label="bkey", keys=["reference", "query"],
+                              join="outer", merge="unique", uns_merge="unique")
+        
+        latent_adata = None
 
 
     #Save output
@@ -254,7 +267,7 @@ def compute_scVI(configuration):
     setup()
     #source_adata, target_adata = utils.pre_process_data(configuration)
     source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
-    sca.models.SCVI.setup_anndata(target_adata, batch_key="batch")
+    sca.models.SCVI.setup_anndata(target_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
     print(source_adata)
     print(target_adata)
     model, reference_latent = create_scVI_model(source_adata, target_adata, configuration)
