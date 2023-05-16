@@ -247,6 +247,11 @@ class Preprocess:
             target_adata.layers['counts'] = target_adata.X.copy()
             print("counts layer query")
 
+        #TODO: Dont preprocess if using embedding
+        if utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING):
+            source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+            source_adata.obs["type"] = "reference"
+
         return source_adata, target_adata
 
     def set_keys(configuration):
@@ -290,13 +295,15 @@ class Preprocess:
         model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
         #Get label names the model was set up with
-        try:
-            attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
-        except:
-            if utils.get_from_config(configuration, parameters.MODEL) == "scANVI":
-                sca.models.SCANVI.convert_legacy_save(model_path, model_path, True)
-            if utils.get_from_config(configuration, parameters.MODEL) == "scVI":
-                sca.models.SCVI.convert_legacy_save(model_path, model_path, True)
+        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+
+        # try:
+        #     attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+        # except:
+        #     if utils.get_from_config(configuration, parameters.MODEL) == "scANVI":
+        #         sca.models.SCANVI.convert_legacy_save(model_path, model_path, True)
+        #     if utils.get_from_config(configuration, parameters.MODEL) == "scVI":
+        #         sca.models.SCVI.convert_legacy_save(model_path, model_path, True)
 
         #Get model data registry and labels
         #Data management can be different among models, no clear indication in docs
@@ -397,7 +404,7 @@ class Preprocess:
         model_type = utils.get_from_config(configuration, parameters.MODEL)
 
         #Preliminary check for unsupervised model (unlabeled data)
-        if model_type == "scVI":
+        if model_type == "scVI" or model_type == "totalVI":
             if cell_type_key_model == "_scvi_labels":
                 cell_type_key_model = None
 
@@ -418,7 +425,7 @@ class Preprocess:
         else:
             #If user input, model none
             if cell_type_key_model is None:
-                #Unsupervised approach with scVI
+                #Unsupervised approach with scVI                
                 configuration[parameters.CELL_TYPE_KEY] = cell_type_key_user
             #If user input, model input
             else:
@@ -430,8 +437,13 @@ class Preprocess:
                     target_adata.obs['orig_cell_types'] = target_adata.obs[cell_type_key_user].copy()
                     del target_adata.obs[cell_type_key_user]
                     target_adata.obs[cell_type_key_model] = unlabeled_key_model
+                else:
+                    #target_adata = sc.AnnData()
 
-                    configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+                    target_adata.obs[cell_type_key_model] = target_adata.obs[cell_type_key_user]
+                    del target_adata.obs[cell_type_key_user]
+
+                configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
 
 
         #Check for condition input from model and user

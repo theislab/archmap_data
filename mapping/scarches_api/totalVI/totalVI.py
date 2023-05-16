@@ -303,10 +303,20 @@ def computeTotalVI(configuration):
     :return:
     """
     setup_modules()
-    adata_ref, adata_query = prepare_data(configuration)
-    model_ref = train_model(adata_ref, configuration)
-    visualize_RNA_data(model_ref, adata_ref, configuration)
-    vae_q = surgery(adata_query, configuration)
-    impute_proteins(vae_q, adata_query, configuration)
-    adata_full_new, imputed_proteins_all = latent_ref_representation(adata_query, adata_ref, vae_q)
+    # adata_ref, adata_query = prepare_data(configuration)
+    # model_ref = train_model(adata_ref, configuration)
+    # visualize_RNA_data(model_ref, adata_ref, configuration)
+    # vae_q = surgery(adata_query, configuration)
+    # impute_proteins(vae_q, adata_query, configuration)
+    # adata_full_new, imputed_proteins_all = latent_ref_representation(adata_query, adata_ref, vae_q)
+    # compute_final_umaps(adata_full_new, imputed_proteins_all, configuration)
+
+
+
+    source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
+    model_ref = train_model(source_adata, configuration)
+    visualize_RNA_data(model_ref, source_adata, configuration)
+    vae_q = surgery(target_adata, configuration)
+    impute_proteins(vae_q, target_adata, configuration)
+    adata_full_new, imputed_proteins_all = latent_ref_representation(target_adata, source_adata, vae_q)
     compute_final_umaps(adata_full_new, imputed_proteins_all, configuration)

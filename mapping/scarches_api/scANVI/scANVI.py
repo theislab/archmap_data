@@ -180,8 +180,11 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         freeze_dropout=True,
     )
 
-    model._unlabeled_indices = np.arange(anndata.n_obs)
-    model._labeled_indices = []
+    # model._unlabeled_indices = np.arange(anndata.n_obs)
+    # model._labeled_indices = []
+
+    model._unlabeled_indices = []
+    model._labeled_indices = np.arange(anndata.n_obs)
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         print("Labelled Indices: ", len(model._labeled_indices))
@@ -269,7 +272,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
     #Get combined and latent data
     combined_adata = source_adata.concatenate(anndata, batch_key='bkey')
-    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key, unlabeled_category, batch_key)
+    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
     
     latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
 

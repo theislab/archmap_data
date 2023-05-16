@@ -224,11 +224,19 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
     #If not using reference embedding we have to get latent representation of combined adata
     if not use_embedding:
-        #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)    
+        #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
+
+        import numpy as np
+
+        source_adata.obs["bbk"] = "fetal_gut"
+
+        # test = sc.pp.subsample(source_adata, 0.01, copy = True)  
+
+        # test.X[np.isnan(test.X)] = 0
 
         #Get combined and latent data
         combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
-        #sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
+        sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
         #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
 
@@ -237,13 +245,22 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
         import anndata as ad
 
-        test = sc.pp.subsample(source_adata, 0.01, copy = True)
+        cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+
+        source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
+        del source_adata.obs["celltype_annotation"]      
+
+        test = sc.pp.subsample(source_adata, 0.01, copy = True)  
+
+        query_latent.obs.index = anndata.obs.index
+        query_latent.obs["type"] = anndata.obs["type"]
 
         combined_adata = ad.concat([test, query_latent], axis=0,
                               label="bkey", keys=["reference", "query"],
                               join="outer", merge="unique", uns_merge="unique")
         
-        latent_adata = None
+        
+        latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
 
 
     #Save output
