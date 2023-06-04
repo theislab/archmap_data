@@ -65,3 +65,4 @@ def diagram(uncertainties):
     ax.set_xticklabels(labels, rotation=90)
     ax.set_title('Uncertainty based on Cell Type')
     plt.show()
+     
