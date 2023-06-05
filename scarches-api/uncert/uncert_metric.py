@@ -53,9 +53,6 @@ def classification_uncert_euclideaan(adata_ref_latent, adata_query_latent):
     adata_query_latent.obsm['uncertainty'] = uncertainties
     return uncertainties
 
-def __entropy_from_indices(indices, n_cat):
-    return entropy(np.unique(indices, return_counts=True)[1].astype(np.int32), base=n_cat)
-
 def integration_uncertain(
         adata_latent,
         batch_key,
@@ -67,12 +64,13 @@ def integration_uncertain(
     uncertainty = adata_latent.obs[[batch_key]].copy()
 
     neighbors = NearestNeighbors(n_neighbors=n_neighbors).fit(adata_latent.X)
-    #Should I remove the cells themselves? [:,1:]
+
     indices = neighbors.kneighbors(adata.X, return_distance=False)[:, 1:]
     
     batch_indices = adata.obs[batch_key].values[indices]
 
-    entropies = np.apply_along_axis(__entropy_from_indices, axis=1, arr=batch_indices, n_cat=batches)
+    entropies = np.array([entropy(np.unique(row, return_counts=True)[1].astype(np.int64), base=batches)
+                          for row in batch_indices])
 
     uncertainty["uncertainty"] = 1 - entropies
     uncert_by_batch = uncertainty.groupby(batch_key)['uncertainty'].mean().reset_index()
