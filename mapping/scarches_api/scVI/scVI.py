@@ -262,6 +262,30 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         
         latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
 
+    # del source_adata.obsm
+    # sc.pp.neighbors(source_adata)
+    # sc.tl.umap(source_adata)
+    # sc.pl.umap(source_adata, save="source_adata.png")
+    # #sc.write("retina_source_adata.h5ad", source_adata)
+
+    # del anndata.obsm
+    # sc.pp.neighbors(anndata)
+    # sc.tl.umap(anndata)
+    # sc.pl.umap(anndata, save="anndata.png")
+    # #sc.write("anndata.h5ad", anndata)
+
+    del combined_adata.obsm
+    combined_adata.obsm["X_scvi"] = model.get_latent_representation(combined_adata)
+    sc.pp.neighbors(combined_adata, use_rep="X_scvi")
+    sc.tl.umap(combined_adata, min_dist=0.2)
+    sc.pl.umap(combined_adata, color = 'CellType_predict', save="combined_adata.png")
+    #sc.write("combined_adata.h5ad", combined_adata)
+
+    del latent_adata.obsm
+    sc.pp.neighbors(latent_adata)
+    sc.tl.umap(latent_adata)
+    sc.pl.umap(latent_adata, save="latent_adata.png")
+    #sc.write("latent_adata.h5ad", latent_adata)
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)

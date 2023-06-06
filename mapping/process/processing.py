@@ -208,7 +208,10 @@ class Preprocess:
         After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
         and reintroduces the counts layer if it has been deleted during sparsity removal.
         """
+        print("Download atlas")
         source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+
+        print("Download query")
         target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
         source_adata.obs["type"] = "reference"
         target_adata.obs["type"] = "query"

@@ -174,17 +174,18 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     :param configuration: config
     :return: trained model, query latent
     """
+    print("Load query data to model")
     model = scarches.models.SCANVI.load_query_data(
         anndata,
         'assets/scANVI/' + str(utils.get_from_config(configuration, parameters.ATLAS)) + '/',
         freeze_dropout=True,
     )
 
-    # model._unlabeled_indices = np.arange(anndata.n_obs)
-    # model._labeled_indices = []
+    model._unlabeled_indices = np.arange(anndata.n_obs)
+    model._labeled_indices = []
 
-    model._unlabeled_indices = []
-    model._labeled_indices = np.arange(anndata.n_obs)
+    # model._unlabeled_indices = []
+    # model._labeled_indices = np.arange(anndata.n_obs)
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         print("Labelled Indices: ", len(model._labeled_indices))
@@ -200,12 +201,14 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             "early_stopping_min_delta": 0.001,
             "plan_kwargs": {"weight_decay": 0.0},
         }
+        print("Train model")
         model.train(
-            max_epochs=surgery_epochs,
+            max_epochs=utils.get_from_config(configuration, parameters.SCANVI_MAX_EPOCHS_QUERY),
             **train_kwargs_surgery,
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
     else:
+        print("Train model")
         model.train(
             max_epochs=utils.get_from_config(configuration, parameters.SCANVI_MAX_EPOCHS_QUERY),
             plan_kwargs=dict(weight_decay=0.0),
@@ -271,6 +274,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     anndata.obs["uncertainty"] = 1 - maxv
 
     #Get combined and latent data
+    print("Combine reference and query, prepare for export")
     combined_adata = source_adata.concatenate(anndata, batch_key='bkey')
     scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
     
