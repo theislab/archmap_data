@@ -35,7 +35,7 @@ def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
         adata_query_latent.obsm['uncertainty'] = uncertainties
     return uncertainties
 
-def classification_uncert_euclideaan(adata_ref_latent, adata_query_latent):
+def classification_uncert_euclidean(adata_ref_latent, adata_query_latent):
     trainer = sca.utils.weighted_knn_trainer(
     adata_ref_latent,
     "X",
