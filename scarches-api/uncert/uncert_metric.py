@@ -7,7 +7,13 @@ import matplotlib.pyplot as plt
 import scarches as sca
 from scipy.stats import entropy
 
+
 def mahalanobis(v, data):
+    """Computes the Mahalanobis distance from a query cell to all the centroids
+
+    Returns:
+        vector: All the distances to the centroids
+    """
     vector = np.zeros(len(data))
     for centroid_index in range(len(data)):
         v_mu = v - np.mean(data[centroid_index])
@@ -17,7 +23,18 @@ def mahalanobis(v, data):
         vector[centroid_index] = mahal
     return vector
 
+
 def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
+    """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
+    to the cell cluster centroids
+
+    Args:
+        adata_ref_latent (AnnData): Latent representation of the reference
+        adata_query_latent (AnnData): Latent representation of the query
+
+    Returns:
+        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell
+    """    
     num_clusters = adata_ref_latent.n_vars
     kmeans = KMeans(n_clusters=num_clusters)
     kmeans.fit(adata_ref_latent.X)
@@ -35,18 +52,30 @@ def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
         adata_query_latent.obsm['uncertainty'] = uncertainties
     return uncertainties
 
-def classification_uncert_euclidean(adata_ref_latent, adata_query_latent):
+def classification_uncert_euclidean(adata_ref_latent, adata_query_latent, cell_type_key, k_neighbors):
+    """Computes classification uncertainty, based on the Euclidean distance of each cell
+    to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
+
+    Args:
+        adata_ref_latent (AnnData): Latent representation of the reference
+        adata_query_latent (AnnData): Latent representation of the query
+        cell_type_key (String): cell type key
+        k_neighbors (Int): The amount of nearest neighbors
+
+    Returns:
+        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell
+    """    
     trainer = sca.utils.weighted_knn_trainer(
     adata_ref_latent,
     "X",
-    n_neighbors = 15
+    n_neighbors = k_neighbors
     )
 
     _, uncertainties = sca.utils.weighted_knn_transfer(
         adata_query_latent,
         "X",
         adata_ref_latent.obs,
-        "cell_type",
+        cell_type_key,
         trainer
     )
 
@@ -78,13 +107,13 @@ def integration_uncertain(
     return uncert_by_batch
 
 
-def uncert_diagram(uncertainties):
+def uncert_diagram(uncertainties, cell_type_key):
     data = []
     uncertainties["uncertainty"].plot(kind='box')
-    labels = uncertainties["cell_type"].unique()
+    labels = uncertainties[cell_type_key].unique()
     
     for cell_type in labels:
-        pl = uncertainties[uncertainties["cell_type"] == cell_type]["uncertainty"]
+        pl = uncertainties[uncertainties[cell_type_key] == cell_type]["uncertainty"]
         data.append(pl)
 
     fig, ax = plt.subplots()
