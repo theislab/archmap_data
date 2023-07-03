@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scarches as sca
 from scipy.stats import entropy
+import anndata as ad
+import milopy
 
 
 def mahalanobis(v, data):
@@ -24,7 +26,9 @@ def mahalanobis(v, data):
     return vector
 
 
-def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
+def classification_uncert_mahalanobis(
+        adata_ref_latent,
+        adata_query_latent):
     """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
     to the cell cluster centroids
 
@@ -33,7 +37,7 @@ def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
         adata_query_latent (AnnData): Latent representation of the query
 
     Returns:
-        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell
+        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
     """    
     num_clusters = adata_ref_latent.n_vars
     kmeans = KMeans(n_clusters=num_clusters)
@@ -49,10 +53,14 @@ def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent):
         weighted_distance = np.average(distance/ np.linalg.norm(distance))
         uncertainties.iloc[query_cell_index]['uncertainty'] = weighted_distance
 
-        adata_query_latent.obsm['uncertainty'] = uncertainties
+        adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
     return uncertainties
 
-def classification_uncert_euclidean(adata_ref_latent, adata_query_latent, cell_type_key, k_neighbors):
+def classification_uncert_euclidean(
+        adata_ref_latent,
+        adata_query_latent,
+        cell_type_key,
+        n_neighbors = 15):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
 
@@ -60,15 +68,15 @@ def classification_uncert_euclidean(adata_ref_latent, adata_query_latent, cell_t
         adata_ref_latent (AnnData): Latent representation of the reference
         adata_query_latent (AnnData): Latent representation of the query
         cell_type_key (String): cell type key
-        k_neighbors (Int): The amount of nearest neighbors
+        n_neighbors (int, optional): The amount of nearest neighbors. Defaults to 15.
 
     Returns:
-        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell
+        uncertainties (pandas DataFrame): Classification uncertainties for all of query cell_types
     """    
     trainer = sca.utils.weighted_knn_trainer(
     adata_ref_latent,
     "X",
-    n_neighbors = k_neighbors
+    n_neighbors = n_neighbors
     )
 
     _, uncertainties = sca.utils.weighted_knn_transfer(
@@ -79,14 +87,48 @@ def classification_uncert_euclidean(adata_ref_latent, adata_query_latent, cell_t
         trainer
     )
 
-    adata_query_latent.obsm['uncertainty'] = uncertainties
+    adata_query_latent.obsm['uncertainty_euclidean'] = uncertainties
     return uncertainties
+
+#TODO: Precision recall curve
+# Works only when X_scvi is present
+def classification_uncert_milo(
+        adata_all_latent,
+        cell_type_key,
+        ref_or_query_key = "ref_or_query",
+        ref_key = "ref",
+        query_key = "query",
+        n_neighbors = 15,
+        sample_col = "",
+        d = 30):
+    if "X_scVI" not in adata_all_latent.obsm:
+        return
+    sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors)
+
+    milopy.core.make_nhoods(adata_all_latent, use_rep="X_scVI", prop=0.1)
+    milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
+    milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
+    adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
+    milopy.core.DA_nhoods(adata_all_latent, design="is_query")
+
+    return 
 
 def integration_uncertain(
         adata_latent,
         batch_key,
         n_neighbors = 15):
-    
+    """Computes the integration uncertainty per batch based on its entropy.
+    The uncertainty is computed 1 - batch_entropy
+
+    Args:
+        adata_ref_latent (AnnData): Latent representation of the reference
+        adata_query_latent (AnnData): Latent representation of the query
+        n_neighbors (int, optional): _description_. Defaults to 15.
+
+    Returns: 
+    uncertainties (pandas DataFrame): Integration uncertainties for all batches
+        
+    """    
     adata = sca.dataset.remove_sparsity(adata_latent)
     batches = adata.obs[batch_key].nunique()
     uncertainty = pd.DataFrame(columns=["uncertainty"], index=adata_latent.obs_names)
@@ -107,7 +149,14 @@ def integration_uncertain(
     return uncert_by_batch
 
 
+#TODO: Export as .png
 def uncert_diagram(uncertainties, cell_type_key):
+    """Creates a plot for classification uncertainty per cell type
+
+    Args:
+        uncertainties (pandas DataFrame): Classification uncertainty per cell type
+        cell_type_key (String):  cell type key
+    """    
     data = []
     uncertainties["uncertainty"].plot(kind='box')
     labels = uncertainties[cell_type_key].unique()
@@ -121,4 +170,25 @@ def uncert_diagram(uncertainties, cell_type_key):
     ax.set_xticklabels(labels, rotation=90)
     ax.set_title('Uncertainty based on Cell Type')
     plt.show()
+
+
+def uncert_umap_diagram(
+        adata_ref,
+        adata_query,
+        uncertainties,
+        n_neighbors,
+        batch_key,
+        cell_type_key):
+    adata_ref.obs["uncertainty"] = 0
+    adata_query.obs["uncertainty"] = uncertainties
+
+    combined_emb = ad.concat([adata_ref, adata_query])
+
+    sc.pp.neighbors(combined_emb, n_neighbors=n_neighbors)
+    sc.tl.umap(combined_emb)
+    sc.pl.umap(combined_emb,
+               color=["uncertainty", batch_key, cell_type_key],
+               frameon=False,
+               wspace=0.6)
+
      
