@@ -147,24 +147,45 @@ class Preprocess:
         # #Filter out all the batches the model doesnt know
         # adata = adata[adata.obs["batch"].isin(batches)].copy()
 
-    def conform_vars(configuration, adata):
+
+    def conform_vars(configuration, adata, gene_ids = None):
+        """
+        Conforms genes from adata to respective model
+
+        Parameters
+        ----------
+        configuration
+            configuration file
+        adata
+            adata to conform to model
+        gene_ids
+            if provided use custom gene_ids array to conform var instead of gene_ids saved in model 
+
+        Returns
+        -------
+        An :class:`~anndata.AnnData` object
+        """
+        
         #Get relative model path
         model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
-        #Get var_names from model
-        var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+        #Get var_names from custom array or model
+        if gene_ids is not None:
+            var_names = gene_ids
+        else:
+            var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
 
         # test if adata.var.index has gene names or ensembl names:
         n_gene_ids = sum(adata.var.index.isin(var_names))
 
-        if "gene_ids" in adata.var.columns:
-            adata.var.index = adata.var["gene_ids"]
-        elif "ensembl" in adata.var.columns:
-            adata.var.index = adata.var["ensembl"]
+        # if "gene_ids" in adata.var.columns:
+        #     adata.var.index = adata.var["gene_ids"]
+        # elif "ensembl" in adata.var.columns:
+        #     adata.var.index = adata.var["ensembl"]
 
         #If adata.var equals model.var nothing to conform
-        if(adata.n_vars == len(var_names)):
-            return adata
+        # if(adata.n_vars == len(var_names)):
+        #     return adata
 
         #Start conforming adata
         # delete obsm and varm to enable concatenation
@@ -174,12 +195,15 @@ class Preprocess:
         #Get genes from adata that exist in var_names
         genes = adata.var.index[adata.var.index.isin(var_names)].tolist()
         #Get intersection of adata and var_names genes
-        adata_sub = adata[:,genes].copy()
+        adata_sub = adata[:,genes]
         #Pad object with 0 genes if needed
         #Genes to pad with
         genes_to_add = set(var_names).difference(set(adata_sub.var_names))
         #Convert to list
         genes_to_add = list(genes_to_add)
+
+        amount_retained_genes = 1 - (len(genes_to_add) / len(var_names))
+        print(str(amount_retained_genes *100) + "% of genes retained, rest padded with zeros")
 
         if len(genes_to_add) == 0:
             return adata_sub
@@ -189,7 +213,7 @@ class Preprocess:
         #Concatenate object
         adata_sub = sc.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
         #and order:
-        adata_sub = adata_sub[:,var_names].copy()
+        adata_sub = adata_sub[:,var_names]
         
         return adata_sub
 
@@ -227,33 +251,53 @@ class Preprocess:
         Preprocess.set_keys_dynamic(configuration, target_adata, source_adata)
 
         #Adjust .var according to model
-        source_adata = Preprocess.conform_vars(configuration, source_adata)
+        #source_adata = Preprocess.conform_vars(configuration, source_adata)
         target_adata = Preprocess.conform_vars(configuration, target_adata)
 
-        try:
-            source_adata = utils.remove_sparsity(source_adata)
-        except Exception as e:
-            pass
-        try:
-            target_adata = utils.remove_sparsity(target_adata)
-        except Exception as e:
-            pass
+        # try:
+        #     source_adata = utils.remove_sparsity(source_adata)
+        # except Exception as e:
+        #     pass
+        # try:
+        #     target_adata = utils.remove_sparsity(target_adata)
+        # except Exception as e:
+        #     pass
         try:
             source_adata.layers['counts']
         except Exception as e:
-            source_adata.layers['counts'] = source_adata.X.copy()
+            source_adata.layers['counts'] = source_adata.X
             print("counts layer source")
 
         try:
             target_adata.layers['counts']
         except Exception as e:
-            target_adata.layers['counts'] = target_adata.X.copy()
+            target_adata.layers['counts'] = target_adata.X
             print("counts layer query")
 
         #TODO: Dont preprocess if using embedding
         if utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING):
             source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
             source_adata.obs["type"] = "reference"
+
+        #Remove later - for testing only
+        source_adata = sc.pp.subsample(source_adata, 0.1, copy=True)
+
+        #Convert bool types to categorical otherwise concat with NaN will result in write error
+        for col in source_adata.obs.columns:
+            if source_adata.obs[col].dtype.name == "bool" or source_adata.obs[col].dtype.name == "object":
+                source_adata.obs[col] = source_adata.obs[col].astype("category")
+        for col in source_adata.var.columns:
+            if source_adata.var[col].dtype.name == "bool" or source_adata.var[col].dtype.name == "object":
+                source_adata.var[col] = source_adata.var[col].astype("category")
+
+        for col in target_adata.obs.columns:
+            if target_adata.obs[col].dtype.name == "bool" or target_adata.obs[col].dtype.name == "object":
+                target_adata.obs[col] = target_adata.obs[col].astype("category")
+        for col in target_adata.var.columns:
+            ttest = target_adata.var[col].dtype.name
+
+            if target_adata.var[col].dtype.name == "bool" or target_adata.var[col].dtype.name == "object":
+                target_adata.var[col] = target_adata.var[col].astype("category")
 
         return source_adata, target_adata
 
@@ -424,7 +468,8 @@ class Preprocess:
                 #Unsupervised approach with scANVI
                 if cell_type_key_model not in target_adata.obs.columns:
                     target_adata.obs[cell_type_key_model] = unlabeled_key_model
-                    configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
+                
+                configuration[parameters.CELL_TYPE_KEY] = cell_type_key_model
         else:
             #If user input, model none
             if cell_type_key_model is None:
@@ -554,23 +599,26 @@ class Postprocess:
         return
 
     def __prepare_output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
-        #Get labels from config
-        cell_type_key = utils.get_from_config(config, parameters.CELL_TYPE_KEY)
-        condition_key = utils.get_from_config(config, parameters.CONDITION_KEY)
+        is_embedding = utils.get_from_config(config, parameters.USE_REFERENCE_EMBEDDING)
 
-        latent_adata.obs['cell_type'] = combined_adata.obs[cell_type_key].tolist()
-        latent_adata.obs['batch'] = combined_adata.obs[condition_key].tolist()
-        latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
-        if("uncertainty" in combined_adata.obs):
-            latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
+        # if not is_embedding:
+        #     #Get labels from config
+        #     cell_type_key = utils.get_from_config(config, parameters.CELL_TYPE_KEY)
+        #     condition_key = utils.get_from_config(config, parameters.CONDITION_KEY)
 
-        if "X_umap" not in latent_adata.obsm:
+        #     latent_adata.obs['cell_type'] = combined_adata.obs[cell_type_key].tolist()
+        #     latent_adata.obs['batch'] = combined_adata.obs[condition_key].tolist()
+        #     latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
+        #     if("uncertainty" in combined_adata.obs):
+        #         latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
+
+        if "X_umap" not in combined_adata.obsm:
             #Get specified amount of neighbours for computation
             n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
 
-            sc.pp.neighbors(latent_adata, n_neighbors)
-            sc.tl.leiden(latent_adata)
-            sc.tl.umap(latent_adata)
+            sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
+            sc.tl.leiden(combined_adata)
+            sc.tl.umap(combined_adata)
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
@@ -607,25 +655,25 @@ class Postprocess:
 
         #Cellxgene data format requirements
         #1. Expression values in adata.X
-        if latent_adata.X is None:
+        if combined_adata.X is None:
             try:
-                latent_adata.X = latent_adata.raw
+                combined_adata.X = combined_adata.raw
             except Exception as e:
                 logging.warning(msg = e)
 
         #2. Embedding in adata.obsm (Handled in __prepare_output as needed for .csv and .h5ad)
 
         #3. Unique var index identifier
-        latent_adata.var_names_make_unique()
+        combined_adata.var_names_make_unique()
 
         #4. Unique obs index identifier
-        latent_adata.obs_names_make_unique()
+        combined_adata.obs_names_make_unique()
 
         #Save as .h5ad
         output_path = config[parameters.OUTPUT_PATH] + "_cxg.h5ad"
 
         filename = tempfile.mktemp(suffix=".h5ad")
-        sc.write(filename, latent_adata)
+        sc.write(filename, combined_adata)
         utils.store_file_in_s3(filename, output_path)
 
     def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, output_types):

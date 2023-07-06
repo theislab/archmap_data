@@ -233,7 +233,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # add obs to query_latent
     query_latent = get_latent(model, anndata, configuration)
     query_latent.obs['cell_type'] = anndata.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
-    query_latent.obs['batch'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
+    query_latent.obs['dataset'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
     scanpy.pp.neighbors(query_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
     scanpy.tl.leiden(query_latent)
     scanpy.tl.umap(query_latent)
@@ -255,30 +255,70 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     unlabeled_category = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
     batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
 
-    anndata.obs["predictions"] = model.predict()
-    anndata.obs[labels_key] = anndata.obs["predictions"]
-    del anndata.obs["predictions"]
+    use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
 
-    predict = model.predict(soft=True)
+    if use_embedding:
+        query_latent.obs["predictions"] = model.predict()
+        query_latent.obs[labels_key] = query_latent.obs["predictions"]
+        del query_latent.obs["predictions"]
 
-    #Reset index else max function not working
-    old_index = predict.index
-    predict.reset_index(drop=True, inplace=True)    
+        predict = model.predict(soft=True)
 
-    maxv = predict.max(axis=1)
+        #Reset index else max function not working
+        old_index = predict.index
+        predict.reset_index(drop=True, inplace=True)    
 
-    #Set index back to original
-    maxv.set_axis(old_index, inplace=True)
+        maxv = predict.max(axis=1)
 
-    #Add uncertainty (1 - probability)
-    anndata.obs["uncertainty"] = 1 - maxv
+        #Set index back to original
+        maxv.set_axis(old_index, inplace=True)
 
-    #Get combined and latent data
-    print("Combine reference and query, prepare for export")
-    combined_adata = source_adata.concatenate(anndata, batch_key='bkey')
-    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
-    
-    latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
+        #Add uncertainty (1 - probability)
+        query_latent.obs["uncertainty"] = 1 - maxv
+
+        #Get combined and latent data
+        print("Combine reference and query, prepare for export")
+        latent_adata = source_adata.concatenate(query_latent, batch_key='bkey')
+
+        combined_adata = scanpy.AnnData()
+        # scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
+        
+        # latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
+    else:
+        anndata.obs["predictions"] = model.predict()
+        anndata.obs[labels_key] = anndata.obs["predictions"]
+        del anndata.obs["predictions"]
+
+        predict = model.predict(soft=True)
+
+        #Reset index else max function not working
+        old_index = predict.index
+        predict.reset_index(drop=True, inplace=True)    
+
+        maxv = predict.max(axis=1)
+
+        #Set index back to original
+        maxv.set_axis(old_index, inplace=True)
+
+        #Add uncertainty (1 - probability)
+        anndata.obs["uncertainty"] = 1 - maxv
+
+        #Remove later
+        # anndata.obs["ann_new"] = False
+        # source_adata.obs["scanvi_label"] = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+
+        #Get combined and latent data
+        print("Combine reference and query, prepare for export")
+        combined_adata = source_adata.concatenate(anndata, batch_key='bkey', fill_value="None")
+        #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
+
+        
+        scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
+        
+        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+
+    #Dummy latent adata - Remove line
+    latent_adata = scanpy.AnnData(model.get_latent_representation())
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)

@@ -203,7 +203,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         except Exception as e:
             print(e, file=sys.stderr)
 
-    query_latent = compute_latent(model, anndata, configuration)
+    # query_latent = compute_latent(model, anndata, configuration)
     if utils.get_from_config(configuration, parameters.DEV_DEBUG):
         try:
             utils.write_latent_csv(query_latent, key='query-latent-post-query-training.csv')
@@ -226,13 +226,20 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
     if not use_embedding:
         #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
 
-        import numpy as np
+        # import numpy as np
 
-        source_adata.obs["bbk"] = "fetal_gut"
+        # source_adata.obs["bbk"] = "fetal_gut"
 
         # test = sc.pp.subsample(source_adata, 0.01, copy = True)  
 
         # test.X[np.isnan(test.X)] = 0
+
+        del anndata.uns
+        del anndata.obsm
+        del anndata.obsp
+        del source_adata.uns
+        del source_adata.obsm
+        del source_adata.obsp
 
         #Get combined and latent data
         combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
@@ -240,7 +247,8 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
         #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
 
-        latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+        #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
     else:
         # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
         import anndata as ad
@@ -250,7 +258,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
         del source_adata.obs["celltype_annotation"]      
 
-        test = sc.pp.subsample(source_adata, 0.01, copy = True)  
+        test = sc.pp.subsample(source_adata, 0.01, copy = True)
 
         query_latent.obs.index = anndata.obs.index
         query_latent.obs["type"] = anndata.obs["type"]
@@ -262,26 +270,25 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         
         latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
 
-    # del source_adata.obsm
-    # sc.pp.neighbors(source_adata)
-    # sc.tl.umap(source_adata)
-    # sc.pl.umap(source_adata, save="source_adata.png")
-    # #sc.write("retina_source_adata.h5ad", source_adata)
 
-    # del anndata.obsm
-    # sc.pp.neighbors(anndata)
-    # sc.tl.umap(anndata)
-    # sc.pl.umap(anndata, save="anndata.png")
-    # #sc.write("anndata.h5ad", anndata)
+    #Dummy latent adata - Remove line
+    latent_adata = sc.AnnData(model.get_latent_representation())
 
-    del combined_adata.obsm
-    combined_adata.obsm["X_scvi"] = model.get_latent_representation(combined_adata)
-    sc.pp.neighbors(combined_adata, use_rep="X_scvi")
-    sc.tl.umap(combined_adata, min_dist=0.2)
-    sc.pl.umap(combined_adata, color = 'CellType_predict', save="combined_adata.png")
+    sc.pp.neighbors(source_adata)
+    sc.tl.umap(source_adata)
+    sc.pl.umap(source_adata, save="source_adata.png")
+    #sc.write("retina_source_adata.h5ad", source_adata)
+
+    sc.pp.neighbors(anndata)
+    sc.tl.umap(anndata)
+    sc.pl.umap(anndata, save="anndata.png")
+    #sc.write("anndata.h5ad", anndata)
+
+    sc.pp.neighbors(combined_adata)
+    sc.tl.umap(combined_adata)
+    sc.pl.umap(combined_adata, color="bkey", save="combined_adata.png")
     #sc.write("combined_adata.h5ad", combined_adata)
 
-    del latent_adata.obsm
     sc.pp.neighbors(latent_adata)
     sc.tl.umap(latent_adata)
     sc.pl.umap(latent_adata, save="latent_adata.png")
