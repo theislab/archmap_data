@@ -181,6 +181,9 @@ def integration_uncert_diagram(uncertainties, batch_key):
     plt.title('Batch integration uncertainty')
     plt.xlabel('Batch')
     plt.ylabel('Uncertainty')
+
+    plt.xticks(rotation=90)
+    
     plt.savefig('integration_uncertainty.png')
     plt.show()
 
