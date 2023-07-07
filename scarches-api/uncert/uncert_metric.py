@@ -90,7 +90,7 @@ def classification_uncert_euclidean(
     adata_query_latent.obsm['uncertainty_euclidean'] = uncertainties
     return uncertainties
 
-#TODO: Precision recall curve
+# Test differential abundance analysis on neighbourhoods with Milo.
 # Works only when X_scvi is present
 def classification_uncert_milo(
         adata_all_latent,
@@ -101,8 +101,10 @@ def classification_uncert_milo(
         n_neighbors = 15,
         sample_col = "",
         d = 30):
+        
     if "X_scVI" not in adata_all_latent.obsm:
         return
+
     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors)
 
     milopy.core.make_nhoods(adata_all_latent, use_rep="X_scVI", prop=0.1)
@@ -149,7 +151,6 @@ def integration_uncertain(
     return uncert_by_batch
 
 
-#TODO: Export as .png
 def uncert_diagram(uncertainties, cell_type_key):
     """Creates a plot for classification uncertainty per cell type
 
@@ -169,16 +170,29 @@ def uncert_diagram(uncertainties, cell_type_key):
     ax.boxplot(data)
     ax.set_xticklabels(labels, rotation=90)
     ax.set_title('Uncertainty based on Cell Type')
+    plt.savefig('class_uncert_boxplot.png')
+    plt.show()
+
+def integration_uncert_diagram(uncertainties, batch_key):
+    y_axis = uncertainties["uncertainty"].tolist()
+    x_axis = uncertainties[batch_key].tolist()
+
+    plt.bar(x_axis, y_axis)
+    plt.title('Batch integration uncertainty')
+    plt.xlabel('Batch')
+    plt.ylabel('Uncertainty')
+    plt.savefig('integration_uncertainty.png')
     plt.show()
 
 
+# Creates a UMAP Diagram for the given uncertainty
 def uncert_umap_diagram(
         adata_ref,
         adata_query,
         uncertainties,
-        n_neighbors,
         batch_key,
-        cell_type_key):
+        cell_type_key,
+        n_neighbors = 15):
     adata_ref.obs["uncertainty"] = 0
     adata_query.obs["uncertainty"] = uncertainties
 
@@ -191,4 +205,14 @@ def uncert_umap_diagram(
                frameon=False,
                wspace=0.6)
 
+# Plots a precision recall curve
+def precision_recall_curve(precision, recall):
+    fig, ax = plt.subplots()
+    ax.plot(recall, precision, color='purple')
+
+    ax.set_title('Precision-Recall Curve')
+    ax.set_ylabel('Precision')
+    ax.set_xlabel('Recall')
+    plt.savefig('precision_recall.png')
+    plt.show()
      
