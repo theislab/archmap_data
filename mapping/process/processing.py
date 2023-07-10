@@ -280,7 +280,7 @@ class Preprocess:
             source_adata.obs["type"] = "reference"
 
         #Remove later - for testing only
-        source_adata = sc.pp.subsample(source_adata, 0.1, copy=True)
+        #source_adata = sc.pp.subsample(source_adata, 0.1, copy=True)
 
         #Convert bool types to categorical otherwise concat with NaN will result in write error
         for col in source_adata.obs.columns:
@@ -294,8 +294,6 @@ class Preprocess:
             if target_adata.obs[col].dtype.name == "bool" or target_adata.obs[col].dtype.name == "object":
                 target_adata.obs[col] = target_adata.obs[col].astype("category")
         for col in target_adata.var.columns:
-            ttest = target_adata.var[col].dtype.name
-
             if target_adata.var[col].dtype.name == "bool" or target_adata.var[col].dtype.name == "object":
                 target_adata.var[col] = target_adata.var[col].astype("category")
 
