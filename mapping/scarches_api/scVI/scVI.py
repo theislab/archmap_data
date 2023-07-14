@@ -234,13 +234,6 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
         # test.X[np.isnan(test.X)] = 0
 
-        del anndata.uns
-        del anndata.obsm
-        del anndata.obsp
-        del source_adata.uns
-        del source_adata.obsm
-        del source_adata.obsp
-
         #Get combined and latent data
         combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
         sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
@@ -274,24 +267,24 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
     #Dummy latent adata - Remove line
     latent_adata = sc.AnnData(model.get_latent_representation())
 
-    sc.pp.neighbors(source_adata)
-    sc.tl.umap(source_adata)
-    sc.pl.umap(source_adata, save="source_adata.png")
-    #sc.write("retina_source_adata.h5ad", source_adata)
+    # sc.pp.neighbors(source_adata)
+    # sc.tl.umap(source_adata)
+    # sc.pl.umap(source_adata, save="source_adata.png")
+    # #sc.write("retina_source_adata.h5ad", source_adata)
 
-    sc.pp.neighbors(anndata)
-    sc.tl.umap(anndata)
-    sc.pl.umap(anndata, save="anndata.png")
-    #sc.write("anndata.h5ad", anndata)
+    # sc.pp.neighbors(anndata)
+    # sc.tl.umap(anndata)
+    # sc.pl.umap(anndata, save="anndata.png")
+    # #sc.write("anndata.h5ad", anndata)
 
-    sc.pp.neighbors(combined_adata)
-    sc.tl.umap(combined_adata)
-    sc.pl.umap(combined_adata, color="bkey", save="combined_adata.png")
-    #sc.write("combined_adata.h5ad", combined_adata)
+    # sc.pp.neighbors(combined_adata)
+    # sc.tl.umap(combined_adata)
+    # sc.pl.umap(combined_adata, color="bkey", save="combined_adata.png")
+    # #sc.write("combined_adata.h5ad", combined_adata)
 
-    sc.pp.neighbors(latent_adata)
-    sc.tl.umap(latent_adata)
-    sc.pl.umap(latent_adata, save="latent_adata.png")
+    # sc.pp.neighbors(combined_adata, use_rep="latent_rep")
+    # sc.tl.umap(combined_adata)
+    # sc.pl.umap(combined_adata, save="latent_adata.png")
     #sc.write("latent_adata.h5ad", latent_adata)
 
     #Save output

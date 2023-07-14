@@ -147,7 +147,6 @@ class Preprocess:
         # #Filter out all the batches the model doesnt know
         # adata = adata[adata.obs["batch"].isin(batches)].copy()
 
-
     def conform_vars(configuration, adata, gene_ids = None):
         """
         Conforms genes from adata to respective model
@@ -206,6 +205,9 @@ class Preprocess:
         print(str(amount_retained_genes *100) + "% of genes retained, rest padded with zeros")
 
         if len(genes_to_add) == 0:
+            #order and return
+            adata_sub = adata_sub[:,var_names]
+
             return adata_sub
 
         df_padding = pd.DataFrame(data=np.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)

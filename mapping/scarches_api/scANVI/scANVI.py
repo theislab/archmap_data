@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from utils import utils, parameters
+import uncert.uncert_metric as uncert
 import logging
 import tempfile
 import sys
@@ -302,6 +303,19 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
         #Add uncertainty (1 - probability)
         anndata.obs["uncertainty"] = 1 - maxv
+
+
+
+        anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+        try:
+            source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+
+            uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
+        except:
+            source_adata_sub = source_adata[:,anndata.var.index]
+            source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+
+            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)        
 
         #Remove later
         # anndata.obs["ann_new"] = False
