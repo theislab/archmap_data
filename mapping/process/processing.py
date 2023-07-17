@@ -670,7 +670,7 @@ class Postprocess:
         combined_adata.obs_names_make_unique()
 
         #Save as .h5ad
-        output_path = config[parameters.OUTPUT_PATH] + "_cxg.h5ad"
+        output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
 
         filename = tempfile.mktemp(suffix=".h5ad")
         sc.write(filename, combined_adata)
