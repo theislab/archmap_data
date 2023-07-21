@@ -9,7 +9,6 @@ from scipy.stats import entropy
 import anndata as ad
 import milopy
 
-
 def mahalanobis(v, data):
     """Computes the Mahalanobis distance from a query cell to all the centroids
 
@@ -28,7 +27,8 @@ def mahalanobis(v, data):
 
 def classification_uncert_mahalanobis(
         adata_ref_latent,
-        adata_query_latent):
+        adata_query_latent,
+        cell_type_key):
     """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
     to the cell cluster centroids
 
@@ -39,9 +39,9 @@ def classification_uncert_mahalanobis(
     Returns:
         uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
     """    
-    num_clusters = adata_ref_latent.n_vars
-    kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(adata_ref_latent.X)
+    num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
+    kmeans = KMeans(n_clusters=num_clusters) # visualize centroids
+    kmeans.fit(adata_ref_latent.X) # map query example
     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
     centroids = kmeans.cluster_centers_
     adata_query = kmeans.transform(adata_query_latent.X)
@@ -54,7 +54,7 @@ def classification_uncert_mahalanobis(
         uncertainties.iloc[query_cell_index]['uncertainty'] = weighted_distance
 
         adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
-    return uncertainties
+    return uncertainties, centroids
 
 def classification_uncert_euclidean(
         adata_ref_latent,
@@ -91,30 +91,32 @@ def classification_uncert_euclidean(
     return uncertainties
 
 # Test differential abundance analysis on neighbourhoods with Milo.
-# Works only when X_scvi is present
 def classification_uncert_milo(
-        adata_all_latent,
+        adata,
+        adata_latent,
         cell_type_key,
-        ref_or_query_key = "ref_or_query",
-        ref_key = "ref",
-        query_key = "query",
-        n_neighbors = 15,
-        sample_col = "",
-        d = 30):
-        
-    if "X_scVI" not in adata_all_latent.obsm:
-        return
+        ref_or_query_key="ref_or_query",
+        ref_key="ref",
+        query_key="query",
+        n_neighbors=15,
+        sample_col="",
+        d=30):
+
+    # Get the latent representation from trVAE model
+    adata_all_latent = adata.copy()
+    adata_all_latent.obsm["X_trVAE"] = adata_latent
 
     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors)
 
-    milopy.core.make_nhoods(adata_all_latent, use_rep="X_scVI", prop=0.1)
+    # Perform Milo analysis using the trVAE latent space
+    milopy.core.make_nhoods(adata_all_latent, use_rep="X_trVAE", prop=0.1)
     milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
     milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
     adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
     milopy.core.DA_nhoods(adata_all_latent, design="is_query")
 
-    return 
-
+    return adata_all_latent
+# Focus on per cell
 def integration_uncertain(
         adata_latent,
         batch_key,
@@ -207,15 +209,46 @@ def uncert_umap_diagram(
                color=["uncertainty", batch_key, cell_type_key],
                frameon=False,
                wspace=0.6)
+    
 
-# Plots a precision recall curve
-def precision_recall_curve(precision, recall):
-    fig, ax = plt.subplots()
-    ax.plot(recall, precision, color='purple')
+def uncert_umap_cluster_diagram(adata_ref, adata_query, uncertainties, centroids, batch_key, cell_type_key, n_neighbors=15):
+    adata_ref.obs["uncertainty"] = 0
+    adata_query.obs["uncertainty"] = uncertainties
 
-    ax.set_title('Precision-Recall Curve')
-    ax.set_ylabel('Precision')
-    ax.set_xlabel('Recall')
-    plt.savefig('precision_recall.png')
+    combined_emb = ad.concat([adata_ref, adata_query])
+
+    sc.pp.neighbors(combined_emb, n_neighbors=n_neighbors)
+    sc.tl.umap(combined_emb)
+    
+    # Plot UMAP
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sc.pl.umap(combined_emb, color=[batch_key, cell_type_key], show=False, ax=ax)
+    
+    # Plot centroids
+    ax.scatter(centroids[:, 0], centroids[:, 1], c='red', marker='x', s=100, label='Centroids')
+    
+    ax.legend()
+    ax.set_title('UMAP with Cells and Centroids')
+    
     plt.show()
-     
+
+def map_right_wrong(original_labels, predicted_labels, cell_type_key, n_neighbors):
+    color_map = {True: 'green', False: 'red'}
+    original_labels_array = original_labels.obs[cell_type_key].values
+
+    # Check if the labels in predicted_labels match the original_labels
+    predicted_labels_array = predicted_labels.obs[cell_type_key].values
+    match = predicted_labels_array == original_labels_array
+
+        # Create a new column in predicted_labels indicating whether labels match or not
+    predicted_labels.obs['right_prediction'] = match
+    sc.pp.neighbors(predicted_labels, n_neighbors=n_neighbors)
+    sc.tl.umap(predicted_labels)
+    sc.pl.umap(predicted_labels,
+                color=['right_prediction'],
+               color_map = color_map,
+               frameon=False,
+               wspace=0.6)
+
+def benchmark_uncertainty():
+    return
