@@ -8,6 +8,9 @@ import scarches as sca
 from scipy.stats import entropy
 import anndata as ad
 import milopy
+from matplotlib.lines import Line2D
+
+from sklearn.mixture import GaussianMixture
 
 def mahalanobis(v, data):
     """Computes the Mahalanobis distance from a query cell to all the centroids
@@ -25,7 +28,7 @@ def mahalanobis(v, data):
     return vector
 
 
-def classification_uncert_mahalanobis(
+def classification_uncert_mahalanobis2(
         adata_ref_latent,
         adata_query_latent,
         cell_type_key):
@@ -40,8 +43,8 @@ def classification_uncert_mahalanobis(
         uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
     """    
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
-    kmeans = KMeans(n_clusters=num_clusters) # visualize centroids
-    kmeans.fit(adata_ref_latent.X) # map query example
+    kmeans = KMeans(n_clusters=num_clusters)
+    kmeans.fit(adata_ref_latent.X)
     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
     centroids = kmeans.cluster_centers_
     adata_query = kmeans.transform(adata_query_latent.X)
@@ -49,11 +52,30 @@ def classification_uncert_mahalanobis(
     for query_cell_index in range(len(adata_query)):
         query_cell = adata_query_latent.X[query_cell_index]
     
-        distance = mahalanobis(query_cell, centroids) 
-        weighted_distance = np.average(distance/ np.linalg.norm(distance))
-        uncertainties.iloc[query_cell_index]['uncertainty'] = weighted_distance
+        distance = mahalanobis(query_cell, centroids)
+        max_distance = np.max(distance)
+        min_distance = np.min(distance)
+        scaled_distances = (distance - min_distance) / (max_distance - min_distance + 1e-8)
+        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(scaled_distances)
 
         adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
+    return uncertainties, centroids
+
+def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent, cell_type_key):
+    num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
+
+    gmm = GaussianMixture(n_components=num_clusters)
+    gmm.fit(adata_ref_latent.X)
+    centroids = gmm.means_
+
+    uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
+    for query_cell_index, query_cell in enumerate(adata_query_latent.X):
+        distance = mahalanobis(query_cell, centroids)
+        max_distance = np.max(distance)
+        min_distance = np.min(distance)
+        scaled_distances = (distance - min_distance) / (max_distance - min_distance + 1e-8)
+        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(scaled_distances)
+    adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
     return uncertainties, centroids
 
 def classification_uncert_euclidean(
@@ -92,66 +114,35 @@ def classification_uncert_euclidean(
 
 # Test differential abundance analysis on neighbourhoods with Milo.
 def classification_uncert_milo(
-        adata,
         adata_latent,
         cell_type_key,
         ref_or_query_key="ref_or_query",
         ref_key="ref",
         query_key="query",
         n_neighbors=15,
-        sample_col="",
+        sample_col="batch",
+        red_name = "X_trVAE",
         d=30):
 
-    # Get the latent representation from trVAE model
-    adata_all_latent = adata.copy()
-    adata_all_latent.obsm["X_trVAE"] = adata_latent
+    adata_all_latent = adata_latent.copy()
+    x = pd.DataFrame(adata_latent.X, index=adata_latent.obs_names)
+    adata_all_latent.obsm[red_name] = x.values
+    print(adata_all_latent)
+    sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors, use_rep=red_name)
 
-    sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors)
+    milopy.core.make_nhoods(adata_all_latent, prop=0.1)
 
-    # Perform Milo analysis using the trVAE latent space
-    milopy.core.make_nhoods(adata_all_latent, use_rep="X_trVAE", prop=0.1)
+    adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
+
     milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
-    milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
+    print(adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']])
+    # milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
     adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
     milopy.core.DA_nhoods(adata_all_latent, design="is_query")
 
-    return adata_all_latent
-# Focus on per cell
-def integration_uncertain(
-        adata_latent,
-        batch_key,
-        n_neighbors = 15):
-    """Computes the integration uncertainty per batch based on its entropy.
-    The uncertainty is computed 1 - batch_entropy
-
-    Args:
-        adata_ref_latent (AnnData): Latent representation of the reference
-        adata_query_latent (AnnData): Latent representation of the query
-        n_neighbors (int, optional): _description_. Defaults to 15.
-
-    Returns: 
-    uncertainties (pandas DataFrame): Integration uncertainties for all batches
-        
-    """    
-    adata = sca.dataset.remove_sparsity(adata_latent)
-    batches = adata.obs[batch_key].nunique()
-    uncertainty = pd.DataFrame(columns=["uncertainty"], index=adata_latent.obs_names)
-    uncertainty = adata_latent.obs[[batch_key]].copy()
-
-    neighbors = NearestNeighbors(n_neighbors=n_neighbors).fit(adata_latent.X)
-
-    indices = neighbors.kneighbors(adata.X, return_distance=False)[:, 1:]
-    
-    batch_indices = adata.obs[batch_key].values[indices]
-
-    entropies = np.array([entropy(np.unique(row, return_counts=True)[1].astype(np.int64), base=batches)
-                          for row in batch_indices])
-
-    uncertainty["uncertainty"] = 1 - entropies
-    uncert_by_batch = uncertainty.groupby(batch_key)['uncertainty'].mean().reset_index()
-
-    return uncert_by_batch
-
+    results = adata_all_latent.uns["nhood_adata"].obs
+    adata_latent.obsm["logFC"] = results["logFC"]
+    return results["logFC"], results["PValue"], results["SpatialFDR"]
 
 def uncert_diagram(uncertainties, cell_type_key):
     """Creates a plot for classification uncertainty per cell type
@@ -175,21 +166,6 @@ def uncert_diagram(uncertainties, cell_type_key):
     plt.savefig('class_uncert_boxplot.png')
     plt.show()
 
-def integration_uncert_diagram(uncertainties, batch_key):
-    y_axis = uncertainties["uncertainty"].tolist()
-    x_axis = uncertainties[batch_key].tolist()
-
-    plt.bar(x_axis, y_axis)
-    plt.title('Batch integration uncertainty')
-    plt.xlabel('Batch')
-    plt.ylabel('Uncertainty')
-
-    plt.xticks(rotation=90)
-    
-    plt.savefig('integration_uncertainty.png')
-    plt.show()
-
-
 # Creates a UMAP Diagram for the given uncertainty
 def uncert_umap_diagram(
         adata_ref,
@@ -211,26 +187,38 @@ def uncert_umap_diagram(
                wspace=0.6)
     
 
-def uncert_umap_cluster_diagram(adata_ref, adata_query, uncertainties, centroids, batch_key, cell_type_key, n_neighbors=15):
-    adata_ref.obs["uncertainty"] = 0
-    adata_query.obs["uncertainty"] = uncertainties
+def centroid_map(adata_ref, adata_query, uncertainties, centroids, batch_key, cell_type_key, n_neighbors=15):
+    combined_emb = ad.concat([adata_query, adata_ref])
+    combined_emb.obs["centroid"] = "non centroid"
 
-    combined_emb = ad.concat([adata_ref, adata_query])
+    centroid_adata = ad.AnnData(centroids)
+    centroid_adata.obs["centroid"] = "centroid"
 
-    sc.pp.neighbors(combined_emb, n_neighbors=n_neighbors)
-    sc.tl.umap(combined_emb)
-    
-    # Plot UMAP
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sc.pl.umap(combined_emb, color=[batch_key, cell_type_key], show=False, ax=ax)
-    
-    # Plot centroids
-    ax.scatter(centroids[:, 0], centroids[:, 1], c='red', marker='x', s=100, label='Centroids')
-    
-    ax.legend()
-    ax.set_title('UMAP with Cells and Centroids')
-    
-    plt.show()
+    combined_emb_with_centroids = ad.concat([combined_emb, centroid_adata], join="outer", fill_value="")
+    sc.pp.neighbors(combined_emb_with_centroids, n_neighbors=n_neighbors)
+    sc.tl.umap(combined_emb_with_centroids)
+
+    fig,ax=plt.subplots(figsize=(3,3))
+    sc.pl.umap(combined_emb_with_centroids, color=[cell_type_key],ax=ax,show=False)
+
+    location_cells = combined_emb_with_centroids[combined_emb_with_centroids.obs["centroid"] == "centroid"].obsm["X_umap"]
+    centroid_x=location_cells[:,0]
+    centroid_y=location_cells[:,1]
+    size=0.50
+
+    for (x, y) in zip(centroid_x, centroid_y):
+        circle = plt.Circle((x, y), size, color='black', fill=True)
+        ax.add_patch(circle)
+
+    l1=ax.get_legend()
+    l1.set_title('Cell type')
+    # Make a new Legend for the centroids
+    l2=ax.legend(handles=[Line2D([0],[0],marker='o', color='purple',  markerfacecolor='none', 
+                            markersize=12,markeredgecolor='k',lw=0,label='Centroid')], 
+            frameon=False, bbox_to_anchor=(3,1),title='Cluster')
+
+    _=plt.gca().add_artist(l1)
+
 
 def map_right_wrong(original_labels, predicted_labels, cell_type_key, n_neighbors):
     color_map = {True: 'green', False: 'red'}
@@ -240,7 +228,7 @@ def map_right_wrong(original_labels, predicted_labels, cell_type_key, n_neighbor
     predicted_labels_array = predicted_labels.obs[cell_type_key].values
     match = predicted_labels_array == original_labels_array
 
-        # Create a new column in predicted_labels indicating whether labels match or not
+    # Create a new column in predicted_labels indicating whether labels match or not
     predicted_labels.obs['right_prediction'] = match
     sc.pp.neighbors(predicted_labels, n_neighbors=n_neighbors)
     sc.tl.umap(predicted_labels)
