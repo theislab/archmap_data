@@ -75,8 +75,8 @@ def train_model(adata_ref, configuration):
     """
     sca.models.TOTALVI.setup_anndata(
         adata_ref,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression"
+        batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
+        protein_expression_obsm_key="_scvi_extra_categoricals"
     )
     arches_params = dict(
         use_layer_norm="both",
@@ -151,7 +151,13 @@ def surgery(adata_query, configuration):
     :param configuration: config
     :return: trained model on query dataset
     """
-    dir_path = 'assets/totalVI/' + utils.get_from_config(configuration, parameters.ATLAS) + '/'
+    sca.models.TOTALVI.setup_anndata(
+        adata_query,
+        batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY),
+        protein_expression_obsm_key="_scvi_extra_categoricals"
+    )
+
+    dir_path = 'assets/totalVI/' + utils.get_from_config(configuration, parameters.ATLAS) + '/'    
     vae_q = sca.models.TOTALVI.load_query_data(
         adata_query,
         dir_path,
@@ -314,8 +320,14 @@ def computeTotalVI(configuration):
 
 
     source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
-    model_ref = train_model(source_adata, configuration)
-    visualize_RNA_data(model_ref, source_adata, configuration)
+    # model_ref = train_model(source_adata, configuration)
+    # visualize_RNA_data(model_ref, source_adata, configuration)
+
+    # put matrix of zeros for protein expression (considered missing)
+    pro_exp = source_adata.obsm["_scvi_extra_categoricals"]
+    data = np.zeros((target_adata.n_obs, pro_exp.shape[1]))
+    target_adata.obsm["_scvi_extra_categoricals"] = pd.DataFrame(columns=pro_exp.columns, index=target_adata.obs_names, data = data)
+
     vae_q = surgery(target_adata, configuration)
     impute_proteins(vae_q, target_adata, configuration)
     adata_full_new, imputed_proteins_all = latent_ref_representation(target_adata, source_adata, vae_q)
