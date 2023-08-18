@@ -7,12 +7,8 @@ import matplotlib.pyplot as plt
 import scarches as sca
 from scipy.stats import entropy
 import anndata as ad
-<<<<<<< HEAD:mapping/scarches_api/uncert/uncert_metric.py
-# import milopy
-=======
-import milopy
+#import milopy
 from matplotlib.lines import Line2D
->>>>>>> remotes/origin/uncert:scarches-api/uncert/uncert_metric.py
 
 from sklearn.mixture import GaussianMixture
 
@@ -65,13 +61,13 @@ def mahalanobis(v, data):
     
 #     return uncertainties, centroids
 
-def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent, cell_type_key):
+def classification_uncert_mahalanobis(adata_ref_latent, embedding_name, adata_query_latent, cell_type_key):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
     gmm = GaussianMixture(n_components=num_clusters)
-    gmm.fit(adata_ref_latent.X)
+    gmm.fit(adata_ref_latent.X.toarray())
     centroids = gmm.means_
-    cluster_membership = gmm.predict_proba(adata_query_latent.X)
+    cluster_membership = gmm.predict_proba(adata_query_latent[embedding_name])
 
     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
     for query_cell_index, query_cell in enumerate(adata_query_latent.X):
@@ -128,98 +124,36 @@ def classification_uncert_euclidean(
     return uncertainties
 
 # Test differential abundance analysis on neighbourhoods with Milo.
-<<<<<<< HEAD:mapping/scarches_api/uncert/uncert_metric.py
-# Works only when X_scvi is present
 # def classification_uncert_milo(
-#         adata_all_latent,
+#         adata_latent,
 #         cell_type_key,
-#         ref_or_query_key = "ref_or_query",
-#         ref_key = "ref",
-#         query_key = "query",
-#         n_neighbors = 15,
-#         sample_col = "",
-#         d = 30):
-        
-#     if "X_scVI" not in adata_all_latent.obsm:
-#         return
+#         ref_or_query_key="ref_or_query",
+#         ref_key="ref",
+#         query_key="query",
+#         n_neighbors=15,
+#         sample_col="batch",
+#         red_name = "X_trVAE",
+#         d=30):
 
-#     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors)
+#     adata_all_latent = adata_latent.copy()
+#     x = pd.DataFrame(adata_latent.X, index=adata_latent.obs_names)
+#     adata_all_latent.obsm[red_name] = x.values
+#     print(adata_all_latent)
+#     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors, use_rep=red_name)
 
-#     milopy.core.make_nhoods(adata_all_latent, use_rep="X_scVI", prop=0.1)
+#     milopy.core.make_nhoods(adata_all_latent, prop=0.1)
+
+#     adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
+
 #     milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
-#     milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
+#     print(adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']])
+#     # milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
 #     adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
 #     milopy.core.DA_nhoods(adata_all_latent, design="is_query")
 
-#     return 
-
-def integration_uncertain(
-        adata_latent,
-        batch_key,
-        n_neighbors = 15):
-    """Computes the integration uncertainty per batch based on its entropy.
-    The uncertainty is computed 1 - batch_entropy
-
-    Args:
-        adata_ref_latent (AnnData): Latent representation of the reference
-        adata_query_latent (AnnData): Latent representation of the query
-        n_neighbors (int, optional): _description_. Defaults to 15.
-
-    Returns: 
-    uncertainties (pandas DataFrame): Integration uncertainties for all batches
-        
-    """    
-    adata = sca.dataset.remove_sparsity(adata_latent)
-    batches = adata.obs[batch_key].nunique()
-    uncertainty = pd.DataFrame(columns=["uncertainty"], index=adata_latent.obs_names)
-    uncertainty = adata_latent.obs[[batch_key]].copy()
-
-    neighbors = NearestNeighbors(n_neighbors=n_neighbors).fit(adata_latent.X)
-
-    indices = neighbors.kneighbors(adata.X, return_distance=False)[:, 1:]
-    
-    batch_indices = adata.obs[batch_key].values[indices]
-
-    entropies = np.array([entropy(np.unique(row, return_counts=True)[1].astype(np.int64), base=batches)
-                          for row in batch_indices])
-
-    uncertainty["uncertainty"] = 1 - entropies
-    uncert_by_batch = uncertainty.groupby(batch_key)['uncertainty'].mean().reset_index()
-
-    return uncert_by_batch
-
-=======
-def classification_uncert_milo(
-        adata_latent,
-        cell_type_key,
-        ref_or_query_key="ref_or_query",
-        ref_key="ref",
-        query_key="query",
-        n_neighbors=15,
-        sample_col="batch",
-        red_name = "X_trVAE",
-        d=30):
-
-    adata_all_latent = adata_latent.copy()
-    x = pd.DataFrame(adata_latent.X, index=adata_latent.obs_names)
-    adata_all_latent.obsm[red_name] = x.values
-    print(adata_all_latent)
-    sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors, use_rep=red_name)
-
-    milopy.core.make_nhoods(adata_all_latent, prop=0.1)
-
-    adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
-
-    milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
-    print(adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']])
-    # milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
-    adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
-    milopy.core.DA_nhoods(adata_all_latent, design="is_query")
-
-    results = adata_all_latent.uns["nhood_adata"].obs
-    adata_latent.obsm["logFC"] = results["logFC"]
-    return results["logFC"], results["PValue"], results["SpatialFDR"]
->>>>>>> remotes/origin/uncert:scarches-api/uncert/uncert_metric.py
+#     results = adata_all_latent.uns["nhood_adata"].obs
+#     adata_latent.obsm["logFC"] = results["logFC"]
+#     return results["logFC"], results["PValue"], results["SpatialFDR"]
 
 def uncert_diagram(uncertainties, cell_type_key):
     """Creates a plot for classification uncertainty per cell type

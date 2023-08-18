@@ -10,7 +10,9 @@ import numpy
 import pandas as pd
 import scvi
 import scanorama
-import xgboost as xgb
+
+from xgboost import XGBClassifier
+
 import scarches as sca
 from scvi.model.base import _utils
 import pickle
@@ -18,53 +20,121 @@ import scib.preprocessing as pp
 import scib.integration as ig
 import scib.metrics as me
 
-from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import roc_auc_score
 
+from sklearn.preprocessing import LabelEncoder
+
+from sklearn.model_selection import train_test_split
+
 from sklearn.neighbors import KNeighborsTransformer
+from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
-    def __init__(self, classifier=None) -> None:
-        self.classifier = classifier
+    def __init__(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_xgb=True, classifier_knn=True) -> None:
+        self.adata = adata
+        self.latent_rep = latent_rep
+        self.model_path = model_path
+        self.label_key = label_key
+        self.classifier_xgb = classifier_xgb
+        self.classifier_knn = classifier_knn
 
-        if isinstance(self.classifier, xgb.XGBClassifier):
-            self.classifier_type = "xgb"
-        elif isinstance(self.classifier, KNeighborsTransformer):
-            self.classifier_type = "kNN"
+        Classifiers.create_classifier(self)
 
-    def evaluate(self):
-        if self.classifier_type is "xgb":
-            preds = xgb.XGBClassifier.predict()
+    def create_classifier(self):
+        train_data = Classifiers.__get_train_data(adata=self.adata, latent_rep=self.latent_rep, model_path=self.model_path)
+        X_train, X_test, y_train, y_test = Classifiers.__split_train_data(train_data=train_data, input_adata=self.adata, label_key=self.label_key)
+        xgbc, knnc = Classifiers.__train_classifier(X_train=X_train, y_train=y_train, xgb=self.classifier_xgb, kNN=self.classifier_xgb)
+        Classifiers.eval_classifier(X_test=X_test, y_test=y_test, xgbc=xgbc, knnc=knnc)
 
-        Classifiers.__eval_classification_report()
-        # Classifiers.__eval_accuracy()
-        # Classifiers.__eval_precision()
-        # Classifiers.__eval_roc_auc()
+    def __get_train_data(adata, latent_rep=True, model_path=None):
+        if latent_rep:
+            latent_rep = adata
+        else:
+            var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+            adata_subset = adata[:,var_names].copy()
 
-    def __eval_classification_report(y_pred, y_true):
-        return classification_report(y_true=y_true, y_pred=y_pred)
+            scvi.model.SCVI.setup_anndata(adata_subset)
 
-    def __eval_accuracy(y_pred, y_true):
+            model = scvi.model.SCVI.load(model_path, adata_subset)
+
+            latent_rep = scanpy.AnnData(model.get_latent_representation(), adata_subset.obs)
+
+        train_data = pd.DataFrame(
+            data = latent_rep.X,
+            index = latent_rep.obs_names
+        )
+
+        return train_data
+
+    '''
+    Parameters
+    ----------
+    input_adata: adata to read the labels from
+    '''
+    def __split_train_data(train_data, input_adata, label_key):
+        train_data['cell_type'] = input_adata.obs[label_key]
+
+        le = LabelEncoder()
+        le.fit(train_data["cell_type"])
+        train_data['cell_type'] = le.transform(train_data["cell_type"])
+
+        X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
+
+        return X_train, X_test, y_train, y_test
+    
+    def __train_classifier(X_train, y_train, xgb=True, kNN=True):
+        xgbc = None
+        knnc = None
+
+        if xgb:
+            xgbc = XGBClassifier(tree_method = "hist", objective = 'multi:softprob', verbosity=3)
+            xgbc.fit(X_train, y_train)
+
+        if kNN:
+            knnc = KNeighborsClassifier()
+            knnc.fit(X_train, y_train)
+
+        return xgbc, knnc
+    
+    def eval_classifier(X_test, y_test, xgbc=XGBClassifier, knnc=KNeighborsClassifier):
+        if xgbc is not None:
+            preds = xgbc.predict(X_test)
+        
+            xgbc_report = Classifiers.__eval_classification_report(y_test, preds)
+
+        if knnc is not None:
+            preds = knnc.predict(X_test)
+        
+            knnc_report = Classifiers.__eval_classification_report(y_test, preds)
+            
+
+        print("XGBoost classifier report:")
+        print(xgbc_report)
+
+        print("kNN classifier report:")
+        print(knnc_report)
+
+        #TODO: Save the reports
+
+    def __eval_classification_report(y_true, y_pred):
+        clf_report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True)
+        clf_report_df = pd.DataFrame(clf_report).transpose()
+
+        return clf_report_df
+
+    def __eval_accuracy(y_true, y_pred):
         return accuracy_score(y_true=y_true, y_pred=y_pred)
 
-    def __eval_precision(y_pred, y_true):
+    def __eval_precision(y_true, y_pred):
         return precision_score(y_true=y_true, y_pred=y_pred)
 
-    def __eval_roc_auc(predict_proba, y_true):
+    def __eval_roc_auc(y_true, predict_proba):
         #predict_proba = xgb.XGBClassifier.predict_proba()
 
         return roc_auc_score(y_true=y_true, y_score=predict_proba, multi_class="ovr")
-
-    def __get_data(adata, model_path):
-        model = sca.models.SCANVI.load(dir_path=model_path, adata=adata)
-
-        latent_adata = model.get_latent_representation()
-
-        df = pd.DataFrame(latent_adata, index=adata.obs_names)
-
 
 
 class Metrics:
@@ -241,15 +311,41 @@ class Metrics:
 
         bm.plot_results_table(save_dir="")
 
-    from rich import print
+        from rich import print
 
-    df = bm.get_results(min_max_scale=False)
-    print(df)
+        df = bm.get_results(min_max_scale=False)
+        print(df)
     
 
 
 if __name__ == "__main__":
-    #Metrics.metrics()
-    
-    clf = Classifiers(model)
-    clf.evaluate()
+    adata = scanpy.read_h5ad("scEiaD_all_anndata_mini_ref.h5ad")
+    # embedding = scanpy.read_h5ad("HLCA_emb_and_metadata.h5ad")
+
+    # Classifiers(adata, False, "", "CellType", True, True)
+
+    import scipy
+
+    # adata.X = scipy.sparse.csr_matrix(adata.X)
+    # scanpy.pp.log1p(adata)
+    # scanpy.pp.filter_genes(adata, min_cells=1)
+    scanpy.pp.highly_variable_genes(adata)
+    scanpy.tl.pca(adata, n_comps=30, use_highly_variable=True)
+
+    adata = adata[:, adata.var.highly_variable].copy()
+
+    adata.obsm["Unintegrated"] = adata.obsm["X_pca"]
+    adata.obsm["scVI"] = adata.obsm["X_scvi"]
+
+
+    bm = Benchmarker(
+        adata,
+        batch_key="batch",
+        label_key="CellType",
+        embedding_obsm_keys=["Unintegrated", "scVI"],
+        n_jobs=2,
+        batch_correction_metrics=BatchCorrection(True, True, True, True, False)
+    )
+    bm.benchmark()
+
+    bm.plot_results_table(save_dir="")

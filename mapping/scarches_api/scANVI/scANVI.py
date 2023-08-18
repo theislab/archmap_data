@@ -311,11 +311,13 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
 
             uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
+            uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
         except:
             source_adata_sub = source_adata[:,anndata.var.index]
             source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
 
-            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)        
+            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
+            uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
 
         #Remove later
         # anndata.obs["ann_new"] = False
