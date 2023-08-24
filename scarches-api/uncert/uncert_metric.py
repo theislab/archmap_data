@@ -5,12 +5,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import scarches as sca
-from scipy.stats import entropy
 import anndata as ad
-import milopy
-from matplotlib.lines import Line2D
 
-from sklearn.mixture import GaussianMixture
+from matplotlib.lines import Line2D
+import pertpy as pt
+
+
+# from sklearn.mixture import GaussianMixture
 
 def mahalanobis(v, data):
     """Computes the Mahalanobis distance from a query cell to all the centroids
@@ -28,58 +29,58 @@ def mahalanobis(v, data):
     return vector
 
 
-# def classification_uncert_mahalanobis2(
-#         adata_ref_latent,
-#         adata_query_latent,
-#         cell_type_key):
-#     """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
-#     to the cell cluster centroids
+def classification_uncert_mahalanobis(
+        adata_ref_latent,
+        adata_query_latent,
+        cell_type_key):
+    """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
+    to the cell cluster centroids
 
-#     Args:
-#         adata_ref_latent (AnnData): Latent representation of the reference
-#         adata_query_latent (AnnData): Latent representation of the query
+    Args:
+        adata_ref_latent (AnnData): Latent representation of the reference
+        adata_query_latent (AnnData): Latent representation of the query
 
-#     Returns:
-#         uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
-#     """    
-#     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
-#     kmeans = KMeans(n_clusters=num_clusters)
-#     kmeans.fit(adata_ref_latent.X)
-#     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
-#     centroids = kmeans.cluster_centers_
-#     adata_query = kmeans.transform(adata_query_latent.X)
-
-#     for query_cell_index in range(len(adata_query)):
-#         query_cell = adata_query_latent.X[query_cell_index]
-#         distance = mahalanobis(query_cell, centroids)
-#         uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(distance)
-        
-#     max_distance = np.max(uncertainties["uncertainty"])
-#     min_distance = np.min(uncertainties["uncertainty"])
-#     uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
-#     adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
-    
-#     return uncertainties, centroids
-
-def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent, cell_type_key):
+    Returns:
+        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
+    """    
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
-
-    gmm = GaussianMixture(n_components=num_clusters)
-    gmm.fit(adata_ref_latent.X)
-    centroids = gmm.means_
-    cluster_membership = gmm.predict_proba(adata_query_latent.X)
-
+    kmeans = KMeans(n_clusters=num_clusters)
+    kmeans.fit(adata_ref_latent.X)
     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
-    for query_cell_index, query_cell in enumerate(adata_query_latent.X):
+    centroids = kmeans.cluster_centers_
+    adata_query = kmeans.transform(adata_query_latent.X)
+
+    for query_cell_index in range(len(adata_query)):
+        query_cell = adata_query_latent.X[query_cell_index]
         distance = mahalanobis(query_cell, centroids)
-        weighed_distance = np.multiply(cluster_membership[query_cell_index], distance)
-        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(weighed_distance)
+        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(distance)
         
     max_distance = np.max(uncertainties["uncertainty"])
     min_distance = np.min(uncertainties["uncertainty"])
     uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
     adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
+    
     return uncertainties, centroids
+
+# def classification_uncert_mahalanobis(adata_ref_latent, adata_query_latent, cell_type_key):
+#     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
+
+#     gmm = GaussianMixture(n_components=num_clusters)
+#     gmm.fit(adata_ref_latent.X)
+#     centroids = gmm.means_
+#     cluster_membership = gmm.predict_proba(adata_query_latent.X)
+
+#     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
+#     for query_cell_index, query_cell in enumerate(adata_query_latent.X):
+#         distance = mahalanobis(query_cell, centroids)
+#         weighed_distance = np.multiply(cluster_membership[query_cell_index], distance)
+#         uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(weighed_distance)
+        
+#     max_distance = np.max(uncertainties["uncertainty"])
+#     min_distance = np.min(uncertainties["uncertainty"])
+#     uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
+#     adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
+#     return uncertainties, centroids
 
 def classification_uncert_euclidean(
         adata_ref_latent,
@@ -127,21 +128,23 @@ def classification_uncert_milo(
         red_name = "X_trVAE",
         d=30):
 
+    milo = pt.tl.Milo()
+    mdata = milo.load(adata_latent)
+
     adata_all_latent = adata_latent.copy()
     x = pd.DataFrame(adata_latent.X, index=adata_latent.obs_names)
     adata_all_latent.obsm[red_name] = x.values
     print(adata_all_latent)
     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors, use_rep=red_name)
 
-    milopy.core.make_nhoods(adata_all_latent, prop=0.1)
+    milo.make_nhoods(adata_all_latent, prop=0.1)
 
     adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
 
-    milopy.core.count_nhoods(adata_all_latent, sample_col=sample_col)
-    print(adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']])
-    # milopy.utils.annotate_nhoods(adata_all_latent[adata_all_latent.obs[ref_or_query_key] == ref_key], cell_type_key)
+    milo.count_nhoods(adata_all_latent, sample_col=sample_col)
+    
     adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
-    milopy.core.DA_nhoods(adata_all_latent, design="is_query")
+    milo.da_nhoods(adata_all_latent, design="is_query")
 
     results = adata_all_latent.uns["nhood_adata"].obs
     adata_latent.obsm["logFC"] = results["logFC"]
