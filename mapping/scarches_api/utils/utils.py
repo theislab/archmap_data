@@ -383,6 +383,7 @@ def notify_backend(endpoint, payload):
     :param payload: configuration initially specified from backend, allows them to identify which result is ready
     :return:
     """
+    print("notifying backend with endpoint and payload ", endpoint, payload)
     requests.post(endpoint, data=payload)
 
 
@@ -412,8 +413,10 @@ def store_file_in_s3(path, key):
         client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
                               aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
                               aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
+        print("Uploading file:: Bucket. key. path ", bucket, key, path)
         client.upload_file(path, bucket, key)
         response = client.head_object(Bucket=bucket, Key=key)
+        print("Response from the upload: ", response)
         return response['ContentLength']
     except ClientError as e:
         print(e)
@@ -430,6 +433,24 @@ def delete_file(file):
         os.remove(file)
 
 
+def read_atlas_from_s3(key):
+    """
+    reads an atlas from s3
+    param key: key to the atlas
+    """
+    if key is None or len(key) == 0:
+        return None
+    # print("Making tmp file for ", key)
+    filename = os.path.join("/mnt/gcs", key)
+    
+    # print("Fetching file from s3 with Bucket. key. path ", os.getenv('AWS_BUCKET'), key, filename )
+    # fetch_file_from_s3(key, filename)
+    print("Reading file from ", filename)
+    data = scanpy.read(filename)
+    # delete_file(filename)
+    # print("File deleted")
+    return data
+
 def read_h5ad_file_from_s3(key):
     """
     downloads an .h5ad file from s3, reads the data and deletes the file
@@ -439,9 +460,13 @@ def read_h5ad_file_from_s3(key):
     if key is None or len(key) == 0:
         return None
     filename = tempfile.mktemp(suffix=".h5ad")
+    print("The key to download is ", key)
     fetch_file_from_s3(key, filename)
+    print("Reading file from ", filename)
+    
     data = scanpy.read(filename)
     delete_file(filename)
+    print("File deleted")
     return data
 
 
