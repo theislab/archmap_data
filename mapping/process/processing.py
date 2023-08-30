@@ -8,8 +8,6 @@ import pynndescent
 import logging
 import pandas as pd
 import numpy as np
-# test for deployment
-# test for deployment
 class Preprocess:
     def __init__(self):
         return
