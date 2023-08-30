@@ -8,12 +8,6 @@ import pynndescent
 import logging
 import pandas as pd
 import numpy as np
-# 
-# 
-# 
-# 
-# 
-# 
 class Preprocess:
     def __init__(self):
         return
