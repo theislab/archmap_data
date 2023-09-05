@@ -235,7 +235,7 @@ class Preprocess:
         and reintroduces the counts layer if it has been deleted during sparsity removal.
         """
         print("Download atlas")
-        source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+        source_adata = utils.read_atlas_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
 
         print("Download query")
         target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
