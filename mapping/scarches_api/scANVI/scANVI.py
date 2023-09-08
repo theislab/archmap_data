@@ -298,40 +298,40 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         
         # latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
     else:
-        print("DEBUGDEBUG QUERY 10.b")
-        anndata.obs["predictions"] = model.predict()
-        anndata.obs[labels_key] = anndata.obs["predictions"]
-        del anndata.obs["predictions"]
+        # print("DEBUGDEBUG QUERY 10.b")
+        # anndata.obs["predictions"] = model.predict()
+        # anndata.obs[labels_key] = anndata.obs["predictions"]
+        # del anndata.obs["predictions"]
 
-        predict = model.predict(soft=True)
+        # predict = model.predict(soft=True)
 
-        #Reset index else max function not working
-        old_index = predict.index
-        predict.reset_index(drop=True, inplace=True)    
+        # #Reset index else max function not working
+        # old_index = predict.index
+        # predict.reset_index(drop=True, inplace=True)    
 
-        maxv = predict.max(axis=1)
+        # maxv = predict.max(axis=1)
 
-        #Set index back to original
-        maxv.set_axis(old_index, inplace=True)
+        # #Set index back to original
+        # maxv.set_axis(old_index, inplace=True)
 
-        #Add uncertainty (1 - probability)
-        anndata.obs["uncertainty"] = 1 - maxv
+        # #Add uncertainty (1 - probability)
+        # anndata.obs["uncertainty"] = 1 - maxv
 
 
 
-        anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-        try:
-            source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
-            print("DEBUGDEBUG QUERY 10.C!!!!!!")
-            uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
-            uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
-        except:
-            print("DEBUGDEBUG QUERY 10.D!!!!!!")
-            source_adata_sub = source_adata[:,anndata.var.index]
-            source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+        # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+        # try:
+        #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
+        #     uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
+        #     uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
+        # except:
+        #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
+        #     source_adata_sub = source_adata[:,anndata.var.index]
+        #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
 
-            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
-            uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
+        #     uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
+        #     uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
 
         #Remove later
         # anndata.obs["ann_new"] = False
@@ -349,7 +349,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
     #Dummy latent adata - Remove line
     print("DEBUGDEBUG QUERY 13")
-    latent_adata = scanpy.AnnData(model.get_latent_representation())
+    latent_adata = None
 
     #Save output
     print("DEBUGDEBUG QUERY 14")
