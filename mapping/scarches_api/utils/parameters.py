@@ -4,8 +4,12 @@ Each constant should be described to know what effects it has on the model.
 This file does not contain the default values of the constants, this is just used so that we
 can rapidly change the naming of the keys in the configuration.
 """
+# sets the model source
+MODEL_SOURCE = "model_source"
 # sets the model
 MODEL = 'model'
+# sets the classifier
+CLASSIFIER = "classifier_type"
 # sets the condition key
 CONDITION_KEY = 'condition_key'
 # set the cell type key

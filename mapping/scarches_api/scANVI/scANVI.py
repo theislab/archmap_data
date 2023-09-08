@@ -14,6 +14,8 @@ import tempfile
 import sys
 import scvi
 
+from classifiers.classifiers import Classifiers
+
 import process.processing as processing
 
 
@@ -286,38 +288,55 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         
         # latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
     else:
-        anndata.obs["predictions"] = model.predict()
-        anndata.obs[labels_key] = anndata.obs["predictions"]
-        del anndata.obs["predictions"]
+        #TODO: Move scanvi prediction and uncertainty to classifier        
+        # anndata.obs["predictions"] = model.predict()
+        # anndata.obs[labels_key] = anndata.obs["predictions"]
+        # del anndata.obs["predictions"]
 
-        predict = model.predict(soft=True)
+        # predict = model.predict(soft=True)
 
-        #Reset index else max function not working
-        old_index = predict.index
-        predict.reset_index(drop=True, inplace=True)    
+        # #Reset index else max function not working
+        # old_index = predict.index
+        # predict.reset_index(drop=True, inplace=True)    
 
-        maxv = predict.max(axis=1)
+        # maxv = predict.max(axis=1)
 
-        #Set index back to original
-        maxv.set_axis(old_index, inplace=True)
+        # #Set index back to original
+        # maxv.set_axis(old_index, inplace=True)
 
-        #Add uncertainty (1 - probability)
-        anndata.obs["uncertainty"] = 1 - maxv
+        # #Add uncertainty (1 - probability)
+        # anndata.obs["uncertainty"] = 1 - maxv
 
+        # from classifiers.classifiers import Classifiers
 
+        # clf = Classifiers(False, False, model, "../classifiers/models", "nsclc")
+        # clf.eval_classifier(source_adata.X, source_adata.obs["cell_type"], None, None)
 
-        anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-        try:
-            source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+        # try:
+        #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
 
-            uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
-            uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
-        except:
-            source_adata_sub = source_adata[:,anndata.var.index]
-            source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+        #     uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
+        #     uncert.classification_uncert_mahalanobis2(source_adata, anndata, labels_key)
+        # except:
+        #     source_adata_sub = source_adata[:,anndata.var.index]
+        #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
 
-            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
-            uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
+        #     uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
+        #     uncert.classification_uncert_mahalanobis2(source_adata_sub, "latent_rep", anndata, labels_key)    
+
+        #Run classifiers
+        # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
+        # classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
+        # clf_xgb = classifier_type.pop("XGBoost")
+        # clf_knn = classifier_type.pop("KNN")
+        # if classifier_type.pop("scANVI"):
+        #     clf_scanvi = model
+        # else:
+        #     clf_scanvi = None
+
+        # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
+        # clf.predict_labels(query=anndata, query_latent=query_latent)
 
         #Remove later
         # anndata.obs["ann_new"] = False
@@ -331,10 +350,10 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         
         scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
         
-        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
-
-    #Dummy latent adata - Remove line
-    latent_adata = scanpy.AnnData(model.get_latent_representation())
+        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)   
+   
+    #Dummy latent adata - Fix postprocessing and remove line
+    latent_adata = None
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)

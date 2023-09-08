@@ -12,6 +12,8 @@ import sys
 import tempfile
 import scvi
 
+from classifiers.classifiers import Classifiers
+
 import process.processing as processing
 
 
@@ -264,28 +266,19 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
 
 
+    #Run classifiers
+    atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
+    classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
+    clf_xgb = classifier_type("XGBoost")
+    clf_knn = classifier_type("KNN")
+    if classifier_type("scANVI"):
+        clf_scanvi = model
+
+    clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
+    clf.predict_labels(anndata)
+
     #Dummy latent adata - Remove line
     latent_adata = sc.AnnData(model.get_latent_representation())
-
-    # sc.pp.neighbors(source_adata)
-    # sc.tl.umap(source_adata)
-    # sc.pl.umap(source_adata, save="source_adata.png")
-    # #sc.write("retina_source_adata.h5ad", source_adata)
-
-    # sc.pp.neighbors(anndata)
-    # sc.tl.umap(anndata)
-    # sc.pl.umap(anndata, save="anndata.png")
-    # #sc.write("anndata.h5ad", anndata)
-
-    # sc.pp.neighbors(combined_adata)
-    # sc.tl.umap(combined_adata)
-    # sc.pl.umap(combined_adata, color="bkey", save="combined_adata.png")
-    # #sc.write("combined_adata.h5ad", combined_adata)
-
-    # sc.pp.neighbors(combined_adata, use_rep="latent_rep")
-    # sc.tl.umap(combined_adata)
-    # sc.pl.umap(combined_adata, save="latent_adata.png")
-    #sc.write("latent_adata.h5ad", latent_adata)
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)

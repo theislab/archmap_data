@@ -444,7 +444,6 @@ def read_h5ad_file_from_s3(key):
     delete_file(filename)
     return data
 
-
 def check_model_atlas_compatibility(model, atlas):
     """
     Checks for model-atlas compatibility
