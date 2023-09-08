@@ -14,8 +14,6 @@ import tempfile
 import sys
 import scvi
 
-from classifiers.classifiers import Classifiers
-
 import process.processing as processing
 
 
@@ -177,13 +175,14 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     :param configuration: config
     :return: trained model, query latent
     """
+    print("DEBUGDEBUG QUERY 1")
     print("Load query data to model")
     model = scarches.models.SCANVI.load_query_data(
         anndata,
         'assets/scANVI/' + str(utils.get_from_config(configuration, parameters.ATLAS)) + '/',
         freeze_dropout=True,
     )
-
+    print("DEBUGDEBUG QUERY 2")
     model._unlabeled_indices = np.arange(anndata.n_obs)
     model._labeled_indices = []
 
@@ -194,6 +193,8 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         print("Labelled Indices: ", len(model._labeled_indices))
         print("Unlabelled Indices: ", len(model._unlabeled_indices))
 
+    
+    print("DEBUGDEBUG QUERY 3")
 #TODO: HARDCODING for human lung cell atlas -------------------------------------
     if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
         surgery_epochs = 500
@@ -211,6 +212,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
     else:
+        print("DEBUGDEBUG QUERY 3.b")
         print("Train model")
         model.train(
             max_epochs=utils.get_from_config(configuration, parameters.SCANVI_MAX_EPOCHS_QUERY),
@@ -218,14 +220,18 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             check_val_every_n_epoch=10,
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
+    print("DEBUGDEBUG QUERY 4")
     tempdir = tempfile.mkdtemp()
     model.save(tempdir, overwrite=True)
+    print("DEBUGDEBUG QUERY 5")
     if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+        print("DEBUGDEBUG QUERY 5.a")
         try:
             utils.write_adata_to_csv(model, 'scanvi-query-latent-after-query-training.csv')
         except Exception as e:
             print(e, file=sys.stderr)
     if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+        print("DEBUGDEBUG QUERY 5.b")
         try:
             utils.store_file_in_s3(tempdir + '/model.pt', 'scanvi-model-after-query-training.pt')
         except Exception as e:
@@ -234,12 +240,16 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     os.removedirs(tempdir)
 
     # add obs to query_latent
+    print("DEBUGDEBUG QUERY 6")
     query_latent = get_latent(model, anndata, configuration)
+    print("DEBUGDEBUG QUERY 7")
     query_latent.obs['cell_type'] = anndata.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
     query_latent.obs['dataset'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
+    print("DEBUGDEBUG QUERY 8")
     scanpy.pp.neighbors(query_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
     scanpy.tl.leiden(query_latent)
     scanpy.tl.umap(query_latent)
+    print("DEBUGDEBUG QUERY 9")
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
@@ -259,7 +269,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
 
     use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
-
+    print("DEBUGDEBUG QUERY 10")
     if use_embedding:
         query_latent.obs["predictions"] = model.predict()
         query_latent.obs[labels_key] = query_latent.obs["predictions"]
@@ -288,55 +298,40 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         
         # latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
     else:
-        #TODO: Move scanvi prediction and uncertainty to classifier        
-        # anndata.obs["predictions"] = model.predict()
-        # anndata.obs[labels_key] = anndata.obs["predictions"]
-        # del anndata.obs["predictions"]
+        print("DEBUGDEBUG QUERY 10.b")
+        anndata.obs["predictions"] = model.predict()
+        anndata.obs[labels_key] = anndata.obs["predictions"]
+        del anndata.obs["predictions"]
 
-        # predict = model.predict(soft=True)
+        predict = model.predict(soft=True)
 
-        # #Reset index else max function not working
-        # old_index = predict.index
-        # predict.reset_index(drop=True, inplace=True)    
+        #Reset index else max function not working
+        old_index = predict.index
+        predict.reset_index(drop=True, inplace=True)    
 
-        # maxv = predict.max(axis=1)
+        maxv = predict.max(axis=1)
 
-        # #Set index back to original
-        # maxv.set_axis(old_index, inplace=True)
+        #Set index back to original
+        maxv.set_axis(old_index, inplace=True)
 
-        # #Add uncertainty (1 - probability)
-        # anndata.obs["uncertainty"] = 1 - maxv
+        #Add uncertainty (1 - probability)
+        anndata.obs["uncertainty"] = 1 - maxv
 
-        # from classifiers.classifiers import Classifiers
 
-        # clf = Classifiers(False, False, model, "../classifiers/models", "nsclc")
-        # clf.eval_classifier(source_adata.X, source_adata.obs["cell_type"], None, None)
 
-        # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-        # try:
-        #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+        try:
+            source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+            print("DEBUGDEBUG QUERY 10.C!!!!!!")
+            uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
+            uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
+        except:
+            print("DEBUGDEBUG QUERY 10.D!!!!!!")
+            source_adata_sub = source_adata[:,anndata.var.index]
+            source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
 
-        #     uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
-        #     uncert.classification_uncert_mahalanobis2(source_adata, anndata, labels_key)
-        # except:
-        #     source_adata_sub = source_adata[:,anndata.var.index]
-        #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
-
-        #     uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
-        #     uncert.classification_uncert_mahalanobis2(source_adata_sub, "latent_rep", anndata, labels_key)    
-
-        #Run classifiers
-        # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
-        # classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
-        # clf_xgb = classifier_type.pop("XGBoost")
-        # clf_knn = classifier_type.pop("KNN")
-        # if classifier_type.pop("scANVI"):
-        #     clf_scanvi = model
-        # else:
-        #     clf_scanvi = None
-
-        # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
-        # clf.predict_labels(query=anndata, query_latent=query_latent)
+            uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
+            uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
 
         #Remove later
         # anndata.obs["ann_new"] = False
@@ -347,15 +342,17 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         combined_adata = source_adata.concatenate(anndata, batch_key='bkey', fill_value="None")
         #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
 
-        
+        print("DEBUGDEBUG QUERY 11")
         scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
-        
-        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)   
-   
-    #Dummy latent adata - Fix postprocessing and remove line
-    latent_adata = None
+        print("DEBUGDEBUG QUERY 12")
+        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+
+    #Dummy latent adata - Remove line
+    print("DEBUGDEBUG QUERY 13")
+    latent_adata = scanpy.AnnData(model.get_latent_representation())
 
     #Save output
+    print("DEBUGDEBUG QUERY 14")
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
     ### NEW IMPLEMENTATION ###
 
@@ -504,17 +501,27 @@ def compute_scANVI(configuration):
     :param configuration: config
     :return:
     """
+    print("DEBUGDEBUG START compute_scANVI")
     if utils.get_from_config(configuration, parameters.DEBUG):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.DEBUG)
 
+    print("DEBUGDEBUG  START setup_modules")
     setup_modules()
+    print("DEBUGDEBUG END setup_modules")
+
 
     #source_adata, target_adata = utils.pre_process_data(configuration)
+    print("DEBUGDEBUG  START pre_process_data")
     source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
+    print("DEBUGDEBUG  END pre_process_data")
     #target_adata = processing.Preprocess.scANVI_process_labels(configuration, source_adata, target_adata)
     #scarches.models.SCANVI.setup_anndata(target_adata, labels_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY), unlabeled_category=utils.get_from_config(configuration, parameters.UNLABELED_KEY), batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
+    print("DEBUGDEBUG  START create_model")
     scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
+    print("DEBUGDEBUG  END create_model")
 
+    print("DEBUGDEBUG  START query")
     model_query, query_latent = query(scanvi, reference_latent, target_adata, source_adata, configuration)
+    print("DEBUGDEBUG  END query")
