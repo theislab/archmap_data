@@ -182,6 +182,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             check_val_every_n_epoch=10,
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
+    print("training done")
     tempdir = tempfile.mkdtemp()
     model.save(tempdir, overwrite=True)
     if utils.get_from_config(configuration, parameters.DEV_DEBUG):
@@ -305,6 +306,7 @@ def compute_scVI(configuration):
     print(source_adata)
     print(target_adata)
     model, reference_latent = create_scVI_model(source_adata, target_adata, configuration)
+    print("model created")
     model = compute_query(model, target_adata, reference_latent, source_adata, configuration)
     # Saving of the pre-trained models on an organization level follows below
 

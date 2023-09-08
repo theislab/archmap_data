@@ -652,7 +652,7 @@ class Postprocess:
 
     def __output_cxg(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
-
+        print("Preparing output")
         #Cellxgene data format requirements
         #1. Expression values in adata.X
         if combined_adata.X is None:
@@ -670,10 +670,13 @@ class Postprocess:
         combined_adata.obs_names_make_unique()
 
         #Save as .h5ad
-        output_path = config[parameters.OUTPUT_PATH] + "_cxg.h5ad"
+        output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
 
         filename = tempfile.mktemp( suffix=".h5ad")
+        
         sc.write(filename, combined_adata)
+        print("file written to: " + filename)
+        print("Now storing to gcp with output path: " + output_path)
         utils.store_file_in_s3(filename, output_path)
 
     def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, output_types):
