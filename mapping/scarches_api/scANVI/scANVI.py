@@ -220,36 +220,36 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             check_val_every_n_epoch=10,
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
-    print("DEBUGDEBUG QUERY 4")
-    tempdir = tempfile.mkdtemp()
-    model.save(tempdir, overwrite=True)
-    print("DEBUGDEBUG QUERY 5")
-    if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-        print("DEBUGDEBUG QUERY 5.a")
-        try:
-            utils.write_adata_to_csv(model, 'scanvi-query-latent-after-query-training.csv')
-        except Exception as e:
-            print(e, file=sys.stderr)
-    if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-        print("DEBUGDEBUG QUERY 5.b")
-        try:
-            utils.store_file_in_s3(tempdir + '/model.pt', 'scanvi-model-after-query-training.pt')
-        except Exception as e:
-            print(e, file=sys.stderr)
-    utils.delete_file(tempdir + '/model.pt')
-    os.removedirs(tempdir)
+    # print("DEBUGDEBUG QUERY 4")
+    # tempdir = tempfile.mkdtemp()
+    # model.save(tempdir, overwrite=True)
+    # print("DEBUGDEBUG QUERY 5")
+    # if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+    #     print("DEBUGDEBUG QUERY 5.a")
+    #     try:
+    #         utils.write_adata_to_csv(model, 'scanvi-query-latent-after-query-training.csv')
+    #     except Exception as e:
+    #         print(e, file=sys.stderr)
+    # if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+    #     print("DEBUGDEBUG QUERY 5.b")
+    #     try:
+    #         utils.store_file_in_s3(tempdir + '/model.pt', 'scanvi-model-after-query-training.pt')
+    #     except Exception as e:
+    #         print(e, file=sys.stderr)
+    # utils.delete_file(tempdir + '/model.pt')
+    # os.removedirs(tempdir)
 
-    # add obs to query_latent
-    print("DEBUGDEBUG QUERY 6")
-    query_latent = get_latent(model, anndata, configuration)
-    print("DEBUGDEBUG QUERY 7")
-    query_latent.obs['cell_type'] = anndata.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
-    query_latent.obs['dataset'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
-    print("DEBUGDEBUG QUERY 8")
-    scanpy.pp.neighbors(query_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
-    scanpy.tl.leiden(query_latent)
-    scanpy.tl.umap(query_latent)
-    print("DEBUGDEBUG QUERY 9")
+    # # add obs to query_latent
+    # print("DEBUGDEBUG QUERY 6")
+    # query_latent = get_latent(model, anndata, configuration)
+    # print("DEBUGDEBUG QUERY 7")
+    # query_latent.obs['cell_type'] = anndata.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
+    # query_latent.obs['dataset'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
+    # print("DEBUGDEBUG QUERY 8")
+    # scanpy.pp.neighbors(query_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
+    # scanpy.tl.leiden(query_latent)
+    # scanpy.tl.umap(query_latent)
+    # print("DEBUGDEBUG QUERY 9")
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
@@ -269,83 +269,74 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
 
     use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
-    print("DEBUGDEBUG QUERY 10")
-    if use_embedding:
-        query_latent.obs["predictions"] = model.predict()
-        query_latent.obs[labels_key] = query_latent.obs["predictions"]
-        del query_latent.obs["predictions"]
+    
+    # print("DEBUGDEBUG QUERY 10.b")
+    # anndata.obs["predictions"] = model.predict()
+    # anndata.obs[labels_key] = anndata.obs["predictions"]
+    # del anndata.obs["predictions"]
 
-        predict = model.predict(soft=True)
+    # predict = model.predict(soft=True)
 
-        #Reset index else max function not working
-        old_index = predict.index
-        predict.reset_index(drop=True, inplace=True)    
+    # #Reset index else max function not working
+    # old_index = predict.index
+    # predict.reset_index(drop=True, inplace=True)    
 
-        maxv = predict.max(axis=1)
+    # maxv = predict.max(axis=1)
 
-        #Set index back to original
-        maxv.set_axis(old_index, inplace=True)
+    # #Set index back to original
+    # maxv.set_axis(old_index, inplace=True)
 
-        #Add uncertainty (1 - probability)
-        query_latent.obs["uncertainty"] = 1 - maxv
-
-        #Get combined and latent data
-        print("Combine reference and query, prepare for export")
-        latent_adata = source_adata.concatenate(query_latent, batch_key='bkey')
-
-        combined_adata = scanpy.AnnData()
-        # scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
-        
-        # latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
-    else:
-        # print("DEBUGDEBUG QUERY 10.b")
-        # anndata.obs["predictions"] = model.predict()
-        # anndata.obs[labels_key] = anndata.obs["predictions"]
-        # del anndata.obs["predictions"]
-
-        # predict = model.predict(soft=True)
-
-        # #Reset index else max function not working
-        # old_index = predict.index
-        # predict.reset_index(drop=True, inplace=True)    
-
-        # maxv = predict.max(axis=1)
-
-        # #Set index back to original
-        # maxv.set_axis(old_index, inplace=True)
-
-        # #Add uncertainty (1 - probability)
-        # anndata.obs["uncertainty"] = 1 - maxv
+    # #Add uncertainty (1 - probability)
+    # anndata.obs["uncertainty"] = 1 - maxv
 
 
 
-        # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-        # try:
-        #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
-        #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
-        #     uncert.classification_uncert_euclidean(source_adata, "latent_rep", anndata, labels_key)
-        #     uncert.classification_uncert_mahalanobis(source_adata, "latent_rep", anndata, labels_key)
-        # except:
-        #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
-        #     source_adata_sub = source_adata[:,anndata.var.index]
-        #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+    # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+    # try:
+    #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+    #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
+    #     uncert.classification_uncert_euclidean(configuration, source_adata, anndata, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, source_adata, anndata, "latent_rep", labels_key, False)
+    # except:
+    #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
+    #     source_adata_sub = source_adata[:,anndata.var.index]
+    #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
 
-        #     uncert.classification_uncert_euclidean(source_adata_sub, "latent_rep", anndata, labels_key)  
-        #     uncert.classification_uncert_mahalanobis(source_adata_sub, "latent_rep", anndata, labels_key)     
+    #     uncert.classification_uncert_euclidean(configuration, source_adata, anndata, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, source_adata, anndata, "latent_rep", labels_key, False)
 
-        #Remove later
-        # anndata.obs["ann_new"] = False
-        # source_adata.obs["scanvi_label"] = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+    #Remove later
+    # anndata.obs["ann_new"] = False
+    # source_adata.obs["scanvi_label"] = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
 
-        #Get combined and latent data
-        print("Combine reference and query, prepare for export")
-        combined_adata = source_adata.concatenate(anndata, batch_key='bkey', fill_value="None")
-        #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
+    # #Get combined and latent data
+    # print("Combine reference and query, prepare for export")
+    # combined_adata = source_adata.concatenate(anndata, batch_key='bkey', fill_value="None")
+    # #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
 
-        print("DEBUGDEBUG QUERY 11")
-        scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
-        print("DEBUGDEBUG QUERY 12")
-        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+    ## Alternative approach
+    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+    scanpy.write(temp_reference.name, source_adata)
+    scanpy.write(temp_query.name, anndata)
+
+    del source_adata
+    del anndata
+
+    import gc
+    gc.collect()
+
+    from anndata import experimental
+    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, overwrite=True)
+
+    combined_adata = scanpy.read_h5ad(temp_combined.name)
+
+    print("DEBUGDEBUG QUERY 11")
+    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
+    print("DEBUGDEBUG QUERY 12")
+    combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
 
     #Dummy latent adata - Remove line
     print("DEBUGDEBUG QUERY 13")
@@ -354,6 +345,11 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     #Save output
     print("DEBUGDEBUG QUERY 14")
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+
+    #Remove created tmp files
+    temp_reference.close()
+    temp_query.close()
+    temp_combined.close()
     ### NEW IMPLEMENTATION ###
 
     return model, query_latent

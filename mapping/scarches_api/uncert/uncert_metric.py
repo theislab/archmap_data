@@ -67,12 +67,21 @@ def classification_uncert_mahalanobis2(
     
     return uncertainties, centroids
 
-def classification_uncert_mahalanobis(configuration, adata_query_latent, embedding_name):
+def classification_uncert_mahalanobis(
+        configuration, 
+        adata_ref_latent, 
+        adata_query_latent, 
+        embedding_name, 
+        cell_type_key,
+        pretrained):
     #Load model
-    atlas = get_from_config(configuration, utils.parameters.ATLAS)
+    if pretrained:
+        atlas = get_from_config(configuration, utils.parameters.ATLAS)
 
-    with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
-        gmm = pickle.load(file)
+        with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
+            gmm = pickle.load(file)
+    else:
+        gmm = train_mahalanobis(None, adata_ref_latent, cell_type_key, pretrained)
     
     centroids = gmm.means_
     cluster_membership = gmm.predict_proba(adata_query_latent[embedding_name])
@@ -94,7 +103,8 @@ def classification_uncert_euclidean(
         adata_ref_latent,
         adata_query_latent,
         embedding_name,
-        cell_type_key
+        cell_type_key,
+        pretrained
 ):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
@@ -110,10 +120,13 @@ def classification_uncert_euclidean(
     """    
 
     #Load model
-    atlas = get_from_config(configuration, utils.parameters.ATLAS)
+    if pretrained:
+        atlas = get_from_config(configuration, utils.parameters.ATLAS)
 
-    with open("/models/" + atlas + "/" + "euclidian_distance.pickle", "rb") as file:
-        trainer = pickle.load(file)
+        with open("/models/" + atlas + "/" + "euclidian_distance.pickle", "rb") as file:
+            trainer = pickle.load(file)
+    else:
+        trainer = train_euclidian(None, adata_ref_latent, embedding_name, pretrained)
 
     _, uncertainties = sca.utils.weighted_knn_transfer(
         adata_query_latent,
@@ -302,23 +315,29 @@ def benchmark_uncertainty(uncertainty_list, x_labels, dataset_name):
     plt.show()
     return
 
-def train_euclidian(atlas, adata_ref_latent, embedding_name, n_neighbors = 15):
+def train_euclidian(atlas, adata_ref_latent, embedding_name, pretrained, n_neighbors = 15):
     trainer = sca.utils.weighted_knn_trainer(
     adata_ref_latent,
     embedding_name,
     n_neighbors = n_neighbors
     )
 
-    #Save model
-    with open("/models/" + atlas + "/" + "euclidian_distance.pickle", "wb") as file:
-        pickle.dump(trainer, file, pickle.HIGHEST_PROTOCOL)
+    #Save or return model
+    if pretrained:
+        with open("/models/" + atlas + "/" + "euclidian_distance.pickle", "wb") as file:
+            pickle.dump(trainer, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return trainer
 
-def train_mahalanobis(atlas, adata_ref_latent, cell_type_key):
+def train_mahalanobis(atlas, adata_ref_latent, cell_type_key, pretrained):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
     gmm = GaussianMixture(n_components=num_clusters)
     gmm.fit(adata_ref_latent.X.toarray())
 
-    #Save model
-    with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "wb") as file:
-        pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
+    #Save or return model
+    if pretrained:
+        with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "wb") as file:
+            pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return gmm
