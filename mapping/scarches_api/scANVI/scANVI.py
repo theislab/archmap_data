@@ -250,7 +250,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # scanpy.tl.leiden(query_latent)
     # scanpy.tl.umap(query_latent)
     # print("DEBUGDEBUG QUERY 9")
-
+    print("DEBUGDEBUG QUERY AFTER TRAIN")
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
     # utils.write_full_adata_to_csv(model, source_adata, anndata,
