@@ -315,22 +315,27 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
 
     ## Alternative approach
+    print("DEBUGDEBUG QUERY A")
     temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
     temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
 
+    print("DEBUGDEBUG QUERY B")
     scanpy.write(temp_reference.name, source_adata)
     scanpy.write(temp_query.name, anndata)
 
+    print("DEBUGDEBUG QUERY C")
     del source_adata
     del anndata
 
     import gc
     gc.collect()
 
+    print("DEBUGDEBUG QUERY D")
     from anndata import experimental
     experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, overwrite=True)
 
+    print("DEBUGDEBUG QUERY E")
     combined_adata = scanpy.read_h5ad(temp_combined.name)
 
     print("DEBUGDEBUG QUERY 11")
