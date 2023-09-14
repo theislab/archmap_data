@@ -268,18 +268,18 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
 
     #Run classifiers
-    atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
-    classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
-    clf_xgb = classifier_type("XGBoost")
-    clf_knn = classifier_type("KNN")
-    if classifier_type("scANVI"):
-        clf_scanvi = model
+    # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
+    # classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
+    # clf_xgb = classifier_type("XGBoost")
+    # clf_knn = classifier_type("KNN")
+    # if classifier_type("scANVI"):
+    #     clf_scanvi = model
 
-    clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
-    clf.predict_labels(anndata)
+    # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
+    # clf.predict_labels(anndata)
 
     #Dummy latent adata - Remove line
-    latent_adata = sc.AnnData(model.get_latent_representation())
+    latent_adata = None
 
     #Save output
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
