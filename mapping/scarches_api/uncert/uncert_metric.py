@@ -33,11 +33,14 @@ def mahalanobis(v, data):
         vector[centroid_index] = mahal
     return vector
 
-def classification_uncert_mahalanobis2(
-        adata_ref_latent,
-        adata_query_latent,
-        embedding_name,
-        cell_type_key):
+def classification_uncert_mahalanobis(
+        configuration, 
+        adata_ref_latent, 
+        adata_query_latent, 
+        embedding_name, 
+        cell_type_key,
+        pretrained
+    ):
     """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
     to the cell cluster centroids
 
@@ -48,9 +51,16 @@ def classification_uncert_mahalanobis2(
     Returns:
         uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
     """    
-    num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
-    kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(adata_ref_latent.obsm[embedding_name])
+
+    #Load model
+    if pretrained:
+        atlas = get_from_config(configuration, utils.parameters.ATLAS)
+
+        with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
+            kmeans = pickle.load(file)
+    else:
+        kmeans = train_mahalanobis(None, adata_ref_latent, embedding_name, cell_type_key, pretrained)
+    
     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
     centroids = kmeans.cluster_centers_
     adata_query = kmeans.transform(adata_query_latent.obsm[embedding_name])
@@ -67,13 +77,14 @@ def classification_uncert_mahalanobis2(
     
     return uncertainties, centroids
 
-def classification_uncert_mahalanobis(
+def classification_uncert_mahalanobis2(
         configuration, 
         adata_ref_latent, 
         adata_query_latent, 
         embedding_name, 
         cell_type_key,
-        pretrained):
+        pretrained
+    ):
     #Load model
     if pretrained:
         atlas = get_from_config(configuration, utils.parameters.ATLAS)
@@ -105,7 +116,7 @@ def classification_uncert_euclidean(
         embedding_name,
         cell_type_key,
         pretrained
-):
+    ):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
 
@@ -329,15 +340,20 @@ def train_euclidian(atlas, adata_ref_latent, embedding_name, pretrained, n_neigh
     else:
         return trainer
 
-def train_mahalanobis(atlas, adata_ref_latent, cell_type_key, pretrained):
+def train_mahalanobis(atlas, adata_ref_latent, embedding_name, cell_type_key, pretrained):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
-    gmm = GaussianMixture(n_components=num_clusters)
-    gmm.fit(adata_ref_latent.X.toarray())
+    #Required too much RAM
+    # gmm = GaussianMixture(n_components=num_clusters)
+    # gmm.fit(adata_ref_latent.X.toarray())
+
+    #Less RAM alternative
+    kmeans = KMeans(n_clusters=num_clusters)
+    kmeans.fit(adata_ref_latent.embedding_name)
 
     #Save or return model
     if pretrained:
         with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "wb") as file:
-            pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(kmeans, file, pickle.HIGHEST_PROTOCOL)
     else:
-        return gmm
+        return kmeans

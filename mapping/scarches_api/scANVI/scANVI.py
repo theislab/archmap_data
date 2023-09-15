@@ -250,7 +250,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # scanpy.tl.leiden(query_latent)
     # scanpy.tl.umap(query_latent)
     # print("DEBUGDEBUG QUERY 9")
-    print("DEBUGDEBUG QUERY AFTER TRAIN")
+
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
     # utils.write_full_adata_to_csv(model, source_adata, anndata,
@@ -291,19 +291,24 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
 
 
-    # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-    # try:
-    #     source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
-    #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
-    #     uncert.classification_uncert_euclidean(configuration, source_adata, anndata, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, source_adata, anndata, "latent_rep", labels_key, False)
-    # except:
-    #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
-    #     source_adata_sub = source_adata[:,anndata.var.index]
-    #     source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+    #anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+    query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
+    try:
+        #source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
+        reference_latent.obs = source_adata.obs
+        print("DEBUGDEBUG QUERY 10.C!!!!!!")
+        uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+        uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    except:
+        print("DEBUGDEBUG QUERY 10.D!!!!!!")
+        source_adata_sub = source_adata[:,anndata.var.index]
+        # source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+        reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata_sub))
+        reference_latent.obs = source_adata_sub.obs
 
-    #     uncert.classification_uncert_euclidean(configuration, source_adata, anndata, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, source_adata, anndata, "latent_rep", labels_key, False)
+        uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+        uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
 
     #Remove later
     # anndata.obs["ann_new"] = False
@@ -357,7 +362,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     temp_combined.close()
     ### NEW IMPLEMENTATION ###
 
-    return model, query_latent
+    return model
 
 
 def predict_latent(model, latent):
