@@ -15,8 +15,8 @@ log_resources() {
 }
 
 # trap to log resources when the script receives a termination signal
-trap log_resources SIGTERM SIGINT SIGHUP
-
+# trap log_resources SIGTERM SIGINT SIGHUP
+trap log_resources 15 2 1
 
 
 
