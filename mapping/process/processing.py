@@ -244,15 +244,12 @@ class Preprocess:
         print(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
         # target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
         target_adata = {}
-        target_adata.obs = {"type": "query"}
-        target_adata.var = {}
-        target_adata.obsm = {}
-        target_adata.varm = {}
-        target_adata.uns = {}
-        target_adata.layers = {}
-        target_adata.obsp = {}
-        target_adata.varp = {}
-        target_adata.uns = {}
+        #create dummy calue 
+
+        target_adata["obs"] = {"type": "query"}
+        target_adata["var"] = {}
+        target_adata["obsm"] = {}
+        
         source_adata.obs["type"] = "reference"
         target_adata.obs["type"] = "query"
         #TODO: HARDCODING---------------------------------------------------
