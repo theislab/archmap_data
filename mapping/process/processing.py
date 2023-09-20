@@ -249,9 +249,13 @@ class Preprocess:
         target_adata["obs"] = {"type": "query"}
         target_adata["var"] = {}
         target_adata["obsm"] = {}
-        
+
         source_adata.obs["type"] = "reference"
-        target_adata.obs["type"] = "query"
+        # Check if target_adata is a dictionary
+        if isinstance(target_adata, dict):
+            target_adata["obs"] = {"type": "query"}
+        else:
+            target_adata.obs["type"] = "query"
         #TODO: HARDCODING---------------------------------------------------
         # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
         #     X_train = source_adata.X
