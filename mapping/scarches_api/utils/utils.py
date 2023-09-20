@@ -398,8 +398,14 @@ def fetch_file_from_s3(key, path):
                           aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
                           aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
     print("fetching file from s3 with Bucket. key. path ", os.getenv('AWS_BUCKET'), key, path)
-    client.download_file(os.getenv('AWS_BUCKET'), key, path)
-
+    # check if the file exists
+    try:
+        client.download_file(os.getenv('AWS_BUCKET'), key, path)
+        print("Download successful")
+    except Exception as e:
+        print("Download failed")
+        print(e)
+        return False
 
 def store_file_in_s3(path, key):
     """

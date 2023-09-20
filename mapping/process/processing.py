@@ -242,20 +242,7 @@ class Preprocess:
         print("Download query")
         print("The key  for query is ")
         print(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
-        # target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
-        target_adata = {}
-        #create dummy calue 
-
-        target_adata["obs"] = {"type": "query"}
-        target_adata["var"] = {}
-        target_adata["obsm"] = {}
-
-        source_adata.obs["type"] = "reference"
-        # Check if target_adata is a dictionary
-        if isinstance(target_adata, dict):
-            target_adata["obs"] = {"type": "query"}
-        else:
-            target_adata.obs["type"] = "query"
+        target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
         #TODO: HARDCODING---------------------------------------------------
         # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
         #     X_train = source_adata.X
