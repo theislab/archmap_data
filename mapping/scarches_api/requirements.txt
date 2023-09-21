@@ -5,7 +5,7 @@ scArches~=0.5.2
 #scvi-tools==0.16.1
 pandas==1.5.3
 xgboost==1.7.4
-numpy~=1.21.6
+numpy~=1.22
 gdown~=4.4.0
 torch~=1.11.0
 #jaxlib==0.3.7
