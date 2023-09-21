@@ -244,6 +244,10 @@ class Preprocess:
         print(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
         # hardcode the query path
 
+        print("pausing for 10 min...")
+        import time
+        time.sleep(600)
+        
         target_adata = utils.read_h5ad_file_from_s3("query_test_data/query_romanov_reworked.h5ad")
         #TODO: HARDCODING---------------------------------------------------
         # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
