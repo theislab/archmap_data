@@ -1,22 +1,22 @@
 
 #!/bin/bash
 
-# Function to log memory and CPU usage
-log_resources() {
-    echo "====== Resource Usage Before Termination ======"
+# # Function to log memory and CPU usage
+# log_resources() {
+#     echo "====== Resource Usage Before Termination ======"
     
-    # Memory usage
-    echo "---- Memory Usage ----"
-    free -m
+#     # Memory usage
+#     echo "---- Memory Usage ----"
+#     free -m
     
-    # Top 5 CPU consuming processes
-    echo "---- Top 5 CPU Consuming Processes ----"
-    top -bn1 | head -n 8 | tail -n 5 | awk '{ printf "%-8s %-5s %-5s %-10s %-5s %s\n", $1, $9, $10, $12, $6, $NF }'
-}
+#     # Top 5 CPU consuming processes
+#     echo "---- Top 5 CPU Consuming Processes ----"
+#     top -bn1 | head -n 8 | tail -n 5 | awk '{ printf "%-8s %-5s %-5s %-10s %-5s %s\n", $1, $9, $10, $12, $6, $NF }'
+# }
 
-# trap to log resources when the script receives a termination signal
-# trap log_resources SIGTERM SIGINT SIGHUP
-trap log_resources 15 2 1
+# # trap to log resources when the script receives a termination signal
+# # trap log_resources SIGTERM SIGINT SIGHUP
+# trap log_resources 15 2 1
 
 
 

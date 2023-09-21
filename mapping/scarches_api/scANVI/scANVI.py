@@ -177,14 +177,12 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     :param configuration: config
     :return: trained model, query latent
     """
-    print("DEBUGDEBUG QUERY 1")
     print("Load query data to model")
     model = scarches.models.SCANVI.load_query_data(
         anndata,
         'assets/scANVI/' + str(utils.get_from_config(configuration, parameters.ATLAS)) + '/',
         freeze_dropout=True,
     )
-    print("DEBUGDEBUG QUERY 2")
     model._unlabeled_indices = np.arange(anndata.n_obs)
     model._labeled_indices = []
 
@@ -196,9 +194,6 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
         print("Unlabelled Indices: ", len(model._unlabeled_indices))
 
     
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-    print("DEBUGDEBUG QUERY 3")
 #TODO: HARDCODING for human lung cell atlas -------------------------------------
     if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
         surgery_epochs = 500
@@ -216,29 +211,23 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
     else:
-        print("DEBUGDEBUG QUERY 3.b")
         print("Train model")
+        # DURING TRAIN FUNCTION WE EXPERIENCE MEMORY EXCEEDING
         model.train(
             max_epochs=utils.get_from_config(configuration, parameters.SCANVI_MAX_EPOCHS_QUERY),
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
-        print('RAM memory % used:', psutil.virtual_memory()[2])
-        print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-        print("DEBUGDEBUG QUERY 3.c")
-    # print("DEBUGDEBUG QUERY 4")
+
     # tempdir = tempfile.mkdtemp()
     # model.save(tempdir, overwrite=True)
-    # print("DEBUGDEBUG QUERY 5")
     # if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-    #     print("DEBUGDEBUG QUERY 5.a")
     #     try:
     #         utils.write_adata_to_csv(model, 'scanvi-query-latent-after-query-training.csv')
     #     except Exception as e:
     #         print(e, file=sys.stderr)
     # if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-    #     print("DEBUGDEBUG QUERY 5.b")
     #     try:
     #         utils.store_file_in_s3(tempdir + '/model.pt', 'scanvi-model-after-query-training.pt')
     #     except Exception as e:
@@ -247,22 +236,15 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # os.removedirs(tempdir)
 
     # # add obs to query_latent
-    # print("DEBUGDEBUG QUERY 6")
     # query_latent = get_latent(model, anndata, configuration)
-    # print("DEBUGDEBUG QUERY 7")
     # query_latent.obs['cell_type'] = anndata.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
     # query_latent.obs['dataset'] = anndata.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
-    # print("DEBUGDEBUG QUERY 8")
     # scanpy.pp.neighbors(query_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
     # scanpy.tl.leiden(query_latent)
     # scanpy.tl.umap(query_latent)
-    # print("DEBUGDEBUG QUERY 9")
 
     if utils.get_from_config(configuration, parameters.DEBUG):
         utils.save_umap_as_pdf(query_latent, 'figures/query.pdf', color=['batch', 'cell_type'])
-        print("DEBUGDEBUG QUERY 3.d")
-        print('RAM memory % used:', psutil.virtual_memory()[2])
-        print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     # utils.write_full_adata_to_csv(model, source_adata, anndata,
     #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
     #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
@@ -280,10 +262,6 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
     use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
     
-    print("DEBUGDEBUG QUERY 3.e")
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-    # print("DEBUGDEBUG QUERY 10.b")
     # anndata.obs["predictions"] = model.predict()
     # anndata.obs[labels_key] = anndata.obs["predictions"]
     # del anndata.obs["predictions"]
@@ -304,24 +282,22 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
 
 
-    #anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-    # query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
-    # try:
-    #     #source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
-    #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
-    #     reference_latent.obs = source_adata.obs
-    #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    # except:
-    #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
-    #     source_adata_sub = source_adata[:,anndata.var.index]
-    #     # source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
-    #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata_sub))
-    #     reference_latent.obs = source_adata_sub.obs
+    # anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+    query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
+    try:
+        #source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
+        reference_latent.obs = source_adata.obs
+        uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+        uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    except:
+        source_adata_sub = source_adata[:,anndata.var.index]
+        # source_adata_sub.obsm["latent_rep"] = model.get_latent_representation(source_adata_sub)
+        reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata_sub))
+        reference_latent.obs = source_adata_sub.obs
 
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+        uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+        uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
 
     #Remove later
     # anndata.obs["ann_new"] = False
@@ -333,60 +309,29 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     # #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
 
     ## Alternative approach
-    print("DEBUGDEBUG QUERY A")
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
     temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
 
-    print("DEBUGDEBUG QUERY B")
     scanpy.write(temp_reference.name, source_adata)
     scanpy.write(temp_query.name, anndata)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-
-    print("DEBUGDEBUG QUERY C")
     del source_adata
     del anndata
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
     import gc
     gc.collect()
-    print("DEBUGDEBUG QUERY C after collecting memory")
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
-    print("DEBUGDEBUG QUERY D")
     from anndata import experimental
     experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, overwrite=True)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-
-    print("DEBUGDEBUG QUERY E")
     combined_adata = scanpy.read_h5ad(temp_combined.name)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
-    print("DEBUGDEBUG QUERY 11")
     scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
-    print("DEBUGDEBUG QUERY 12")
-    combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
-    #Dummy latent adata - Remove line
-    print("DEBUGDEBUG QUERY 13")
+    combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
     latent_adata = None
 
     #Save output
-    print("DEBUGDEBUG QUERY 14")
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
-    print('RAM memory % used:', psutil.virtual_memory()[2])
-    print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     
     #Remove created tmp files
     temp_reference.close()
@@ -394,6 +339,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
     temp_combined.close()
     ### NEW IMPLEMENTATION ###
 
+    # return model, query_latent
     return model
 
 
@@ -539,27 +485,18 @@ def compute_scANVI(configuration):
     :param configuration: config
     :return:
     """
-    print("DEBUGDEBUG START compute_scANVI")
     if utils.get_from_config(configuration, parameters.DEBUG):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.DEBUG)
 
-    print("DEBUGDEBUG  START setup_modules")
     setup_modules()
-    print("DEBUGDEBUG END setup_modules")
 
 
     #source_adata, target_adata = utils.pre_process_data(configuration)
-    print("DEBUGDEBUG  START pre_process_data")
     source_adata, target_adata = processing.Preprocess.pre_process_data(configuration)
-    print("DEBUGDEBUG  END pre_process_data")
     #target_adata = processing.Preprocess.scANVI_process_labels(configuration, source_adata, target_adata)
     #scarches.models.SCANVI.setup_anndata(target_adata, labels_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY), unlabeled_category=utils.get_from_config(configuration, parameters.UNLABELED_KEY), batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
-    print("DEBUGDEBUG  START create_model")
     scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
-    print("DEBUGDEBUG  END create_model")
 
-    print("DEBUGDEBUG  START query")
     model_query, query_latent = query(scanvi, reference_latent, target_adata, source_adata, configuration)
-    print("DEBUGDEBUG  END query")
