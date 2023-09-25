@@ -465,15 +465,20 @@ def read_h5ad_file_from_s3(key):
     """
     if key is None or len(key) == 0:
         return None
-    filename = tempfile.mktemp(suffix=".h5ad")
-    print("The key to download is ", key)
-    fetch_file_from_s3(key, filename)
-    print("Reading file from ", filename)
-    
-    data = scanpy.read(filename)
-    delete_file(filename)
-    print("File deleted")
-    return data
+    with tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False) as temp_file:
+        filename = temp_file.name
+
+        print("The key to download is", key)
+        fetch_file_from_s3(key, filename)
+        print("Reading file from", filename)
+
+        # Read the data from the temporary file using Scanpy
+        data = scanpy.read(filename)
+        
+        # Delete the temporary file
+        delete_file(filename)
+        print("File deleted")
+        return data
 
 def check_model_atlas_compatibility(model, atlas):
     """
