@@ -1,6 +1,6 @@
 # for scarches
 scanpy~=1.9.1
-scArches~=0.5.2
+scArches
 #scvi-tools custom load in the Dockerfile (forked from 0.16.x to fix AnnData pre-release error)
 #scvi-tools==0.16.1
 pandas==1.5.3
