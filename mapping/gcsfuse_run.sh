@@ -27,7 +27,7 @@ mkdir -p $MNT_DIR;
 
 pwd;
 echo "Mounting GCS Fuse for bucket $AWS_BUCKET to $MNT_DIR"
-gcsfuse --foreground --debug_fs --debug_fuse  --implicit-dirs  $AWS_BUCKET $MNT_DIR 
+gcsfuse  --implicit-dirs  $AWS_BUCKET $MNT_DIR 
 echo "Mounting completed."
 echo "Listing the mount directory."
 ls -l $MNT_DIR;
