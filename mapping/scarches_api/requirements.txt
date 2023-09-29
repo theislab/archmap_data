@@ -2,7 +2,7 @@
 scanpy~=1.9.1
 scArches
 #scvi-tools custom load in the Dockerfile (forked from 0.16.x to fix AnnData pre-release error)
-scvi-tools
+# scvi-tools
 pandas==1.5.3
 xgboost==1.7.4
 numpy~=1.22

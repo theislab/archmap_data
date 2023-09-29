@@ -32,7 +32,9 @@ RUN pip install -r requirements.txt
 
 ###ONLY REQUIRED FOR PRE-RELEASE OF ANNDATA - REMOVE LATER
 RUN apt-get install git -y
+RUN pip install git+https://github.com/risiNG9/scvi-tools.git@0.16.x
 RUN pip install -U --pre anndata
+
 
 COPY . .
 
