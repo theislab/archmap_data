@@ -6,14 +6,11 @@ RUN set -e; \
     apt-get update -y && apt-get install -y \
     tini \
     lsb-release curl gnupg2; \
-    gcsFuseRepo=gcsfuse-`lsb_release -c -s`; \
-    echo "deb http://packages.cloud.google.com/apt $gcsFuseRepo main" | \
-    tee /etc/apt/sources.list.d/gcsfuse.list; \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-    apt-key add -; \
+    GCSFUSE_REPO=gcsfuse-$(lsb_release -c -s); \
+    echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | tee /etc/apt/sources.list.d/gcsfuse.list; \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -; \
     apt-get update; \
-    apt-get install -y gcsfuse \
-    && apt-get clean 
+    apt-get install -y gcsfuse
 
 # Install required packages
 RUN apt-get update && \
@@ -29,11 +26,6 @@ ENV MNT_DIR /mnt/gcs
 ADD ./scarches_api/requirements.txt .
 
 RUN pip install -r requirements.txt 
-
-###ONLY REQUIRED FOR PRE-RELEASE OF ANNDATA - REMOVE LATER
-RUN apt-get install git -y
-RUN pip install git+https://github.com/risiNG9/scvi-tools.git@0.16.x
-RUN pip install -U --pre anndata
 
 COPY . .
 
