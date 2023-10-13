@@ -2,6 +2,7 @@ import os
 import warnings
 
 import scanpy as sc
+import socket
 import scarches as sca
 import scvi
 import torch
@@ -183,120 +184,128 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             use_gpu=utils.get_from_config(configuration, parameters.USE_GPU)
         )
     print("training done")
-    tempdir = tempfile.mkdtemp()
-    model.save(tempdir, overwrite=True)
-    if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-        try:
-            utils.store_file_in_s3(tempdir + '/model.pt', 'scvi-model-after-query-training.pt')
-        except Exception as e:
-            print(e, file=sys.stderr)
-    utils.delete_file(tempdir + '/model.pt')
-    os.removedirs(tempdir)
-    
-    if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-        try:
-            if reference_latent is not None:
-                utils.write_latent_csv(reference_latent, key='reference-latent-post-query-training.csv')
-            utils.write_adata_to_csv(model, anndata, key='query-adata-post-query-training.csv',
-                                     cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-                                     condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
-            utils.write_adata_to_csv(model, source_adata, key='source-adata-post-query-training.csv',
-                                     cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-                                     condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
-        except Exception as e:
-            print(e, file=sys.stderr)
 
-    # query_latent = compute_latent(model, anndata, configuration)
-    if utils.get_from_config(configuration, parameters.DEV_DEBUG):
-        try:
-            utils.write_latent_csv(query_latent, key='query-latent-post-query-training.csv')
-            if reference_latent is not None:
-                utils.write_combined_csv(reference_latent, query_latent, key='combined-latents-after-query.csv')
-        except Exception as e:
-            print(e, file=sys.stderr)
-    if utils.get_from_config(configuration, parameters.DEBUG):
-        utils.save_umap_as_pdf(query_latent, 'data/figures/query.pdf', color=['batch', 'cell_type'])
-
-
-
-
-    ### NEW IMPLEMENTATION ###
-    #Get desired output types
-    output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
-    use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
-
-    #If not using reference embedding we have to get latent representation of combined adata
-    if not use_embedding:
-        #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
-
-        # import numpy as np
-
-        # source_adata.obs["bbk"] = "fetal_gut"
-
-        # test = sc.pp.subsample(source_adata, 0.01, copy = True)  
-
-        # test.X[np.isnan(test.X)] = 0
-
-        #Get combined and latent data
-        combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
-        sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
-
-        #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
-
-        #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
-        combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
-    else:
-        # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
-        import anndata as ad
-
-        cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-
-        source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
-        del source_adata.obs["celltype_annotation"]      
-
-        test = sc.pp.subsample(source_adata, 0.01, copy = True)
-
-        query_latent.obs.index = anndata.obs.index
-        query_latent.obs["type"] = anndata.obs["type"]
-
-        combined_adata = ad.concat([test, query_latent], axis=0,
-                              label="bkey", keys=["reference", "query"],
-                              join="outer", merge="unique", uns_merge="unique")
+    try:
+        tempdir = tempfile.mkdtemp()
+        model.save(tempdir, overwrite=True)
+        if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+            try:
+                utils.store_file_in_s3(tempdir + '/model.pt', 'scvi-model-after-query-training.pt')
+            except Exception as e:
+                print(e, file=sys.stderr)
+        utils.delete_file(tempdir + '/model.pt')
+        os.removedirs(tempdir)
         
-        
-        latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
+        if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+            try:
+                if reference_latent is not None:
+                    utils.write_latent_csv(reference_latent, key='reference-latent-post-query-training.csv')
+                utils.write_adata_to_csv(model, anndata, key='query-adata-post-query-training.csv',
+                                        cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+                                        condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
+                utils.write_adata_to_csv(model, source_adata, key='source-adata-post-query-training.csv',
+                                        cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+                                        condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
+            except Exception as e:
+                print(e, file=sys.stderr)
+
+        # query_latent = compute_latent(model, anndata, configuration)
+        if utils.get_from_config(configuration, parameters.DEV_DEBUG):
+            try:
+                utils.write_latent_csv(query_latent, key='query-latent-post-query-training.csv')
+                if reference_latent is not None:
+                    utils.write_combined_csv(reference_latent, query_latent, key='combined-latents-after-query.csv')
+            except Exception as e:
+                print(e, file=sys.stderr)
+        if utils.get_from_config(configuration, parameters.DEBUG):
+            utils.save_umap_as_pdf(query_latent, 'data/figures/query.pdf', color=['batch', 'cell_type'])
 
 
-    #Run classifiers
-    # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
-    # classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
-    # clf_xgb = classifier_type("XGBoost")
-    # clf_knn = classifier_type("KNN")
-    # if classifier_type("scANVI"):
-    #     clf_scanvi = model
-
-    # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
-    # clf.predict_labels(anndata)
-
-    #Dummy latent adata - Remove line
-    latent_adata = None
-
-    #Save output
-    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
-    ### NEW IMPLEMENTATION ###
 
 
+        ### NEW IMPLEMENTATION ###
+        #Get desired output types
+        output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+        use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
+
+        #If not using reference embedding we have to get latent representation of combined adata
+        if not use_embedding:
+            #source_adata = processing.Preprocess.drop_unknown_batch_labels(configuration, source_adata)
+
+            # import numpy as np
+
+            # source_adata.obs["bbk"] = "fetal_gut"
+
+            # test = sc.pp.subsample(source_adata, 0.01, copy = True)  
+
+            # test.X[np.isnan(test.X)] = 0
+
+            #Get combined and latent data
+            combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
+            sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
+
+            #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
+
+            #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+            combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+        else:
+            # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
+            import anndata as ad
+
+            cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+
+            source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
+            del source_adata.obs["celltype_annotation"]      
+
+            test = sc.pp.subsample(source_adata, 0.01, copy = True)
+
+            query_latent.obs.index = anndata.obs.index
+            query_latent.obs["type"] = anndata.obs["type"]
+            try: 
+                combined_adata = ad.concat([test, query_latent], axis=0,
+                                    label="bkey", keys=["reference", "query"],
+                                    join="outer", merge="unique", uns_merge="unique")
+                
+                
+                latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
+            except ConnectionResetError as e:
+                print(f'Connection reset part 1. {e}')
+
+
+        #Run classifiers
+        # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
+        # classifier_type = utils.get_from_config(configuration, parameters.CLASSIFIER)
+        # clf_xgb = classifier_type("XGBoost")
+        # clf_knn = classifier_type("KNN")
+        # if classifier_type("scANVI"):
+        #     clf_scanvi = model
+
+        # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
+        # clf.predict_labels(anndata)
+
+        #Dummy latent adata - Remove line
+        latent_adata = None
+
+        #Save output
+        try:
+            processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+        except ConnectionError as e:
+            print('connection reset, here')
+        ### NEW IMPLEMENTATION ###
 
 
 
 
-    # utils.write_full_adata_to_csv(model, source_adata, anndata,
-    #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
-    #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
-    #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY), configuration=configuration)
 
-    return model
 
+        # utils.write_full_adata_to_csv(model, source_adata, anndata,
+        #                               key=utils.get_from_config(configuration, parameters.OUTPUT_PATH),
+        #                               cell_type_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY),
+        #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY), configuration=configuration)
+
+        return model
+    except ConnectionResetError as e:
+        print(f"Connection reset error: {e}")
 
 def compute_scVI(configuration):
     setup()
