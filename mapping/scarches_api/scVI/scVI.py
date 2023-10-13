@@ -241,9 +241,11 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             # test.X[np.isnan(test.X)] = 0
 
             #Get combined and latent data
+            print('combined anndata')
             combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
+            print('line 245')
             sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
-
+            print('line 248')
             #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
 
             #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
@@ -254,7 +256,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             import anndata as ad
 
             cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-
+            print('line 259')
             source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
             del source_adata.obs["celltype_annotation"]      
 
@@ -262,7 +264,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             print('line 262')
             query_latent.obs.index = anndata.obs.index
             query_latent.obs["type"] = anndata.obs["type"]
-            try: 
+            try:
                 combined_adata = ad.concat([test, query_latent], axis=0,
                                     label="bkey", keys=["reference", "query"],
                                     join="outer", merge="unique", uns_merge="unique")
