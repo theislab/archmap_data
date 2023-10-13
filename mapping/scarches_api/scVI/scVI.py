@@ -195,7 +195,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
                 print(e, file=sys.stderr)
         utils.delete_file(tempdir + '/model.pt')
         os.removedirs(tempdir)
-        
+        print('line 198')
         if utils.get_from_config(configuration, parameters.DEV_DEBUG):
             try:
                 if reference_latent is not None:
@@ -208,7 +208,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
                                         condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
             except Exception as e:
                 print(e, file=sys.stderr)
-
+        print('line 211')
         # query_latent = compute_latent(model, anndata, configuration)
         if utils.get_from_config(configuration, parameters.DEV_DEBUG):
             try:
@@ -220,7 +220,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         if utils.get_from_config(configuration, parameters.DEBUG):
             utils.save_umap_as_pdf(query_latent, 'data/figures/query.pdf', color=['batch', 'cell_type'])
 
-
+        print('line 223')
 
 
         ### NEW IMPLEMENTATION ###
@@ -248,6 +248,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
             #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
             combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+            print('line 251')
         else:
             # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
             import anndata as ad
@@ -258,7 +259,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
             del source_adata.obs["celltype_annotation"]      
 
             test = sc.pp.subsample(source_adata, 0.01, copy = True)
-
+            print('line 262')
             query_latent.obs.index = anndata.obs.index
             query_latent.obs["type"] = anndata.obs["type"]
             try: 
@@ -268,8 +269,8 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
                 
                 
                 latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
-            except ConnectionResetError as e:
-                print(f'Connection reset part 1. {e}')
+            except Exception as e:
+                print(f'Connection reset part 1. {e}. Type: {type(e)}')
 
 
         #Run classifiers
@@ -285,12 +286,12 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
         #Dummy latent adata - Remove line
         latent_adata = None
-
+        print('line 289')
         #Save output
         try:
             processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
-        except ConnectionError as e:
-            print('connection reset, here')
+        except Exception as e:
+            print(f'connection reset, here, {e}, type: {type(e)}')
         ### NEW IMPLEMENTATION ###
 
 
@@ -304,8 +305,8 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         #                               condition_key=utils.get_from_config(configuration, parameters.CONDITION_KEY), configuration=configuration)
 
         return model
-    except ConnectionResetError as e:
-        print(f"Connection reset error: {e}")
+    except Exception as e:
+        print(f"Connection reset error: {e}. Type: {type(e)}")
 
 def compute_scVI(configuration):
     setup()
