@@ -21,6 +21,7 @@ def default_config():
     return {
         parameters.MODEL_SOURCE: "curated",
         parameters.MODEL: 'scVI',
+        parameters.MINIFICATION: True,
         parameters.CLASSIFIER: {"XGBoost":False, "KNN":False, "scANVI":False},
         parameters.ATLAS: 'Pancreas',
 

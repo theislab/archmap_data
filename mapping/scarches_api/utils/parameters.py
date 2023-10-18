@@ -8,6 +8,8 @@ can rapidly change the naming of the keys in the configuration.
 MODEL_SOURCE = "model_source"
 # sets the model
 MODEL = 'model'
+# sets if minified version
+MINIFICATION = "minification"
 # sets the classifier
 CLASSIFIER = "classifier_type"
 # sets the condition key

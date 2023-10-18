@@ -147,7 +147,7 @@ class Preprocess:
         # #Filter out all the batches the model doesnt know
         # adata = adata[adata.obs["batch"].isin(batches)].copy()
 
-    def conform_vars(configuration, adata, gene_ids = None):
+    def conform_vars(adata, configuration, gene_ids = None):
         """
         Conforms genes from adata to respective model
 
@@ -165,13 +165,14 @@ class Preprocess:
         An :class:`~anndata.AnnData` object
         """
         
-        #Get relative model path
-        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
-
+        
         #Get var_names from custom array or model
         if gene_ids is not None:
             var_names = gene_ids
         else:
+            #Get relative model path
+            model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
+
             var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
 
         # test if adata.var.index has gene names or ensembl names:
@@ -235,11 +236,11 @@ class Preprocess:
         and reintroduces the counts layer if it has been deleted during sparsity removal.
         """
         print("Download atlas")
-        source_adata = utils.read_atlas_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+        source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+        source_adata.obs["type"] = "reference"   
 
         print("Download query")
-        target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))
-        source_adata.obs["type"] = "reference"
+        target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))        
         target_adata.obs["type"] = "query"
         #TODO: HARDCODING---------------------------------------------------
         # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
@@ -254,7 +255,7 @@ class Preprocess:
 
         #Adjust .var according to model
         #source_adata = Preprocess.conform_vars(configuration, source_adata)
-        target_adata = Preprocess.conform_vars(configuration, target_adata)
+        target_adata = Preprocess.conform_vars(target_adata, configuration)
 
         # try:
         #     source_adata = utils.remove_sparsity(source_adata)
@@ -264,11 +265,12 @@ class Preprocess:
         #     target_adata = utils.remove_sparsity(target_adata)
         # except Exception as e:
         #     pass
-        try:
-            source_adata.layers['counts']
-        except Exception as e:
-            source_adata.layers['counts'] = source_adata.X
-            print("counts layer source")
+        if not utils.get_from_config(configuration, parameters.MINIFICATION):
+            try:
+                source_adata.layers['counts']
+            except Exception as e:
+                source_adata.layers['counts'] = source_adata.X
+                print("counts layer source")
 
         try:
             target_adata.layers['counts']

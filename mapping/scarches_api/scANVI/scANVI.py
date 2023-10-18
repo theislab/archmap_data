@@ -167,7 +167,7 @@ def surgery(reference_latent, source_adata, anndata, configuration):
     return model, surgery_latent
 
 
-def query(pretrained_model, reference_latent, anndata, source_adata, configuration):
+def query(anndata, source_adata, configuration):
     """
     Perform surgery on reference model and train on query dataset
     :param pretrained_model: pretrained model
@@ -360,7 +360,7 @@ def query(pretrained_model, reference_latent, anndata, source_adata, configurati
 
     print("DEBUGDEBUG QUERY D")
     from anndata import experimental
-    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, overwrite=True)
+    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
@@ -557,9 +557,9 @@ def compute_scANVI(configuration):
     #scarches.models.SCANVI.setup_anndata(target_adata, labels_key=utils.get_from_config(configuration, parameters.CELL_TYPE_KEY), unlabeled_category=utils.get_from_config(configuration, parameters.UNLABELED_KEY), batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
     print("DEBUGDEBUG  START create_model")
-    scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
+    #scanvi, reference_latent = create_model(source_adata, target_adata, configuration)
     print("DEBUGDEBUG  END create_model")
 
     print("DEBUGDEBUG  START query")
-    model_query, query_latent = query(scanvi, reference_latent, target_adata, source_adata, configuration)
+    model_query, query_latent = query(target_adata, source_adata, configuration)
     print("DEBUGDEBUG  END query")
