@@ -369,19 +369,28 @@ def query(anndata, source_adata, configuration):
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
-    print("DEBUGDEBUG QUERY 11")
-    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
+    print("DEBUGDEBUG QUERY garbage collection.")
+    gc.collect()
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
+
     print("DEBUGDEBUG QUERY 12")
     combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
+    print("DEBUGDEBUG QUERY garbage collection 2.")
+    gc.collect()
+
+    print("DEBUGDEBUG QUERY 11")
+    scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)    
+
+    gc.collect()
     #Dummy latent adata - Remove line
     print("DEBUGDEBUG QUERY 13")
     latent_adata = None
 
+    gc.collect()
     #Save output
     print("DEBUGDEBUG QUERY 14")
     processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
