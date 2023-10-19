@@ -304,15 +304,15 @@ def query(anndata, source_adata, configuration):
 
 
 
-    #anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-    # query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
+    anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+    query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
     # try:
     #     #source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
     #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
     #     reference_latent.obs = source_adata.obs
     #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "X", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "X", labels_key, False)
     # except:
     #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
     #     source_adata_sub = source_adata[:,anndata.var.index]
@@ -320,8 +320,8 @@ def query(anndata, source_adata, configuration):
     #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata_sub))
     #     reference_latent.obs = source_adata_sub.obs
 
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "X", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "X", labels_key, False)
 
     #Remove later
     # anndata.obs["ann_new"] = False
@@ -561,5 +561,5 @@ def compute_scANVI(configuration):
     print("DEBUGDEBUG  END create_model")
 
     print("DEBUGDEBUG  START query")
-    model_query, query_latent = query(target_adata, source_adata, configuration)
+    model = query(target_adata, source_adata, configuration)
     print("DEBUGDEBUG  END query")
