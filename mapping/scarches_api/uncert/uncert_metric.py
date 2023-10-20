@@ -36,7 +36,8 @@ def mahalanobis(v, data):
 def classification_uncert_mahalanobis(
         configuration, 
         adata_ref_latent, 
-        adata_query_latent, 
+        adata_query_latent,
+        adata_query_raw,
         embedding_name, 
         cell_type_key,
         pretrained
@@ -61,19 +62,19 @@ def classification_uncert_mahalanobis(
     else:
         kmeans = train_mahalanobis(None, adata_ref_latent, embedding_name, cell_type_key, pretrained)
     
-    uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
+    uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_raw.obs_names)
     centroids = kmeans.cluster_centers_
-    adata_query = kmeans.transform(adata_query_latent.obsm[embedding_name])
+    adata_query = kmeans.transform(adata_query_latent.X)
 
     for query_cell_index in range(len(adata_query)):
-        query_cell = adata_query_latent.obsm[embedding_name][query_cell_index]
+        query_cell = adata_query_latent.X[query_cell_index]
         distance = mahalanobis(query_cell, centroids)
         uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(distance)
         
     max_distance = np.max(uncertainties["uncertainty"])
     min_distance = np.min(uncertainties["uncertainty"])
     uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
-    adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
+    adata_query_raw.obs['uncertainty_mahalanobis'] = uncertainties.to_numpy(dtype="float32")
     
     return uncertainties, centroids
 
@@ -113,6 +114,7 @@ def classification_uncert_euclidean(
         configuration,
         adata_ref_latent,
         adata_query_latent,
+        adata_query_raw,
         embedding_name,
         cell_type_key,
         pretrained
@@ -151,9 +153,9 @@ def classification_uncert_euclidean(
     if(len(uncertainties.columns) > 1):
         for entry in uncertainties.columns:
             name = str(entry + '_uncertainty_euclidean')
-            adata_query_latent.obs[name] = uncertainties[entry].to_numpy(dtype="float32")
+            adata_query_raw.obs[name] = uncertainties[entry].to_numpy(dtype="float32")
     else:
-        adata_query_latent.obs['uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
+        adata_query_raw.obs['uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
     
     return uncertainties
 
@@ -343,13 +345,18 @@ def train_euclidian(atlas, adata_ref_latent, embedding_name, pretrained, n_neigh
 def train_mahalanobis(atlas, adata_ref_latent, embedding_name, cell_type_key, pretrained):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
+    if embedding_name == "X":
+        train_emb = adata_ref_latent.X
+    elif embedding_name in adata_ref_latent.obsm.keys():
+        train_emb = adata_ref_latent.obsm[embedding_name]
+
     #Required too much RAM
     # gmm = GaussianMixture(n_components=num_clusters)
     # gmm.fit(adata_ref_latent.X.toarray())
 
     #Less RAM alternative
     kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(adata_ref_latent.embedding_name)
+    kmeans.fit(train_emb)
 
     #Save or return model
     if pretrained:

@@ -304,15 +304,15 @@ def query(anndata, source_adata, configuration):
 
 
 
-    #anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
-    # query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
+    anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+    query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
     # try:
     #     #source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
     #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
     #     reference_latent.obs = source_adata.obs
     #     print("DEBUGDEBUG QUERY 10.C!!!!!!")
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "X", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "X", labels_key, False)
     # except:
     #     print("DEBUGDEBUG QUERY 10.D!!!!!!")
     #     source_adata_sub = source_adata[:,anndata.var.index]
@@ -320,17 +320,30 @@ def query(anndata, source_adata, configuration):
     #     reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata_sub))
     #     reference_latent.obs = source_adata_sub.obs
 
-    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
-    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "latent_rep", labels_key, False)
+    #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "X", labels_key, False)
+    #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "X", labels_key, False)
+
+    # reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
+    # reference_latent.obs = source_adata.obs
+    # print("DEBUGDEBUG QUERY 10.C!!!!!!")
+    # uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+    # uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+
+    # source_adata.obs["uncertainty_mahalanobis"] = "NaN"
+    # source_adata.obs["uncertainty_euclidean"] = "NaN"
 
     #Remove later
     # anndata.obs["ann_new"] = False
     # source_adata.obs["scanvi_label"] = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
 
-    # #Get combined and latent data
+    # #Get combined and latent data    
     # print("Combine reference and query, prepare for export")
+    # print('RAM memory % used:', psutil.virtual_memory()[2])
+    # print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     # combined_adata = source_adata.concatenate(anndata, batch_key='bkey', fill_value="None")
-    # #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
+    # print('RAM memory % used:', psutil.virtual_memory()[2])
+    # print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
+    #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
 
     ## Alternative approach
     print("DEBUGDEBUG QUERY A")
@@ -392,7 +405,7 @@ def query(anndata, source_adata, configuration):
     temp_reference.close()
     temp_query.close()
     temp_combined.close()
-    ### NEW IMPLEMENTATION ###
+    ## NEW IMPLEMENTATION ###
 
     return model
 
@@ -561,5 +574,5 @@ def compute_scANVI(configuration):
     print("DEBUGDEBUG  END create_model")
 
     print("DEBUGDEBUG  START query")
-    model_query, query_latent = query(target_adata, source_adata, configuration)
+    model = query(target_adata, source_adata, configuration)
     print("DEBUGDEBUG  END query")
