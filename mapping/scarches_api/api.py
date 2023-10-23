@@ -25,8 +25,14 @@ def query():
             thread.start()
             return actual_config, 200
         else:
-            actual_configuration = scarches.query(config)
-            return actual_configuration, 200
+
+            actual_config = scarches.merge_configs(config)
+            thread = Thread(target=scarches.query, args=(config,))
+            thread.start()
+            return actual_config, 200
+        
+            # actual_configuration = scarches.query(config)
+            # return actual_configuration, 200
     except Exception as e:
         traceback.print_exc()
         return {'error': str(e)}, 500
