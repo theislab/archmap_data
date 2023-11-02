@@ -323,11 +323,11 @@ def query(anndata, source_adata, configuration):
     #     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, "X", labels_key, False)
     #     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, "X", labels_key, False)
 
-    # reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
-    # reference_latent.obs = source_adata.obs
-    # print("DEBUGDEBUG QUERY 10.C!!!!!!")
-    # uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
-    # uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+    reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
+    reference_latent.obs = source_adata.obs
+    print("DEBUGDEBUG QUERY 10.C!!!!!!")
+    uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+    uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
 
     # source_adata.obs["uncertainty_mahalanobis"] = "NaN"
     # source_adata.obs["uncertainty_euclidean"] = "NaN"
@@ -344,6 +344,15 @@ def query(anndata, source_adata, configuration):
     # print('RAM memory % used:', psutil.virtual_memory()[2])
     # print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     #combined_adata = source_adata.concatenate(anndata, join="outer", batch_key="bkey")
+
+    X_minified = source_adata.X
+    source_adata.X = source_adata.layers["counts"]
+
+    source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+    #Added because concat_on_disk only allows inner joins
+    import pandas as pd
+    source_adata.obs[labels_key + '_uncertainty_euclidean'] = pd.Series(dtype="float32")
+    source_adata.obs['uncertainty_mahalanobis'] = pd.Series(dtype="float32")
 
     ## Alternative approach
     print("DEBUGDEBUG QUERY A")
@@ -384,16 +393,28 @@ def query(anndata, source_adata, configuration):
 
     print("DEBUGDEBUG QUERY 11")
     scarches.models.SCANVI.setup_anndata(combined_adata, labels_key=labels_key, unlabeled_category=unlabeled_category, batch_key=batch_key)
+
+    # scanpy.pp.neighbors(combined_adata, 15, use_rep="latent_rep")
+    # scanpy.tl.leiden(combined_adata)
+    # scanpy.tl.umap(combined_adata)
+    # scanpy.pl.umap(combined_adata, save="before")
+
+
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     print("DEBUGDEBUG QUERY 12")
-    combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
+    #combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
     #Dummy latent adata - Remove line
     print("DEBUGDEBUG QUERY 13")
     latent_adata = None
+
+    # scanpy.pp.neighbors(combined_adata, 15, use_rep="latent_rep")
+    # scanpy.tl.leiden(combined_adata)
+    # scanpy.tl.umap(combined_adata)
+    # scanpy.pl.umap(combined_adata, save="after")
 
     #Save output
     print("DEBUGDEBUG QUERY 14")

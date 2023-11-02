@@ -155,7 +155,7 @@ def classification_uncert_euclidean(
             name = str(entry + '_uncertainty_euclidean')
             adata_query_raw.obs[name] = uncertainties[entry].to_numpy(dtype="float32")
     else:
-        adata_query_raw.obs['uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
+        adata_query_raw.obs[cell_type_key + '_uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
     
     return uncertainties
 
