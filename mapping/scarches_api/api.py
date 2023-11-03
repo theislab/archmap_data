@@ -29,6 +29,7 @@ def query():
             return actual_configuration, 200
     except Exception as e:
         traceback.print_exc()
+        utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': str(e)})
         return {'error': str(e)}, 500
 
 
