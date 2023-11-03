@@ -194,6 +194,10 @@ class Preprocess:
 
         #Get genes from adata that exist in var_names
         genes = adata.var.index[adata.var.index.isin(var_names)].tolist()
+
+        #adata.strings_to_categoricals()
+        #adata.__dict__['_raw'].__dict__['_var'] = adata.__dict__['_raw'].__dict__['_var'].rename(columns={'_index': 'features'})
+
         #Get intersection of adata and var_names genes
         adata_sub = adata[:,genes]
         #Pad object with 0 genes if needed
@@ -601,7 +605,7 @@ class Postprocess:
         return
 
     def __prepare_output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
-        is_embedding = utils.get_from_config(config, parameters.USE_REFERENCE_EMBEDDING)
+        # is_embedding = utils.get_from_config(config, parameters.USE_REFERENCE_EMBEDDING)
 
         # if not is_embedding:
         #     #Get labels from config
@@ -613,6 +617,8 @@ class Postprocess:
         #     latent_adata.obs['type'] = combined_adata.obs['type'].tolist()
         #     if("uncertainty" in combined_adata.obs):
         #         latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
+
+        
 
         if "X_umap" not in combined_adata.obsm:
             #Get specified amount of neighbours for computation
@@ -655,6 +661,7 @@ class Postprocess:
     def __output_cxg(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
         print("Preparing output")
+
         #Cellxgene data format requirements
         #1. Expression values in adata.X
         if combined_adata.X is None:
@@ -681,11 +688,13 @@ class Postprocess:
         print("Now storing to gcp with output path: " + output_path)
         utils.store_file_in_s3(filename, output_path)
 
-    def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, output_types):
-        if(output_types.get("csv")):
+    def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration):
+        output_type = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+
+        if(output_type.get("csv")):
             #TODO: Change implementation of dropping unnecessary labels?
             obs_to_drop = []
 
             Postprocess.__output_csv(obs_to_drop, latent_adata, combined_adata, configuration, True)
-        if(output_types.get("cxg")):
+        if(output_type.get("cxg")):
             Postprocess.__output_cxg(latent_adata, combined_adata, configuration)

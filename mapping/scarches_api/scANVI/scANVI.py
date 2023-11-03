@@ -16,6 +16,8 @@ import scvi
 
 import process.processing as processing
 
+from classifiers.classifiers import Classifiers
+
 import psutil
 
 
@@ -329,9 +331,6 @@ def query(anndata, source_adata, configuration):
     uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
     uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
 
-    # source_adata.obs["uncertainty_mahalanobis"] = "NaN"
-    # source_adata.obs["uncertainty_euclidean"] = "NaN"
-
     #Remove later
     # anndata.obs["ann_new"] = False
     # source_adata.obs["scanvi_label"] = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
@@ -353,6 +352,12 @@ def query(anndata, source_adata, configuration):
     import pandas as pd
     source_adata.obs[labels_key + '_uncertainty_euclidean'] = pd.Series(dtype="float32")
     source_adata.obs['uncertainty_mahalanobis'] = pd.Series(dtype="float32")
+    source_adata.obs['prediction_xgb'] = pd.Series(dtype="category")
+    source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
+
+
+    clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS))
+    clf.predict_labels(anndata, query_latent)
 
     ## Alternative approach
     print("DEBUGDEBUG QUERY A")
@@ -418,7 +423,7 @@ def query(anndata, source_adata, configuration):
 
     #Save output
     print("DEBUGDEBUG QUERY 14")
-    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    processing.Postprocess.output(latent_adata, combined_adata, configuration)
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     

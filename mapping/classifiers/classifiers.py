@@ -36,32 +36,38 @@ from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
     def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas") -> None:
-        self.classifier_xgb = classifier_xgb
-        self.classifier_knn = classifier_knn
-        self.classifier_scanvi = classifier_scanvi
-        self.classifier_path = classifier_path + "/" + atlas_name
-        self.atlas_name = atlas_name
+        self.__classifier_xgb = classifier_xgb
+        self.__classifier_knn = classifier_knn
+        self.__classifier_scanvi = classifier_scanvi
+        self.__classifier_path = classifier_path + "/" + atlas_name
+        self.__atlas_name = atlas_name
 
+    '''
+    Parameters
+    ----------
+    query: adata to save labels to
+    query_latent: adata to read .X from for label prediction
+    '''
     def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData()):
         le = LabelEncoder()
 
-        with open(self.classifier_path + "/classifier_encoding.pickle", "rb") as file:
+        with open(self.__classifier_path + "/classifier_encoding.pickle", "rb") as file:
                 le = pickle.load(file)
 
-        if self.classifier_xgb:
+        if self.__classifier_xgb:
             xgb_model = XGBClassifier()
-            xgb_model.load_model(self.classifier_path + "/classifier_xgb.ubj")
+            xgb_model.load_model(self.__classifier_path + "/classifier_xgb.ubj")
             
             query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
 
-        if self.classifier_knn:
-            with open(self.classifier_path + "/classifier_knn.pickle", "rb") as file:
+        if self.__classifier_knn:
+            with open(self.__classifier_path + "/classifier_knn.pickle", "rb") as file:
                 knn_model = pickle.load(file)
 
             query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
 
-        if self.classifier_scanvi is not None:
-            scanvi_model = sca.models.SCANVI.load_query_data(adata=query, reference_model="assets/scANVI/" + self.atlas_name)
+        if self.__classifier_scanvi is not None:
+            scanvi_model = sca.models.SCANVI.load_query_data(adata=query, reference_model="assets/scANVI/" + self.__atlas_name)
 
             query.obs["prediction_scanvi"] = scanvi_model.predict(query)
 
@@ -83,8 +89,8 @@ class Classifiers:
             self,
             X_train=X_train,
             y_train=y_train,
-            xgb=self.classifier_xgb,
-            kNN=self.classifier_knn
+            xgb=self.__classifier_xgb,
+            kNN=self.__classifier_knn
         )
         
         reports = Classifiers.eval_classifier(
@@ -137,7 +143,7 @@ class Classifiers:
         X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
         #Save label encoder
-        with open(self.classifier_path + "/classifier_encoding.pickle", "wb") as file:
+        with open(self.__classifier_path + "/classifier_encoding.pickle", "wb") as file:
             pickle.dump(le, file, pickle.HIGHEST_PROTOCOL)
 
         return X_train, X_test, y_train, y_test
@@ -151,14 +157,14 @@ class Classifiers:
             xgbc.fit(X_train, y_train)
 
             #Save classifier
-            xgbc.save_model(self.classifier_path + "/classifier_xgb.ubj")
+            xgbc.save_model(self.__classifier_path + "/classifier_xgb.ubj")
 
         if kNN:
             knnc = KNeighborsClassifier()
             knnc.fit(X_train, y_train)
 
             #Save classifier
-            with open(self.classifier_path + "/classifier_knn.pickle", "wb") as file:
+            with open(self.__classifier_path + "/classifier_knn.pickle", "wb") as file:
                 pickle.dump(knnc, file, pickle.HIGHEST_PROTOCOL)
 
         return xgbc, knnc
@@ -169,7 +175,7 @@ class Classifiers:
         #Load label encoder to get classes with real names in report
         le = LabelEncoder()
 
-        with open(self.classifier_path + "/classifier_encoding.pickle", "rb") as file:
+        with open(self.__classifier_path + "/classifier_encoding.pickle", "rb") as file:
                 le = pickle.load(file)
         
         if xgbc is not None:
@@ -192,8 +198,8 @@ class Classifiers:
             print("kNN classifier report:")
             print(knnc_report)
 
-        if self.classifier_scanvi is not None:
-            preds = self.classifier_scanvi.predict(self.classifier_scanvi, X_test)
+        if self.__classifier_scanvi is not None:
+            preds = self.__classifier_scanvi.predict(self.__classifier_scanvi, X_test)
 
             scanvic_report = Classifiers.__eval_classification_report(le.inverse_transform(y_test), preds)
 
@@ -240,7 +246,7 @@ class Classifiers:
 
             seaborn.heatmap(reports[key], cmap="viridis", annot=True)   
 
-            plt.savefig(self.classifier_path + "/classifier_" + key + "_report.png")
+            plt.savefig(self.__classifier_path + "/classifier_" + key + "_report.png")
 
 if __name__ == "__main__":
     adata = scanpy.read_h5ad("scEiaD_all_anndata_mini_ref.h5ad")

@@ -288,7 +288,7 @@ def compute_final_umaps(adata_full_new, imputed_proteins_all, configuration):
     latent_adata = adata_full_new.obsm["X_totalVI"]
 
     #Save output
-    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    processing.Postprocess.output(latent_adata, combined_adata, configuration)
     ### NEW IMPLEMENTATION ###
 
 
