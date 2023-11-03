@@ -19,7 +19,7 @@ def default_config():
     :return: dict containing all the default values
     """
     return {
-        parameters.MODEL_SOURCE: "curated",
+        parameters.SCVI_HUB_ID: None,
         parameters.MODEL: 'scVI',
         parameters.MINIFICATION: True,
         parameters.CLASSIFIER: {"XGBoost":False, "KNN":False, "scANVI":False},
@@ -109,10 +109,12 @@ def query(user_config):
     #Preprocess.set_keys_dynamic(configuration)
 
 
-    model_source = utils.get_from_config(configuration, parameters.MODEL_SOURCE)
+    scvi_hub_id = utils.get_from_config(configuration, parameters.SCVI_HUB_ID)
 
-    if model_source == "scvi_hub":
-        sh = ScviHub()
+    if scvi_hub_id:
+        sh = ScviHub(configuration=configuration)
+
+        sh.map_query()
     else:
         model = utils.get_from_config(configuration, parameters.MODEL)
         configuration['atlas'] = utils.translate_atlas_to_directory(configuration)

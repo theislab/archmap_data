@@ -6,6 +6,8 @@ can rapidly change the naming of the keys in the configuration.
 """
 # sets the model source
 MODEL_SOURCE = "model_source"
+# sets scvi hub id
+SCVI_HUB_ID = "scviHubId"
 # sets the model
 MODEL = 'model'
 # sets if minified version

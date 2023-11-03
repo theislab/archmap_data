@@ -303,7 +303,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
     latent_adata = None
 
     #Save output
-    processing.Postprocess.output(latent_adata, combined_adata, configuration, output_types)
+    processing.Postprocess.output(latent_adata, combined_adata, configuration)
     ### NEW IMPLEMENTATION ###
 
 
