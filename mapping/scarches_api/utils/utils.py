@@ -384,6 +384,7 @@ def notify_backend(endpoint, payload):
     :return:
     """
     print("notifying backend with endpoint and payload ", endpoint, payload)
+    print("\n")
     requests.post(endpoint, data=payload)
 
 
