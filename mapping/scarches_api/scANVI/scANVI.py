@@ -356,7 +356,7 @@ def query(anndata, source_adata, configuration):
     source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
 
 
-    clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS))
+    clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scANVI")
     clf.predict_labels(anndata, query_latent)
 
     ## Alternative approach
@@ -412,10 +412,6 @@ def query(anndata, source_adata, configuration):
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
 
-    #Dummy latent adata - Remove line
-    print("DEBUGDEBUG QUERY 13")
-    latent_adata = None
-
     # scanpy.pp.neighbors(combined_adata, 15, use_rep="latent_rep")
     # scanpy.tl.leiden(combined_adata)
     # scanpy.tl.umap(combined_adata)
@@ -423,7 +419,7 @@ def query(anndata, source_adata, configuration):
 
     #Save output
     print("DEBUGDEBUG QUERY 14")
-    processing.Postprocess.output(latent_adata, combined_adata, configuration)
+    processing.Postprocess.output(None, combined_adata, configuration)
     print('RAM memory % used:', psutil.virtual_memory()[2])
     print('RAM Used (GB):', psutil.virtual_memory()[3]/1000000000)
     

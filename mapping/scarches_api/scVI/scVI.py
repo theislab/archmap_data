@@ -1,7 +1,7 @@
 import os
 import warnings
 
-import scanpy as sc
+import scanpy
 import scarches as sca
 import scvi
 import torch
@@ -12,6 +12,7 @@ import sys
 import tempfile
 import scvi
 
+import uncert.uncert_metric as uncert
 from classifiers.classifiers import Classifiers
 
 import process.processing as processing
@@ -34,9 +35,9 @@ def setup():
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)
     #  Set resolution/size, styling and format of figures.
-    sc.settings.set_figure_params(dpi=200, frameon=False)
+    scanpy.settings.set_figure_params(dpi=200, frameon=False)
     # https://scanpy.readthedocs.io/en/stable/generated/scanpy.set_figure_params.html
-    sc.set_figure_params(dpi=200, figsize=(4, 4))
+    scanpy.set_figure_params(dpi=200, figsize=(4, 4))
     # https://pytorch.org/docs/stable/generated/torch.set_printoptions.html
     torch.set_printoptions(precision=3, sci_mode=False, edgeitems=7)
 
@@ -138,14 +139,14 @@ def compute_latent(model, adata, configuration):
     :param adata:
     :return:
     """
-    reference_latent = sc.AnnData(model.get_latent_representation(adata=adata))
+    reference_latent = scanpy.AnnData(model.get_latent_representation(adata=adata))
     reference_latent.obs[utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)] = adata.obs[
         utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)].tolist()
     reference_latent.obs[utils.get_from_config(configuration, parameters.CONDITION_KEY)] = adata.obs[
         utils.get_from_config(configuration, parameters.CONDITION_KEY)].tolist()
-    sc.pp.neighbors(reference_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
-    sc.tl.leiden(reference_latent)
-    sc.tl.umap(reference_latent)
+    scanpy.pp.neighbors(reference_latent, n_neighbors=utils.get_from_config(configuration, parameters.NUMBER_OF_NEIGHBORS))
+    scanpy.tl.leiden(reference_latent)
+    scanpy.tl.umap(reference_latent)
 
     return reference_latent
 
@@ -221,7 +222,9 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
 
     ### NEW IMPLEMENTATION ###
-    #Get desired output types
+    labels_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+    unlabeled_category = utils.get_from_config(configuration, parameters.UNLABELED_KEY)
+    batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY)
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
     use_embedding = utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING)
 
@@ -233,20 +236,43 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
         # source_adata.obs["bbk"] = "fetal_gut"
 
-        # test = sc.pp.subsample(source_adata, 0.01, copy = True)  
+        # test = scanpy.pp.subsample(source_adata, 0.01, copy = True)  
 
         # test.X[np.isnan(test.X)] = 0
 
         #Get combined and latent data
         #combined_adata = anndata.concatenate(source_adata, batch_key='bkey')
 
+        anndata.obsm["latent_rep"] = model.get_latent_representation(anndata)
+        query_latent = scanpy.AnnData(model.get_latent_representation(anndata))
+        reference_latent = scanpy.AnnData(model.get_latent_representation(source_adata))
+        reference_latent.obs = source_adata.obs
+
+        uncert.classification_uncert_euclidean(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+        uncert.classification_uncert_mahalanobis(configuration, reference_latent, query_latent, anndata, "X", labels_key, False)
+
+        X_minified = source_adata.X
+        source_adata.X = source_adata.layers["counts"]
+
+        source_adata.obsm["latent_rep"] = model.get_latent_representation(source_adata)
+        #Added because concat_on_disk only allows inner joins
+        import pandas as pd
+        source_adata.obs[labels_key + '_uncertainty_euclidean'] = pd.Series(dtype="float32")
+        source_adata.obs['uncertainty_mahalanobis'] = pd.Series(dtype="float32")
+        source_adata.obs['prediction_xgb'] = pd.Series(dtype="category")
+        source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
+
+
+        clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scVI")
+        clf.predict_labels(anndata, query_latent)
+
         ## Alternative approach
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
         temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
         temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
 
-        sc.write(temp_reference.name, source_adata)
-        sc.write(temp_query.name, anndata)
+        scanpy.write(temp_reference.name, source_adata)
+        scanpy.write(temp_query.name, anndata)
 
         del source_adata
         del anndata
@@ -257,14 +283,12 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         from anndata import experimental
         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
 
-        combined_adata = sc.read_h5ad(temp_combined.name)
+        combined_adata = scanpy.read_h5ad(temp_combined.name)
 
 
         sca.models.SCVI.setup_anndata(combined_adata, batch_key=utils.get_from_config(configuration, parameters.CONDITION_KEY))
 
-        #model.adata_manager.transfer_fields(combined_adata, extend_categories=True)
-
-        #latent_adata = sc.AnnData(model.get_latent_representation(combined_adata))
+        #latent_adata = scanpy.AnnData(model.get_latent_representation(combined_adata))
         combined_adata.obsm["latent_rep"] = model.get_latent_representation(combined_adata)
     else:
         # combined_adata = query_latent.concatenate(source_adata, batch_key='bkey')
@@ -275,7 +299,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         source_adata.obs[cell_type_key] = source_adata.obs["celltype_annotation"]
         del source_adata.obs["celltype_annotation"]      
 
-        test = sc.pp.subsample(source_adata, 0.01, copy = True)
+        test = scanpy.pp.subsample(source_adata, 0.01, copy = True)
 
         query_latent.obs.index = anndata.obs.index
         query_latent.obs["type"] = anndata.obs["type"]
@@ -285,7 +309,7 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
                               join="outer", merge="unique", uns_merge="unique")
         
         
-        latent_adata = sc.AnnData(combined_adata.obsm["X_scvi"])
+        latent_adata = scanpy.AnnData(combined_adata.obsm["X_scvi"])
 
 
     #Run classifiers
@@ -299,11 +323,8 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
     # clf = Classifiers(clf_xgb, clf_knn, clf_scanvi, "../classifiers/models/", atlas_name)
     # clf.predict_labels(anndata)
 
-    #Dummy latent adata - Remove line
-    latent_adata = None
-
     #Save output
-    processing.Postprocess.output(latent_adata, combined_adata, configuration)
+    processing.Postprocess.output(None, combined_adata, configuration)
     ### NEW IMPLEMENTATION ###
 
 

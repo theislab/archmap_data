@@ -35,12 +35,13 @@ from sklearn.neighbors import KNeighborsTransformer
 from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
-    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas") -> None:
+    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas", model_type="scVI") -> None:
         self.__classifier_xgb = classifier_xgb
         self.__classifier_knn = classifier_knn
         self.__classifier_scanvi = classifier_scanvi
         self.__classifier_path = classifier_path + "/" + atlas_name
         self.__atlas_name = atlas_name
+        self.__model_type = model_type
 
     '''
     Parameters
@@ -73,6 +74,7 @@ class Classifiers:
 
     def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType"):
         train_data = Classifiers.__get_train_data(
+            self,
             adata=adata,
             latent_rep=latent_rep,
             model_path=model_path
@@ -106,7 +108,7 @@ class Classifiers:
             reports
         )
 
-    def __get_train_data(adata, latent_rep=True, model_path=None):
+    def __get_train_data(self, adata, latent_rep=True, model_path=None):
         if latent_rep:
             latent_rep = adata
         else:
@@ -117,7 +119,12 @@ class Classifiers:
 
             # scvi.model.SCVI.setup_anndata(adata_subset)
 
-            model = scvi.model.SCANVI.load(model_path, adata)
+            if self.__model_type == "scVI":
+                model = scvi.model.SCVI.load(model_path, adata)
+            elif self.__model_type == "scANVI":
+                model = scvi.model.SCANVI.load(model_path, adata)
+            else:
+                raise Exception("Choose model type 'scVI' or 'scANVI'")
 
             latent_rep = scanpy.AnnData(model.get_latent_representation(), adata.obs)
 
