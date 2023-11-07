@@ -30,7 +30,14 @@ def query():
     except Exception as e:
         print("Error in query\n")
         traceback.print_exc()
-        utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': str(e)})
+        if e is not None:
+            if len(str(e)) > 0:
+                utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': str(e)})
+            else:
+                utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': "Unknown error"})
+        else:
+            utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': "Unknown error"})
+        
         return {'error': str(e)}, 500
 
 
