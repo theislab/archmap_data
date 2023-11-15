@@ -317,3 +317,5 @@ po/*~
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,jetbrains+all,r
 .DS_Store
+/mapping/.vscode
+/.vscode

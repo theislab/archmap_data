@@ -112,41 +112,6 @@ class Preprocess:
         print(drop_list)
         return drop_list
 
-    def drop_unknown_batch_labels(configuration, adata):
-        #Get relative model path
-        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
-
-        #Get label names the model was set up with
-        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
-        registry = attr_dict.pop("registry_") 
-
-        field_registries = registry["field_registries"]
-        for field in field_registries:
-            #Filter out all the batches the model doesnt know
-            if field == "batch":
-                batch_key = utils.get_from_config(configuration, parameters.CONDITION_KEY) 
-
-                state_registry = field_registries[field]["state_registry"]
-                categorical_mapping = state_registry["categorical_mapping"] 
-                adata = adata[adata.obs[batch_key].isin(categorical_mapping)].copy()
-
-            # #Filter out all the labels the model doesnt know
-            # if field == "labels":
-            #     labels_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-
-            #     state_registry = field_registries[field]["state_registry"]
-            #     categorical_mapping = state_registry["categorical_mapping"]
-            #     adata = adata[adata.obs[labels_key].isin(categorical_mapping)].copy()
-
-        return adata
-
-        # #Get batches the model knows
-        # state_registry_batch = model.adata_manager.get_state_registry("batch")
-        # batches = state_registry_batch["categorical_mapping"]
-
-        # #Filter out all the batches the model doesnt know
-        # adata = adata[adata.obs["batch"].isin(batches)].copy()
-
     def conform_vars(adata, configuration, gene_ids = None):
         """
         Conforms genes from adata to respective model
@@ -255,7 +220,8 @@ class Preprocess:
         # #-------------------------------------------------------------------
 
         #Set label keys
-        Preprocess.set_keys_dynamic(configuration, target_adata, source_adata)
+        Preprocess.set_keys(configuration, target_adata)
+        #Preprocess.set_keys_dynamic(configuration, target_adata, source_adata)
 
         #Adjust .var according to model
         #source_adata = Preprocess.conform_vars(configuration, source_adata)
@@ -307,41 +273,54 @@ class Preprocess:
 
         return source_adata, target_adata
 
-    def set_keys(configuration):
+    def set_keys(configuration, target_adata):
         """
         Sets the batch(condition) and cell_type keys, according to the atlas chosen.
         This is necessary as the reference files all have these keys under different names,
         although they contain the same information.
         """
         #TODO: Medium hardcoding due to file differences
-        atlas = utils.get_from_config(configuration, 'atlas')
-        if atlas == 'Pancreas':
-            return configuration
-        elif atlas == 'PBMC':
-            return configuration
-        elif atlas == 'Heart cell atlas':
+        atlas = utils.get_from_config(configuration, parameters.ATLAS)
+
+        if atlas == 'pbmc':
+            configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
+            configuration[parameters.CONDITION_KEY] = 'sample_id'
+        elif atlas == 'heart':
             configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
             configuration[parameters.CONDITION_KEY] = 'source'
             configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
-            return configuration
-        elif atlas == 'Human lung cell atlas':
+        elif atlas == 'human_lung':
             configuration[parameters.CELL_TYPE_KEY] = 'scanvi_label'
             configuration[parameters.CONDITION_KEY] = 'dataset'
             configuration[parameters.UNLABELED_KEY] = 'unlabeled'
-            return configuration
-        elif atlas == 'Bone marrow':
-            # configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
-            # configuration[parameters.CONDITION_KEY] = 'source'
-            return configuration
-        elif atlas == 'Retina atlas':
+        elif atlas == 'retina':
             configuration[parameters.CELL_TYPE_KEY] = 'CellType'
             configuration[parameters.CONDITION_KEY] = 'batch'
-            return configuration
-        elif atlas == 'Fetal immune atlas':
-            configuration[parameters.CELL_TYPE_KEY] = 'cell_name'
+        elif atlas == 'fetal_immune':
+            configuration[parameters.CELL_TYPE_KEY] = 'celltype_annotation'
             configuration[parameters.CONDITION_KEY] = 'bbk'
             configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
-            return configuration
+        elif atlas == "nsclc":
+            configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
+            configuration[parameters.CONDITION_KEY] = 'sample'
+        elif atlas == "gb":
+            configuration[parameters.CELL_TYPE_KEY] = 'CellID'
+            configuration[parameters.CONDITION_KEY] = 'author'
+        elif atlas == "hypomap":
+            configuration[parameters.CELL_TYPE_KEY] = 'Author_CellType'
+            configuration[parameters.CONDITION_KEY] = 'Batch_ID'
+
+
+        #Check if provided query contains respective labels
+        try:
+            target_adata.obs[configuration[parameters.CELL_TYPE_KEY]]
+        except Exception as e:
+            e = "Cell type key in query does not match requirements stated on the website"
+
+        try:
+            target_adata.obs[configuration[parameters.CONDITION_KEY]]
+        except Exception as e:
+            e = "Batch key in query does not match requirements stated on the website"
 
     def __get_keys_model(configuration):
         #Get relative model path
@@ -467,8 +446,8 @@ class Preprocess:
             if cell_type_key_model is None:
                 #Unsupervised approach with scVI
                 print("No cell type input provided")
-                target_adata.obs["CellType"] = "Unlabeled"
-                configuration[parameters.CELL_TYPE_KEY] = "CellType"
+                # target_adata.obs["CellType"] = "Unlabeled"
+                # configuration[parameters.CELL_TYPE_KEY] = "CellType"
             #If user none, model input
             else:
                 #Unsupervised approach with scANVI

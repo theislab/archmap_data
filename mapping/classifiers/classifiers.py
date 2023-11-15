@@ -108,6 +108,11 @@ class Classifiers:
             reports
         )
 
+        Classifiers.__save_eval_metrics_csv(
+            self,
+            reports
+        )
+
     def __get_train_data(self, adata, latent_rep=True, model_path=None):
         if latent_rep:
             latent_rep = adata
@@ -143,9 +148,12 @@ class Classifiers:
     def __split_train_data(self, train_data, input_adata, label_key):
         train_data['cell_type'] = input_adata.obs[label_key]
 
+        #Enable if at least one class has only 1 sample -> Error in stratification for validation set
+        train_data = train_data.groupby('cell_type').filter(lambda x: len(x) > 1)
+
         le = LabelEncoder()
         le.fit(train_data["cell_type"])
-        train_data['cell_type'] = le.transform(train_data["cell_type"])
+        train_data['cell_type'] = le.transform(train_data["cell_type"])        
 
         X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
@@ -239,7 +247,7 @@ class Classifiers:
         import matplotlib.pyplot as plt
 
         for key in reports:
-            #Drop "suppor" from classification report
+            #Drop "support" from classification report
             reports[key] = reports[key].drop("support", axis=1)
 
             #Calculate size of plot depending on rows and columns of report
@@ -254,6 +262,12 @@ class Classifiers:
             seaborn.heatmap(reports[key], cmap="viridis", annot=True)   
 
             plt.savefig(self.__classifier_path + "/classifier_" + key + "_report.png")
+
+    def __save_eval_metrics_csv(self, reports):
+        for key in reports:
+            out = pd.DataFrame(reports[key])
+
+            out.to_csv(self.__classifier_path + "/classifier_" + key + "_report.csv")
 
 if __name__ == "__main__":
     adata = scanpy.read_h5ad("scEiaD_all_anndata_mini_ref.h5ad")

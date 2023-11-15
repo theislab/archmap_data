@@ -262,6 +262,18 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         source_adata.obs['prediction_xgb'] = pd.Series(dtype="category")
         source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
 
+        #Check because concat_on_disk currently only allows csr concat
+        from scipy.sparse import csc_matrix
+        import h5py
+
+        if anndata.X.format == "csr":
+            #anndata.X = csr_matrix(anndata.X)
+            anndata.X.tocsr()
+
+        if source_adata.X.format == "csr":
+            #source_adata.X = csr_matrix(source_adata.X)
+            source_adata.X.tocsr()
+
 
         clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scVI")
         clf.predict_labels(anndata, query_latent)
@@ -279,6 +291,17 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
 
         import gc
         gc.collect()
+
+        # #After changing matrix to csr the internal hdf5 group format has to be changed too
+        # data_h5py = h5py.File(temp_reference.name, "r+")
+        # data_h5py["X"].attrs["h5sparse_format"] = "csr"
+        # data_h5py.flush()
+        # data_h5py.close
+
+        # data_h5py = h5py.File(temp_query.name, "r+")
+        # data_h5py["X"].attrs["h5sparse_format"] = "csr"
+        # data_h5py.flush()
+        # data_h5py.close
 
         from anndata import experimental
         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)

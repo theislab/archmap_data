@@ -34,18 +34,34 @@ class ScviHub:
         reference.obs["type"] = "reference"
         query.obs["type"] = "query"
 
+        model = None
+
         #Conform vars to model for query and reference
-        eval(self.__model_parent_module + "." + self.__model_cls_name).prepare_query_anndata(reference, "../scvi_hub/model/")
-        eval(self.__model_parent_module + "." + self.__model_cls_name).setup_anndata(reference)
+        if(self.__model_cls_name == "SCVI"):
+            scvi.model.SCVI.prepare_query_anndata(reference, "../scvi_hub/model/")
+            scvi.model.SCVI.setup_anndata(reference)
 
-        eval(self.__model_parent_module + "." + self.__model_cls_name).prepare_query_anndata(query, "../scvi_hub/model/")
-        eval(self.__model_parent_module + "." + self.__model_cls_name).setup_anndata(query)
+            scvi.model.SCVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            scvi.model.SCVI.setup_anndata(query)
 
-        model = eval(self.__model_parent_module + "." + self.__model_cls_name).load_query_data(
-                    query,
-                    "../scvi_hub/model/",
-                    freeze_dropout=True,
-                )
+            model = scvi.model.SCVI.load_query_data(
+                        query,
+                        "../scvi_hub/model/",
+                        freeze_dropout=True,
+                    )
+        
+        if(self.__model_cls_name == "SCANVI"):
+            scvi.model.SCANVI.prepare_query_anndata(reference, "../scvi_hub/model/")
+            scvi.model.SCANVI.setup_anndata(reference, labels_key=self.__labels_key, unlabeled_category="Unlabeled")
+
+            scvi.model.SCANVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            scvi.model.SCANVI.setup_anndata(query, labels_key=self.__labels_key, unlabeled_category="Unlabeled")
+
+            model = scvi.model.SCANVI.load_query_data(
+                        query,
+                        "../scvi_hub/model/",
+                        freeze_dropout=True,
+                    )
 
         model.train(
             max_epochs=10,
@@ -104,5 +120,5 @@ class ScviHub:
         self.__model_cls_name = metadata.pop("model_cls_name")
 
         if(self.__model_cls_name != "SCVI"):
-            self.__batch_key = metadata.pop("batch_key")
-            self.__labels_key = metadata.pop("labels_key")
+            self.__batch_key = utils.get_from_config(self.__configuration, utils.parameters.SCVI_HUB_ARGS).pop("batch_key")
+            self.__labels_key = utils.get_from_config(self.__configuration, utils.parameters.SCVI_HUB_ARGS).pop("labels_key")

@@ -10,6 +10,10 @@ services:
     build: ./metrics
     ports:
       - 3434:3434
+    volumes:
+      - type: bind
+        source: ./metrics
+        target: /app
 
   scarches:
     build:
@@ -24,6 +28,10 @@ services:
     depends_on:
       - minio
       - r
+    volumes:
+      - type: bind
+        source: ./mapping
+        target: /app
 
   database:
     image: mongo
