@@ -35,12 +35,13 @@ from sklearn.neighbors import KNeighborsTransformer
 from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
-    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas") -> None:
+    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas", model_type="scVI") -> None:
         self.__classifier_xgb = classifier_xgb
         self.__classifier_knn = classifier_knn
         self.__classifier_scanvi = classifier_scanvi
         self.__classifier_path = classifier_path + "/" + atlas_name
         self.__atlas_name = atlas_name
+        self.__model_type = model_type
 
     '''
     Parameters
@@ -73,6 +74,7 @@ class Classifiers:
 
     def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType"):
         train_data = Classifiers.__get_train_data(
+            self,
             adata=adata,
             latent_rep=latent_rep,
             model_path=model_path
@@ -106,7 +108,12 @@ class Classifiers:
             reports
         )
 
-    def __get_train_data(adata, latent_rep=True, model_path=None):
+        Classifiers.__save_eval_metrics_csv(
+            self,
+            reports
+        )
+
+    def __get_train_data(self, adata, latent_rep=True, model_path=None):
         if latent_rep:
             latent_rep = adata
         else:
@@ -117,7 +124,12 @@ class Classifiers:
 
             # scvi.model.SCVI.setup_anndata(adata_subset)
 
-            model = scvi.model.SCANVI.load(model_path, adata)
+            if self.__model_type == "scVI":
+                model = scvi.model.SCVI.load(model_path, adata)
+            elif self.__model_type == "scANVI":
+                model = scvi.model.SCANVI.load(model_path, adata)
+            else:
+                raise Exception("Choose model type 'scVI' or 'scANVI'")
 
             latent_rep = scanpy.AnnData(model.get_latent_representation(), adata.obs)
 
@@ -136,9 +148,12 @@ class Classifiers:
     def __split_train_data(self, train_data, input_adata, label_key):
         train_data['cell_type'] = input_adata.obs[label_key]
 
+        #Enable if at least one class has only 1 sample -> Error in stratification for validation set
+        train_data = train_data.groupby('cell_type').filter(lambda x: len(x) > 1)
+
         le = LabelEncoder()
         le.fit(train_data["cell_type"])
-        train_data['cell_type'] = le.transform(train_data["cell_type"])
+        train_data['cell_type'] = le.transform(train_data["cell_type"])        
 
         X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
@@ -232,7 +247,7 @@ class Classifiers:
         import matplotlib.pyplot as plt
 
         for key in reports:
-            #Drop "suppor" from classification report
+            #Drop "support" from classification report
             reports[key] = reports[key].drop("support", axis=1)
 
             #Calculate size of plot depending on rows and columns of report
@@ -247,6 +262,12 @@ class Classifiers:
             seaborn.heatmap(reports[key], cmap="viridis", annot=True)   
 
             plt.savefig(self.__classifier_path + "/classifier_" + key + "_report.png")
+
+    def __save_eval_metrics_csv(self, reports):
+        for key in reports:
+            out = pd.DataFrame(reports[key])
+
+            out.to_csv(self.__classifier_path + "/classifier_" + key + "_report.csv")
 
 if __name__ == "__main__":
     adata = scanpy.read_h5ad("scEiaD_all_anndata_mini_ref.h5ad")

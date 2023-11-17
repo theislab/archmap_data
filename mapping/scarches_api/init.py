@@ -20,6 +20,7 @@ def default_config():
     """
     return {
         parameters.SCVI_HUB_ID: None,
+        parameters.SCVI_HUB_ARGS: {},
         parameters.MODEL: 'scVI',
         parameters.MINIFICATION: True,
         parameters.CLASSIFIER: {"XGBoost":False, "KNN":False, "scANVI":False},

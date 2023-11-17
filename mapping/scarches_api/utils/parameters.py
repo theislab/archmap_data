@@ -8,6 +8,8 @@ can rapidly change the naming of the keys in the configuration.
 MODEL_SOURCE = "model_source"
 # sets scvi hub id
 SCVI_HUB_ID = "scviHubId"
+# sets scvi hub setup args
+SCVI_HUB_ARGS = "model_setup_anndata_args"
 # sets the model
 MODEL = 'model'
 # sets if minified version
