@@ -560,15 +560,15 @@ def translate_atlas_to_directory(configuration):
         return 'pancreas'
     elif atlas == 'PBMC':
         return 'pbmc'
-    elif atlas == 'Heart cell atlas':
+    elif atlas == 'Heart':
         return 'heart'
-    elif atlas == 'Human lung cell atlas':
+    elif atlas == 'Human lung':
         return 'human_lung'
     elif atlas == 'Bone marrow':
         return 'bone_marrow'
-    elif atlas == 'Retina atlas':
+    elif atlas == 'Retina':
         return 'retina'
-    elif atlas == 'Fetal immune atlas':
+    elif atlas == 'Fetal immune':
         return 'fetal_immune'
     elif atlas == 'Glioblastoma':
         return 'gb'
@@ -576,9 +576,9 @@ def translate_atlas_to_directory(configuration):
         return 'nsclc'
     elif atlas == 'Hypomap':
         return 'hypomap'
-    elif atlas == 'Tonsil atlas':
+    elif atlas == 'Tonsil':
         return 'tonsil'
-    elif atlas == 'Gut atlas':
+    elif atlas == 'Gut':
         return 'gut'
 
 
