@@ -64,6 +64,14 @@ WEBHOOK = 'webhook'
 PRETRAINED_MODEL_PATH = 'ref_path'
 # sets the path/s3 key of the model we can store after training it
 RESULTING_MODEL_PATH = 'model_path'
+# check if they want to use the xgboost classifier
+USE_XGBOOST = 'use_xgboost'
+# check if they want to use the knn
+USE_KNN = 'use_knn'
+# check if they want to use the encoder
+USE_ENCODER = 'use_encoder'
+#classifier path 
+CLASSIFIER_PATH = 'classifier_path'
 # sets if we can use a pretrained scVI model
 USE_PRETRAINED_SCVI_MODEL = 'pre_trained_scVI'
 # sets if we can use a pretrained scANVI model
