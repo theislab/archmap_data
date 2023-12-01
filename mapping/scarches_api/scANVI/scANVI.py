@@ -355,9 +355,14 @@ def query(anndata, source_adata, configuration):
     source_adata.obs['prediction_xgb'] = pd.Series(dtype="category")
     source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
 
+    #Check for selected classifiers
+    clf_xgboost = utils.get_from_config(configuration, parameters.CLASSIFIER_TYPE).pop("XGBoost")
+    knn_xgboost = utils.get_from_config(configuration, parameters.CLASSIFIER_TYPE).pop("KNN")
+    scanvi_xgboost = utils.get_from_config(configuration, parameters.CLASSIFIER_TYPE).pop("scANVI")
 
-    clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scANVI")
-    clf.predict_labels(anndata, query_latent)
+    if(clf_xgboost == True or knn_xgboost == True or scanvi_xgboost == True):
+        clf = Classifiers(clf_xgboost, knn_xgboost, model, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scANVI")
+        clf.predict_labels(anndata, query_latent)
 
     ## Alternative approach
     print("DEBUGDEBUG QUERY A")

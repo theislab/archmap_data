@@ -112,7 +112,7 @@ class Preprocess:
         print(drop_list)
         return drop_list
 
-    def conform_vars(adata, configuration, gene_ids = None):
+    def conform_vars(adata, model_path, gene_ids = None):
         """
         Conforms genes from adata to respective model
 
@@ -136,8 +136,6 @@ class Preprocess:
             var_names = gene_ids
         else:
             #Get relative model path
-            model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
-
             var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
 
         # test if adata.var.index has gene names or ensembl names:
@@ -198,19 +196,16 @@ class Preprocess:
 
         return
             
-    def pre_process_data(configuration):
+    def pre_process_data(source_adata, target_adata, model_path):
         """
         Used to pre-process the adata objects.\n
         After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
         and reintroduces the counts layer if it has been deleted during sparsity removal.
         """
-        print("Download atlas")
-        source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
-        source_adata.obs["type"] = "reference"   
 
-        print("Download query")
-        target_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.QUERY_DATA_PATH))        
-        target_adata.obs["type"] = "query"
+        # source_adata.obs["type"] = "reference"       
+        # target_adata.obs["type"] = "query"
+
         #TODO: HARDCODING---------------------------------------------------
         # if utils.get_from_config(configuration, parameters.ATLAS) == 'human_lung':
         #     X_train = source_adata.X
@@ -219,13 +214,20 @@ class Preprocess:
         # # source_adata.raw = source_adata
         # #-------------------------------------------------------------------
 
+        #Check if counts in .X are empty
+        # if(source_adata.X.size == 0):
+        #     raise Exception("Count data in source is empty")
+
+        # if(target_adata.X.size == 0):
+        #     raise Exception("Count data in query is empty")
+
         #Set label keys
-        Preprocess.set_keys(configuration, target_adata)
+        # Preprocess.set_keys(configuration, target_adata)
         #Preprocess.set_keys_dynamic(configuration, target_adata, source_adata)
 
         #Adjust .var according to model
         #source_adata = Preprocess.conform_vars(configuration, source_adata)
-        target_adata = Preprocess.conform_vars(target_adata, configuration)
+        #target_adata = Preprocess.conform_vars(target_adata, model_path)
 
         # try:
         #     source_adata = utils.remove_sparsity(source_adata)
@@ -235,92 +237,101 @@ class Preprocess:
         #     target_adata = utils.remove_sparsity(target_adata)
         # except Exception as e:
         #     pass
-        if not utils.get_from_config(configuration, parameters.MINIFICATION):
-            try:
-                source_adata.layers['counts']
-            except Exception as e:
-                source_adata.layers['counts'] = source_adata.X
-                print("counts layer source")
+        # if not utils.get_from_config(configuration, parameters.MINIFICATION):
+        #     try:
+        #         source_adata.layers['counts']
+        #     except Exception as e:
+        #         source_adata.layers['counts'] = source_adata.X
+        #         print("counts layer source")
 
-        try:
-            target_adata.layers['counts']
-        except Exception as e:
-            target_adata.layers['counts'] = target_adata.X
-            print("counts layer query")
+        # try:
+        #     target_adata.layers['counts']
+        # except Exception as e:
+        #     target_adata.layers['counts'] = target_adata.X
+        #     print("counts layer query")
 
-        #TODO: Dont preprocess if using embedding
-        if utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING):
-            source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
-            source_adata.obs["type"] = "reference"
+        # if "counts" not in target_adata.layers.keys():
+        #     target_adata.layers['counts'] = target_adata.X
 
-        #Remove later - for testing only
-        #source_adata = sc.pp.subsample(source_adata, 0.1, copy=True)
+        # #TODO: Dont preprocess if using embedding
+        # if utils.get_from_config(configuration, parameters.USE_REFERENCE_EMBEDDING):
+        #     source_adata = utils.read_h5ad_file_from_s3(utils.get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+        #     source_adata.obs["type"] = "reference"
 
+        # #Remove later - for testing only
+        # source_adata = sc.pp.subsample(source_adata, 0.1, copy=True)
+
+        # #Convert bool types to categorical otherwise concat with NaN will result in write error
+        # for col in source_adata.obs.columns:
+        #     if source_adata.obs[col].dtype.name == "bool" or source_adata.obs[col].dtype.name == "object":
+        #         source_adata.obs[col] = source_adata.obs[col].astype("category")
+        # for col in source_adata.var.columns:
+        #     if source_adata.var[col].dtype.name == "bool" or source_adata.var[col].dtype.name == "object":
+        #         source_adata.var[col] = source_adata.var[col].astype("category")
+
+        # for col in target_adata.obs.columns:
+        #     if target_adata.obs[col].dtype.name == "bool" or target_adata.obs[col].dtype.name == "object":
+        #         target_adata.obs[col] = target_adata.obs[col].astype("category")
+        # for col in target_adata.var.columns:
+        #     if target_adata.var[col].dtype.name == "bool" or target_adata.var[col].dtype.name == "object":
+        #         target_adata.var[col] = target_adata.var[col].astype("category")
+
+        # return source_adata, target_adata
+
+    def bool_to_categorical(adata):
         #Convert bool types to categorical otherwise concat with NaN will result in write error
-        for col in source_adata.obs.columns:
-            if source_adata.obs[col].dtype.name == "bool" or source_adata.obs[col].dtype.name == "object":
-                source_adata.obs[col] = source_adata.obs[col].astype("category")
-        for col in source_adata.var.columns:
-            if source_adata.var[col].dtype.name == "bool" or source_adata.var[col].dtype.name == "object":
-                source_adata.var[col] = source_adata.var[col].astype("category")
+        for col in adata.obs.columns:
+            if adata.obs[col].dtype.name == "bool" or adata.obs[col].dtype.name == "object":
+                adata.obs[col] = adata.obs[col].astype("category")
+        for col in adata.var.columns:
+            if adata.var[col].dtype.name == "bool" or adata.var[col].dtype.name == "object":
+                adata.var[col] = adata.var[col].astype("category")
 
-        for col in target_adata.obs.columns:
-            if target_adata.obs[col].dtype.name == "bool" or target_adata.obs[col].dtype.name == "object":
-                target_adata.obs[col] = target_adata.obs[col].astype("category")
-        for col in target_adata.var.columns:
-            if target_adata.var[col].dtype.name == "bool" or target_adata.var[col].dtype.name == "object":
-                target_adata.var[col] = target_adata.var[col].astype("category")
-
-        return source_adata, target_adata
-
-    def set_keys(configuration, target_adata):
+    def get_keys(atlas, target_adata):
         """
         Sets the batch(condition) and cell_type keys, according to the atlas chosen.
         This is necessary as the reference files all have these keys under different names,
         although they contain the same information.
         """
-        #TODO: Medium hardcoding due to file differences
-        atlas = utils.get_from_config(configuration, parameters.ATLAS)
+
+        #Set unlabeled key to always be "Unlabeled"
+        unlabeled_key = "Unlabeled"
 
         if atlas == 'pbmc':
-            configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
-            configuration[parameters.CONDITION_KEY] = 'sample_id'
+            cell_type_key = 'cell_type'
+            batch_key = 'sample_id'
         elif atlas == 'heart':
-            configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
-            configuration[parameters.CONDITION_KEY] = 'source'
-            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+            cell_type_key = 'cell_type'
+            batch_key = 'source'
         elif atlas == 'human_lung':
-            configuration[parameters.CELL_TYPE_KEY] = 'scanvi_label'
-            configuration[parameters.CONDITION_KEY] = 'dataset'
-            configuration[parameters.UNLABELED_KEY] = 'unlabeled'
+            cell_type_key = 'scanvi_label'
+            batch_key = 'dataset'
         elif atlas == 'retina':
-            configuration[parameters.CELL_TYPE_KEY] = 'CellType'
-            configuration[parameters.CONDITION_KEY] = 'batch'
+            cell_type_key = 'CellType'
+            batch_key = 'batch'
         elif atlas == 'fetal_immune':
-            configuration[parameters.CELL_TYPE_KEY] = 'celltype_annotation'
-            configuration[parameters.CONDITION_KEY] = 'bbk'
-            configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
+            cell_type_key = 'celltype_annotation'
+            batch_key = 'bbk'
         elif atlas == "nsclc":
-            configuration[parameters.CELL_TYPE_KEY] = 'cell_type'
-            configuration[parameters.CONDITION_KEY] = 'sample'
+            cell_type_key = 'cell_type'
+            batch_key = 'sample'
         elif atlas == "gb":
-            configuration[parameters.CELL_TYPE_KEY] = 'CellID'
-            configuration[parameters.CONDITION_KEY] = 'author'
+            cell_type_key = 'CellID'
+            batch_key = 'author'
         elif atlas == "hypomap":
-            configuration[parameters.CELL_TYPE_KEY] = 'Author_CellType'
-            configuration[parameters.CONDITION_KEY] = 'Batch_ID'
+            cell_type_key = 'Author_CellType'
+            batch_key = 'Batch_ID'
 
 
         #Check if provided query contains respective labels
         try:
-            target_adata.obs[configuration[parameters.CELL_TYPE_KEY]]
+            cell_type_key in target_adata.obs.columns and batch_key in target_adata.obs.columns
         except Exception as e:
-            e = "Cell type key in query does not match requirements stated on the website"
+            raise Exception("Please double check if cell_type and batch keys in query match the requirements stated on the website") from e
 
-        try:
-            target_adata.obs[configuration[parameters.CONDITION_KEY]]
-        except Exception as e:
-            e = "Batch key in query does not match requirements stated on the website"
+        return cell_type_key, batch_key, unlabeled_key
+
+        
 
     def __get_keys_model(configuration):
         #Get relative model path

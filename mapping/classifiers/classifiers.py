@@ -18,6 +18,7 @@ from xgboost import XGBClassifier
 import scarches as sca
 from scvi.model.base import _utils
 import pickle
+import gzip
 # import scib.preprocessing as pp
 # import scib.integration as ig
 # import scib.metrics as me
@@ -35,12 +36,10 @@ from sklearn.neighbors import KNeighborsTransformer
 from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
-    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, classifier_path="/path/to/classifiers", atlas_name="atlas", model_type="scVI") -> None:
+    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, model_type="scVI") -> None:
         self.__classifier_xgb = classifier_xgb
         self.__classifier_knn = classifier_knn
         self.__classifier_scanvi = classifier_scanvi
-        self.__classifier_path = classifier_path + "/" + atlas_name
-        self.__atlas_name = atlas_name
         self.__model_type = model_type
 
     '''
@@ -49,30 +48,30 @@ class Classifiers:
     query: adata to save labels to
     query_latent: adata to read .X from for label prediction
     '''
-    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData()):
+    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding"):
         le = LabelEncoder()
 
-        with open(self.__classifier_path + "/classifier_encoding.pickle", "rb") as file:
-                le = pickle.load(file)
+        with open(encoding_path, "rb") as file:
+            le = pickle.load(file)
 
         if self.__classifier_xgb:
             xgb_model = XGBClassifier()
-            xgb_model.load_model(self.__classifier_path + "/classifier_xgb.ubj")
+            xgb_model.load_model(classifier_path)
             
             query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
 
         if self.__classifier_knn:
-            with open(self.__classifier_path + "/classifier_knn.pickle", "rb") as file:
+            with open(classifier_path, "rb") as file:
                 knn_model = pickle.load(file)
 
             query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
 
         if self.__classifier_scanvi is not None:
-            scanvi_model = sca.models.SCANVI.load_query_data(adata=query, reference_model="assets/scANVI/" + self.__atlas_name)
+            #scanvi_model = sca.models.SCANVI.load_query_data(adata=query, reference_model="assets/scANVI/" + self.__atlas_name)
 
-            query.obs["prediction_scanvi"] = scanvi_model.predict(query)
+            query.obs["prediction_scanvi"] = self.__classifier_scanvi.predict(query)
 
-    def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType"):
+    def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output"):
         train_data = Classifiers.__get_train_data(
             self,
             adata=adata,
@@ -84,7 +83,8 @@ class Classifiers:
             self,
             train_data=train_data,
             input_adata=adata,
-            label_key=label_key
+            label_key=label_key,
+            classifier_directory=classifier_directory
         )
         
         xgbc, knnc = Classifiers.__train_classifier(
@@ -92,7 +92,8 @@ class Classifiers:
             X_train=X_train,
             y_train=y_train,
             xgb=self.__classifier_xgb,
-            kNN=self.__classifier_knn
+            kNN=self.__classifier_knn,
+            classifier_directory=classifier_directory
         )
         
         reports = Classifiers.eval_classifier(
@@ -100,17 +101,20 @@ class Classifiers:
             X_test=X_test,
             y_test=y_test,
             xgbc=xgbc,
-            knnc=knnc
+            knnc=knnc,
+            classifier_directory=classifier_directory
         )
         
         Classifiers.__plot_eval_metrics(
             self,
-            reports
+            reports,
+            classifier_directory=classifier_directory
         )
 
         Classifiers.__save_eval_metrics_csv(
             self,
-            reports
+            reports,
+            classifier_directory=classifier_directory
         )
 
     def __get_train_data(self, adata, latent_rep=True, model_path=None):
@@ -145,7 +149,7 @@ class Classifiers:
     ----------
     input_adata: adata to read the labels from
     '''
-    def __split_train_data(self, train_data, input_adata, label_key):
+    def __split_train_data(self, train_data, input_adata, label_key, classifier_directory):
         train_data['cell_type'] = input_adata.obs[label_key]
 
         #Enable if at least one class has only 1 sample -> Error in stratification for validation set
@@ -158,12 +162,12 @@ class Classifiers:
         X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
         #Save label encoder
-        with open(self.__classifier_path + "/classifier_encoding.pickle", "wb") as file:
-            pickle.dump(le, file, pickle.HIGHEST_PROTOCOL)
+        with open(classifier_directory + "/classifier_encoding.pickle", "wb") as file:
+                        pickle.dump(le, file, pickle.HIGHEST_PROTOCOL)
 
         return X_train, X_test, y_train, y_test
     
-    def __train_classifier(self, X_train, y_train, xgb=True, kNN=True):
+    def __train_classifier(self, X_train, y_train, xgb=True, kNN=True, classifier_directory="path/to/classifier"):
         xgbc = None
         knnc = None
 
@@ -172,25 +176,25 @@ class Classifiers:
             xgbc.fit(X_train, y_train)
 
             #Save classifier
-            xgbc.save_model(self.__classifier_path + "/classifier_xgb.ubj")
+            xgbc.save_model(classifier_directory + "/classifier_xgb.ubj")
 
         if kNN:
             knnc = KNeighborsClassifier()
             knnc.fit(X_train, y_train)
 
             #Save classifier
-            with open(self.__classifier_path + "/classifier_knn.pickle", "wb") as file:
+            with open(classifier_directory + "/classifier_knn.pickle", "wb") as file:
                 pickle.dump(knnc, file, pickle.HIGHEST_PROTOCOL)
 
         return xgbc, knnc
     
-    def eval_classifier(self, X_test, y_test, xgbc=XGBClassifier, knnc=KNeighborsClassifier):
+    def eval_classifier(self, X_test, y_test, xgbc=XGBClassifier, knnc=KNeighborsClassifier, classifier_directory="path/to/classifier"):
         reports = {}
 
         #Load label encoder to get classes with real names in report
         le = LabelEncoder()
 
-        with open(self.__classifier_path + "/classifier_encoding.pickle", "rb") as file:
+        with open(classifier_directory + "/classifier_encoding.pickle", "rb") as file:
                 le = pickle.load(file)
         
         if xgbc is not None:
@@ -242,7 +246,7 @@ class Classifiers:
 
         return roc_auc_score(y_true=y_true, y_score=predict_proba, multi_class="ovr")
 
-    def __plot_eval_metrics(self, reports):
+    def __plot_eval_metrics(self, reports, classifier_directory):
         import seaborn
         import matplotlib.pyplot as plt
 
@@ -261,13 +265,13 @@ class Classifiers:
 
             seaborn.heatmap(reports[key], cmap="viridis", annot=True)   
 
-            plt.savefig(self.__classifier_path + "/classifier_" + key + "_report.png")
+            plt.savefig(classifier_directory + "/classifier_" + key + "_report.png")
 
-    def __save_eval_metrics_csv(self, reports):
+    def __save_eval_metrics_csv(self, reports, classifier_directory):
         for key in reports:
             out = pd.DataFrame(reports[key])
 
-            out.to_csv(self.__classifier_path + "/classifier_" + key + "_report.csv")
+            out.to_csv(classifier_directory + "/classifier_" + key + "_report.csv")
 
 if __name__ == "__main__":
     adata = scanpy.read_h5ad("scEiaD_all_anndata_mini_ref.h5ad")

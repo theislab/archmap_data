@@ -263,20 +263,24 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         source_adata.obs['prediction_knn'] = pd.Series(dtype="category")
 
         #Check because concat_on_disk currently only allows csr concat
-        from scipy.sparse import csc_matrix
-        import h5py
+        from anndata import experimental
 
-        if anndata.X.format == "csr":
+        if anndata.X.format == "csc":
             #anndata.X = csr_matrix(anndata.X)
-            anndata.X.tocsr()
+            anndata.X = anndata.X.tocsr()
 
-        if source_adata.X.format == "csr":
+        if source_adata.X.format == "csc":
             #source_adata.X = csr_matrix(source_adata.X)
-            source_adata.X.tocsr()
+            source_adata.X = source_adata.X.tocsr()
 
 
-        clf = Classifiers(True, True, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scVI")
-        clf.predict_labels(anndata, query_latent)
+        #Check for selected classifiers
+        clf_xgboost = utils.get_from_config(configuration, parameters.CLASSIFIER_TYPE).pop("XGBoost")
+        knn_xgboost = utils.get_from_config(configuration, parameters.CLASSIFIER_TYPE).pop("KNN")
+
+        if(clf_xgboost == True or knn_xgboost == True):
+            clf = Classifiers(clf_xgboost, knn_xgboost, None, "../classifiers/models", utils.get_from_config(configuration, utils.parameters.ATLAS), "scVI")
+            clf.predict_labels(anndata, query_latent)
 
         ## Alternative approach
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -303,7 +307,6 @@ def compute_query(pretrained_model, anndata, reference_latent, source_adata, con
         # data_h5py.flush()
         # data_h5py.close
 
-        from anndata import experimental
         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
 
         combined_adata = scanpy.read_h5ad(temp_combined.name)

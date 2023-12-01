@@ -15,7 +15,11 @@ MODEL = 'model'
 # sets if minified version
 MINIFICATION = "minification"
 # sets the classifier
-CLASSIFIER = "classifier_type"
+CLASSIFIER_TYPE = "classifier_type"
+# sets the classifier path
+CLASSIFIER_PATH = "classifier_path"
+# sets the encoder path
+ENCODING_PATH = "encoder_path"
 # sets the condition key
 CONDITION_KEY = 'condition_key'
 # set the cell type key
@@ -61,9 +65,7 @@ SCANVI_PREDICT_CELLTYPES = 'predict'
 # sets the key for the webhook to call after the computation
 WEBHOOK = 'webhook'
 # sets the path/s3 key of the pretrained model
-PRETRAINED_MODEL_PATH = 'ref_path'
-# sets the path/s3 key of the model we can store after training it
-RESULTING_MODEL_PATH = 'model_path'
+PRETRAINED_MODEL_PATH = 'model_path'
 # sets if we can use a pretrained scVI model
 USE_PRETRAINED_SCVI_MODEL = 'pre_trained_scVI'
 # sets if we can use a pretrained scANVI model

@@ -9,6 +9,9 @@ from totalVI.totalVI import computeTotalVI
 from utils import utils, parameters
 
 from scvi_hub.scvi_hub import ScviHub
+from models import ScANVI
+from models import ScVI
+from models import ScPoli
 
 from process.processing import Preprocess
 
@@ -23,13 +26,12 @@ def default_config():
         parameters.SCVI_HUB_ARGS: {},
         parameters.MODEL: 'scVI',
         parameters.MINIFICATION: True,
-        parameters.CLASSIFIER: {"XGBoost":False, "KNN":False, "scANVI":False},
+        parameters.CLASSIFIER_TYPE: {"XGBoost":False, "KNN":False, "scANVI":False},
         parameters.ATLAS: 'Pancreas',
 
         parameters.REFERENCE_DATA_PATH: 'pancreas_source.h5ad',
         parameters.USE_REFERENCE_EMBEDDING: False,
         parameters.QUERY_DATA_PATH: 'pancreas_query.h5ad',
-        parameters.RESULTING_MODEL_PATH: 'model.pt',
         parameters.OUTPUT_PATH: 'query.csv',
         parameters.OUTPUT_TYPE: ["csv", "cxg"],
 
@@ -119,22 +121,40 @@ def query(user_config):
     else:
         model = utils.get_from_config(configuration, parameters.MODEL)
         configuration['atlas'] = utils.translate_atlas_to_directory(configuration)
+
         if model == 'scVI':
-            attributes = compute_scVI(configuration)
+            mapping = ScVI(configuration=configuration)
+            mapping.run()
         elif model == 'scANVI':
-            attributes = compute_scANVI(configuration)
-        elif model == 'totalVI':
-            attributes = computeTotalVI(configuration)
-        else:
-            raise ValueError(model + ' is not one of the supported models')
-        configuration["attributes"] = attributes
-        run_time = (time.time() - start_time)
-        print('completed query in ' + str(run_time) + 's and stored it in: ' + get_from_config(configuration,
-                                                                                            parameters.OUTPUT_PATH))
-        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
-                get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
-        return configuration
+            mapping = ScANVI(configuration=configuration)
+            mapping.run()
+        elif model == "scPoli":
+            mapping = ScPoli(configuration=configuration)
+            mapping.run()
+
+
+        # if model == 'scVI':
+        #     attributes = compute_scVI(configuration)
+        # elif model == 'scANVI':
+        #     attributes = compute_scANVI(configuration)
+        # elif model == 'totalVI':
+        #     attributes = computeTotalVI(configuration)
+        # elif model == "scPoli":
+        #     pass
+        #     # mapping = ScPoli(configuration=configuration)
+
+        #     # from models import ScANVI
+        #     # scanvi = ScANVI()
+        # else:
+        #     raise ValueError(model + ' is not one of the supported models')
+        # configuration["attributes"] = attributes
+        # run_time = (time.time() - start_time)
+        # print('completed query in ' + str(run_time) + 's and stored it in: ' + get_from_config(configuration,
+        #                                                                                     parameters.OUTPUT_PATH))
+        # if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+        #         get_from_config(configuration, parameters.WEBHOOK)) > 0:
+        #     utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        # return configuration
 
 
 if __name__ == "__main__":
@@ -142,10 +162,10 @@ if __name__ == "__main__":
     sets endpoint and fetches input from rest api
     
     """
-    os.environ["AWS_BUCKET"] = 'minio-bucket'
-    os.environ['AWS_ENDPOINT'] = 'http://127.0.0.1:9000'
-    os.environ['AWS_ACCESS_KEY'] = 'minioadmin'
-    os.environ['AWS_SECRET_KEY'] = 'minioadmin'
+    # os.environ["AWS_BUCKET"] = 'minio-bucket'
+    # os.environ['AWS_ENDPOINT'] = 'http://127.0.0.1:9000'
+    # os.environ['AWS_ACCESS_KEY'] = 'minioadmin'
+    # os.environ['AWS_SECRET_KEY'] = 'minioadmin'
 
     query({})
 
