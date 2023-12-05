@@ -324,10 +324,8 @@ class Preprocess:
 
 
         #Check if provided query contains respective labels
-        try:
-            cell_type_key in target_adata.obs.columns and batch_key in target_adata.obs.columns
-        except Exception as e:
-            raise Exception("Please double check if cell_type and batch keys in query match the requirements stated on the website") from e
+        if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
+            raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
 
         return cell_type_key, batch_key, unlabeled_key
 

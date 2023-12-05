@@ -151,9 +151,9 @@ def query(user_config):
         # run_time = (time.time() - start_time)
         # print('completed query in ' + str(run_time) + 's and stored it in: ' + get_from_config(configuration,
         #                                                                                     parameters.OUTPUT_PATH))
-        # if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
-        #         get_from_config(configuration, parameters.WEBHOOK)) > 0:
-        #     utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+                get_from_config(configuration, parameters.WEBHOOK)) > 0:
+            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
         # return configuration
 
 
