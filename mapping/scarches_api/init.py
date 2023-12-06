@@ -154,7 +154,7 @@ def query(user_config):
         if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
             utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
-        # return configuration
+        return configuration
 
 
 if __name__ == "__main__":
