@@ -110,7 +110,7 @@ class ArchmapBaseModel():
 
 
         #Remove later - for testing only
-        # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        #self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -161,13 +161,14 @@ class ArchmapBaseModel():
         self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
 
         #Added because concat_on_disk only allows csr concat
-        if self._query_adata.X.format == "csc":
+        if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
             #self._query.X = csr_matrix(self._query.X)
-            self._query_adata.X = self._query_adata.X.tocsr()
+            #self._query_adata.X = self._query_adata.X.tocsr()
 
-        if self._reference_adata.X.format == "csc":
-            #self._reference.X = csr_matrix(self._reference.X)
-            self._reference_adata.X = self._reference_adata.X.tocsr()
+            self._combined_adata = self._query_adata.concatenate(self._reference_adata, batch_key='bkey')
+            self._compute_latent_representation(explicit_representation=self._combined_adata)
+
+            return
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -202,8 +203,10 @@ class ArchmapBaseModel():
     def _cleanup(self):
         #Remove all temp files
         os.remove(os.path.join(self._temp_model_path, "model.pt"))
-        os.remove(self._temp_clf_model_path)
-        os.remove(self._temp_clf_encoding_path)
+        if self._temp_clf_model_path is not None:
+            os.remove(self._temp_clf_model_path)
+        if self._temp_clf_encoding_path is not None:
+            os.remove(self._temp_clf_encoding_path)
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
@@ -266,17 +269,9 @@ class ScANVI(ArchmapBaseModel):
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 
 class ScPoli(ArchmapBaseModel):
-    def __init__(self, configuration) -> None:
-        self._configuration = configuration
-        #self._query = query
-        #self._temp_model_path = model_path
-        self._model = None
-
     def _map_query(self, query):
-        model_path = get_from_config(self._configuration, parameters.RESULTING_MODEL_PATH)
-
         scpoli_query = scarches.models.scPoli.load_query_data(
-            adata=query,
+            adata=self._query_adata,
             reference_model=self._temp_model_path,
             labeled_indices=[]
         )
