@@ -193,6 +193,16 @@ class ArchmapBaseModel():
         self._compute_latent_representation(explicit_representation=self._combined_adata)
 
     def _compute_latent_representation(self, explicit_representation):
+        #If no counts stored in X check for layers (minified atlases for example)
+        if explicit_representation.X.size == 0:
+            try:
+                explicit_representation.X = explicit_representation.layers["counts"]
+            except ValueError as e:
+                raise ValueError("No counts stored in either X or .layers") from e
+            
+            if explicit_representation.X.size == 0:
+                raise ValueError("Counts stored in .layers are empty")
+
         #Store latent representation of combined adata (query, reference)
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
