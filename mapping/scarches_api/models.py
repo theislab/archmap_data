@@ -4,6 +4,7 @@ import pandas
 import numpy
 import tempfile
 import os
+import torch
 
 import utils.parameters as parameters
 from utils.utils import get_from_config
@@ -18,14 +19,17 @@ from uncert.uncert_metric import classification_uncert_mahalanobis
 
 from classifiers.classifiers import Classifiers
 
+
 class ArchmapBaseModel():
     def __init__(self, configuration) -> None:
         self._configuration = configuration
 
         self._atlas = get_from_config(configuration=configuration, key=parameters.ATLAS)
         self._model_type = get_from_config(configuration=configuration, key=parameters.MODEL)
-        #self._model_path = "assets/" + self._model_type + "/" + self._atlas + "/"
         self._model_path = get_from_config(configuration=configuration, key=parameters.PRETRAINED_MODEL_PATH)
+        self._scpoli_attr = get_from_config(configuration=configuration, key=parameters.SCPOLI_ATTR)
+        self._scpoli_model_params = get_from_config(configuration=configuration, key=parameters.SCPOLI_MODEL_PARAMS)
+        self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
         self._max_epochs = 1
@@ -103,14 +107,13 @@ class ArchmapBaseModel():
         Preprocess.bool_to_categorical(self._reference_adata)
         Preprocess.bool_to_categorical(self._query_adata)
 
-        #Download model from GCP
-        fetch_file_from_s3(self._model_path, "./model.pt")
+        
 
 
 
 
         #Remove later - for testing only
-        #self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -129,7 +132,7 @@ class ArchmapBaseModel():
 
         #If native classifier chosen set model as classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model.__class__.__name__)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__.__name__)
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__.__name__)
 
@@ -238,6 +241,12 @@ class ScVI(ArchmapBaseModel):
 
         super()._map_query()
 
+    def _acquire_data(self):
+        super()._acquire_data()
+        
+        #Download model from GCP
+        fetch_file_from_s3(self._model_path, "./model.pt")
+
     def _compute_latent_representation(self, explicit_representation):
         #Setup adata before quering model for latent representation
         scarches.models.SCVI.setup_anndata(explicit_representation, batch_key=self._batch_key)
@@ -272,6 +281,12 @@ class ScANVI(ArchmapBaseModel):
 
         super()._map_query()
 
+    def _acquire_data(self):
+        super()._acquire_data()
+        
+        #Download model from GCP
+        fetch_file_from_s3(self._model_path, "./model.pt")
+
     def _compute_latent_representation(self, explicit_representation):
         #Setup adata before quering model for latent representation
         scarches.models.SCANVI.setup_anndata(explicit_representation, labels_key=self._cell_type_key, unlabeled_category="Unlabeled", batch_key=self._batch_key)
@@ -279,11 +294,12 @@ class ScANVI(ArchmapBaseModel):
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 
 class ScPoli(ArchmapBaseModel):
-    def _map_query(self, query):
+    def _map_query(self):
         scpoli_query = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
             reference_model=self._temp_model_path,
-            labeled_indices=[]
+            labeled_indices=[],
+            map_location=torch.device("cpu")
         )
 
         scpoli_query.train(
@@ -293,6 +309,14 @@ class ScPoli(ArchmapBaseModel):
         )
 
         self._model = scpoli_query
+
+    def _acquire_data(self):
+        super()._acquire_data()
+        
+        #Download model from GCP
+        fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
+        fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
+        fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
 
     def label_transfer(self, query):
         results_dict = self._model.classify(query, scale_uncertainties=True)

@@ -66,6 +66,12 @@ SCANVI_PREDICT_CELLTYPES = 'predict'
 WEBHOOK = 'webhook'
 # sets the path/s3 key of the pretrained model
 PRETRAINED_MODEL_PATH = 'model_path'
+# set scpoli model attr key
+SCPOLI_ATTR = "scpoli_attr"
+# set scpoli model param key
+SCPOLI_MODEL_PARAMS = "scpoli_model_params"
+# set scpoli model var key
+SCPOLI_VAR_NAMES = "scpoli_var_names"
 # sets if we can use a pretrained scVI model
 USE_PRETRAINED_SCVI_MODEL = 'pre_trained_scVI'
 # sets if we can use a pretrained scANVI model

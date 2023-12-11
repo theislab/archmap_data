@@ -302,7 +302,7 @@ class Preprocess:
             batch_key = 'sample_id'
         elif atlas == 'heart':
             cell_type_key = 'cell_type'
-            batch_key = 'source'
+            batch_key = 'donor'
         elif atlas == 'human_lung':
             cell_type_key = 'scanvi_label'
             batch_key = 'dataset'
@@ -321,6 +321,9 @@ class Preprocess:
         elif atlas == "hypomap":
             cell_type_key = 'Author_CellType'
             batch_key = 'Batch_ID'
+        elif atlas == "pancreas":
+            cell_type_key = "cell_type"
+            batch_key = "batch_integration"
 
 
         #Check if provided query contains respective labels
