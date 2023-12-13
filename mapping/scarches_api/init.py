@@ -58,6 +58,7 @@ def default_config():
         parameters.SCANVI_MAX_EPOCHS_QUERY: 100,
         parameters.SCVI_MAX_EPOCHS: 400,
         parameters.SCVI_QUERY_MAX_EPOCHS: 200,
+        parameters.SCPOLI_MAX_EPOCHS: 50,
         parameters.NUMBER_OF_NEIGHBORS: 8,
         parameters.MAX_EPOCHS: 100,
         parameters.UNWANTED_LABELS: ['leiden'],

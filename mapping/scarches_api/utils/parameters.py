@@ -42,6 +42,8 @@ SCANVI_MAX_EPOCHS = 'scanvi_max_epochs'
 SCANVI_MAX_EPOCHS_QUERY = 'scanvi_max_epochs_query'
 # sets the number of max epochs for scVI
 SCVI_MAX_EPOCHS = 'scvi_max_epochs'
+# sets the number of max epochs for scVI
+SCPOLI_MAX_EPOCHS = 'scpoli_max_epochs'
 # sets the number of max epochs for scVI query
 SCVI_QUERY_MAX_EPOCHS = 'scvi_max_epochs_query'
 # sets the number of neighbors

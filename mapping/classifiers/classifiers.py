@@ -51,16 +51,19 @@ class Classifiers:
     def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding"):
         le = LabelEncoder()
 
-        with open(encoding_path, "rb") as file:
-            le = pickle.load(file)
-
         if self.__classifier_xgb:
+            with open(encoding_path, "rb") as file:
+                le = pickle.load(file)
+
             xgb_model = XGBClassifier()
             xgb_model.load_model(classifier_path)
             
             query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
 
         if self.__classifier_knn:
+            with open(encoding_path, "rb") as file:
+                le = pickle.load(file)
+
             with open(classifier_path, "rb") as file:
                 knn_model = pickle.load(file)
 

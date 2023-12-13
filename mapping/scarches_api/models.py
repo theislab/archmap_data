@@ -32,7 +32,6 @@ class ArchmapBaseModel():
         self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
-        self._max_epochs = 1
         self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
@@ -113,7 +112,7 @@ class ArchmapBaseModel():
 
 
         #Remove later - for testing only
-        # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -136,7 +135,7 @@ class ArchmapBaseModel():
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__.__name__)
 
-        #Download classifier and encoding from GCP
+        #Download classifiers from GCP if kNN or XGBoost
         if self._clf_xgb:
             self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
             fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
@@ -144,8 +143,10 @@ class ArchmapBaseModel():
             self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
             fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
-        self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
-        fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+        #Download encoding from GCP if not native
+        if not self._clf_native:
+            self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
+            fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
 
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
 
@@ -155,7 +156,9 @@ class ArchmapBaseModel():
         return clf, query_latent
 
     def _concat_data(self):
-        self._reference_adata.X = self._reference_adata.layers["counts"]
+        #If minified for example, we need to get the counts stored in layer
+        if self._reference_adata.X.size == 0:
+            self._reference_adata.X = self._reference_adata.layers["counts"]
 
         #Added because concat_on_disk only allows inner joins
         self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
@@ -206,7 +209,7 @@ class ArchmapBaseModel():
             if explicit_representation.X.size == 0:
                 raise ValueError("Counts stored in .layers are empty")
 
-        #Store latent representation of combined adata (query, reference)
+        #Store latent representation
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
@@ -295,20 +298,39 @@ class ScANVI(ArchmapBaseModel):
 
 class ScPoli(ArchmapBaseModel):
     def _map_query(self):
-        scpoli_query = scarches.models.scPoli.load_query_data(
+        model = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
             reference_model=self._temp_model_path,
             labeled_indices=[],
             map_location=torch.device("cpu")
         )
 
-        scpoli_query.train(
-            n_epochs=50,
+        self._model = model
+        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
+
+        model.train(
+            n_epochs=self._max_epochs,
             pretraining_epochs=40,
             eta=10
         )
 
-        self._model = scpoli_query
+        #Save out the latent representation
+        self._compute_latent_representation(explicit_representation=self._reference_adata)
+        self._compute_latent_representation(explicit_representation=self._query_adata)
+
+    def _compute_latent_representation(self, explicit_representation):
+        #If no counts stored in X check for layers (minified atlases for example)
+        if explicit_representation.X.size == 0:
+            try:
+                explicit_representation.X = explicit_representation.layers["counts"]
+            except ValueError as e:
+                raise ValueError("No counts stored in either X or .layers") from e
+            
+            if explicit_representation.X.size == 0:
+                raise ValueError("Counts stored in .layers are empty")
+
+        #Store latent representation
+        explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation)
 
     def _acquire_data(self):
         super()._acquire_data()

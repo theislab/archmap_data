@@ -141,6 +141,11 @@ def classification_uncert_euclidean(
     else:
         trainer = train_euclidian(None, adata_ref_latent, embedding_name, pretrained)
 
+    #Make sure cell_type is all strings (comparison with NaN and string doesnt work)
+    cell_type_cols = adata_ref_latent.obs.columns[adata_ref_latent.obs.columns.str.startswith(cell_type_key)]
+    for col in cell_type_cols:
+        adata_ref_latent.obs[col] = adata_ref_latent.obs[col].astype(str)
+
     _, uncertainties = sca.utils.weighted_knn_transfer(
         adata_query_latent,
         embedding_name,

@@ -20,8 +20,14 @@ class ScviHub:
         self.__training_data_url = None
         self.__model_parent_module = None
         self.__model_cls_name = None
+        self.__model = None
         self.__batch_key = None
         self.__labels_key = None
+
+        #Classifier setup
+        self._clf_native = None
+        self._clf_xgb = None
+        self._clf_knn = None
 
         self.__download_data()
 
@@ -37,8 +43,6 @@ class ScviHub:
         reference.obs["type"] = "reference"
         query.obs["type"] = "query"
 
-        model = None
-
         #Conform vars to model for query and reference
         if(self.__model_cls_name == "SCVI"):
             scvi.model.SCVI.prepare_query_anndata(reference, "../scvi_hub/model/")
@@ -47,7 +51,7 @@ class ScviHub:
             scvi.model.SCVI.prepare_query_anndata(query, "../scvi_hub/model/")
             scvi.model.SCVI.setup_anndata(query)
 
-            model = scvi.model.SCVI.load_query_data(
+            self.__model = scvi.model.SCVI.load_query_data(
                         query,
                         "../scvi_hub/model/",
                         freeze_dropout=True,
@@ -60,13 +64,13 @@ class ScviHub:
             scvi.model.SCANVI.prepare_query_anndata(query, "../scvi_hub/model/")
             scvi.model.SCANVI.setup_anndata(query, labels_key=self.__labels_key, unlabeled_category="Unlabeled")
 
-            model = scvi.model.SCANVI.load_query_data(
+            self.__model = scvi.model.SCANVI.load_query_data(
                         query,
                         "../scvi_hub/model/",
                         freeze_dropout=True,
                     )
 
-        model.train(
+        self.__model.train(
             max_epochs=10,
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
@@ -74,11 +78,11 @@ class ScviHub:
         )
 
         #Query model and store respective latent representation
-        reference.obsm["latent_rep"] = model.get_latent_representation(reference)
-        query.obsm["latent_rep"] = model.get_latent_representation(query)
+        reference.obsm["latent_rep"] = self.__model.get_latent_representation(reference)
+        query.obsm["latent_rep"] = self.__model.get_latent_representation(query)
 
         #Set up classification
-        self.classification(atlas=reference, query=query, query_latent=scanpy.AnnData(query.obsm["latent_rep"]))
+        #self.classification(atlas=reference, query=query, query_latent=scanpy.AnnData(query.obsm["latent_rep"]))
 
         #Concatenate reference and query
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -117,11 +121,20 @@ class ScviHub:
             adjusted_model_type = "scANVI"
 
         #Initialize and create classifier
-        clf = Classifiers(True, False, None, "../scvi_hub/classifiers", "", adjusted_model_type)
-        clf.create_classifier(adata=atlas, latent_rep=False, model_path="../scvi_hub/model", label_key=self.__labels_key)
+        if self._clf_native:
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self.__model, adjusted_model_type)
+        else:
+            clf = Classifiers(self._clf_xgb, self._clf_knn, None, adjusted_model_type)
+
+        clf.create_classifier(adata=atlas, latent_rep=False, model_path="../scvi_hub/model", label_key=self.__labels_key, classifier_directory="../scvi_hub/classifiers")
         
         #Predict the labels
-        clf.predict_labels(query=query, query_latent=query_latent)
+        if self._clf_xgb:
+            clf.predict_labels(query=query, query_latent=query_latent, classifier_path="../scvi_hub/classifiers/classifier_xgb.ubj", encoding_path="../scvi_hub/classifiers/classifier_encoding.pickle")
+        elif self._clf_knn:
+            clf.predict_labels(query=query, query_latent=query_latent, classifier_path="../scvi_hub/classifiers/classifier_knn.pickle", encoding_path="../scvi_hub/classifiers/classifier_encoding.pickle")
+        else:
+            clf.predict_labels(query=query, query_latent=query_latent, classifier_path=None, encoding_path=None)
 
     def __download_data(self):
         scvi_hub_id = utils.get_from_config(self.__configuration, parameters.SCVI_HUB_ID)
@@ -158,8 +171,12 @@ class ScviHub:
         self.__model_parent_module = metadata.pop("model_parent_module")
         self.__model_cls_name = metadata.pop("model_cls_name")
 
-        self.__batch_key = utils.get_from_config(self.__configuration, utils.parameters.SCVI_HUB_ARGS).pop("batch_key")
-        self.__labels_key = utils.get_from_config(self.__configuration, utils.parameters.SCVI_HUB_ARGS).pop("labels_key")
+        self.__batch_key = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.SCVI_HUB_ARGS).pop("batch_key")
+        self.__labels_key = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.SCVI_HUB_ARGS).pop("labels_key")
+
+        self._clf_native = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("Native")
+        self._clf_xgb = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("XGBoost")
+        self._clf_knn = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("kNN")
 
     def __cleanup(self):
         import shutil
