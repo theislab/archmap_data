@@ -36,11 +36,11 @@ from sklearn.neighbors import KNeighborsTransformer
 from sklearn.neighbors import KNeighborsClassifier
 
 class Classifiers:
-    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_scanvi=sca.models.SCANVI, model_type="scVI") -> None:
+    def __init__(self, classifier_xgb=False, classifier_knn=False, classifier_native=sca.models, model_class=sca.models.SCANVI.__class__) -> None:
         self.__classifier_xgb = classifier_xgb
         self.__classifier_knn = classifier_knn
-        self.__classifier_scanvi = classifier_scanvi
-        self.__model_type = model_type
+        self.__classifier_native = classifier_native
+        self.__model_class = model_class
 
     '''
     Parameters
@@ -69,10 +69,11 @@ class Classifiers:
 
             query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
 
-        if self.__classifier_scanvi is not None:
-            #scanvi_model = sca.models.SCANVI.load_query_data(adata=query, reference_model="assets/scANVI/" + self.__atlas_name)
-
-            query.obs["prediction_scanvi"] = self.__classifier_scanvi.predict(query)
+        if self.__classifier_native is not None:
+            if self.__model_class == sca.models.SCANVI.__class__:
+                query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
+            if self.__model_class == sca.models.scPoli.__class__:
+                query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
 
     def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output"):
         train_data = Classifiers.__get_train_data(
@@ -131,9 +132,9 @@ class Classifiers:
 
             # scvi.model.SCVI.setup_anndata(adata_subset)
 
-            if self.__model_type == "scVI":
+            if self.__model_class == sca.models.SCVI.__class__:
                 model = scvi.model.SCVI.load(model_path, adata)
-            elif self.__model_type == "scANVI":
+            elif self.__model_class == sca.models.SCANVI.__class__:
                 model = scvi.model.SCANVI.load(model_path, adata)
             else:
                 raise Exception("Choose model type 'scVI' or 'scANVI'")
@@ -220,8 +221,8 @@ class Classifiers:
             print("kNN classifier report:")
             print(knnc_report)
 
-        if self.__classifier_scanvi is not None:
-            preds = self.__classifier_scanvi.predict(self.__classifier_scanvi, X_test)
+        if self.__classifier_native is not None:
+            preds = self.__classifier_native.predict(self.__classifier_native, X_test)
 
             scanvic_report = Classifiers.__eval_classification_report(le.inverse_transform(y_test), preds)
 

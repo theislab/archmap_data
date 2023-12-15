@@ -112,7 +112,7 @@ class ArchmapBaseModel():
 
 
         #Remove later - for testing only
-        self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        #self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -125,35 +125,31 @@ class ArchmapBaseModel():
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
     def _transfer_labels(self):
-        #Return if no classifier chosen
-        if not self._clf_xgb and not self._clf_knn and not self._clf_native:
-            return
-
-        #If native classifier chosen set model as classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__.__name__)
-        else:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__.__name__)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
 
-        #Download classifiers from GCP if kNN or XGBoost
-        if self._clf_xgb:
-            self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
-            fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
-        elif self._clf_knn:
-            self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
-            fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
+        #Instantiate xgb or knn classifier if selected
+        if self._clf_xgb or self._clf_knn:        
+            clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__)
 
-        #Download encoding from GCP if not native
-        if not self._clf_native:
-            self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
-            fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+            #Download classifiers and encoding from GCP if kNN or XGBoost
+            if self._clf_xgb:
+                self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
+                fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
 
-        query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
+                self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
+                fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
+            elif self._clf_knn:
+                self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
+                fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+
+                self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
+                fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
         #Compute label transfer and save to respective .obs
+        query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
+        
         clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
-
-        return clf, query_latent
 
     def _concat_data(self):
         #If minified for example, we need to get the counts stored in layer
@@ -218,11 +214,21 @@ class ArchmapBaseModel():
 
     def _cleanup(self):
         #Remove all temp files
-        os.remove(os.path.join(self._temp_model_path, "model.pt"))
+        if os.path.exists(os.path.join(self._temp_model_path, "model.pt")):
+            os.remove(os.path.join(self._temp_model_path, "model.pt"))
+        if os.path.exists(os.path.join(self._temp_model_path, "model_params.pt")):
+            os.remove(os.path.join(self._temp_model_path, "model_params.pt"))
+        if os.path.exists(os.path.join(self._temp_model_path, "attr.pkl")):
+            os.remove(os.path.join(self._temp_model_path, "attr.pkl"))
+        if os.path.exists(os.path.join(self._temp_model_path, "var_names.csv")):
+            os.remove(os.path.join(self._temp_model_path, "var_names.csv"))
+
         if self._temp_clf_model_path is not None:
-            os.remove(self._temp_clf_model_path)
+            if os.path.exists(self._temp_clf_model_path):
+                os.remove(self._temp_clf_model_path)
         if self._temp_clf_encoding_path is not None:
-            os.remove(self._temp_clf_encoding_path)
+            if os.path.exists(self._temp_clf_encoding_path):
+                os.remove(self._temp_clf_encoding_path)
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
@@ -314,6 +320,9 @@ class ScPoli(ArchmapBaseModel):
             eta=10
         )
 
+        #Compute sample embeddings on query
+        self._sample_embeddings()
+
         #Save out the latent representation
         self._compute_latent_representation(explicit_representation=self._reference_adata)
         self._compute_latent_representation(explicit_representation=self._query_adata)
@@ -340,23 +349,34 @@ class ScPoli(ArchmapBaseModel):
         fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
         fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
 
-    def label_transfer(self, query):
-        results_dict = self._model.classify(query, scale_uncertainties=True)
-
-    def sample_embeddings(self):
-        sample_embedding = self._model.get_conditional_embeddings()
-
+    def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+        
+        sample_embedding = self._model.get_conditional_embeddings()        
 
         pca = KernelPCA(n_components=2, kernel='linear')
         emb_pca = pca.fit_transform(sample_embedding.X)
-        conditions = self._model.conditions_['study']
-        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-        sns.scatterplot(x=emb_pca[:, 0], y=emb_pca[:, 1], hue=conditions, ax=ax)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        conditions = self._model.conditions_[self._batch_key]
+
         for i, c in enumerate(conditions):
-            ax.plot([0, emb_pca[i, 0]], [0, emb_pca[i, 1]])
-            ax.text(emb_pca[i, 0], emb_pca[i, 1], c)
-        sns.despine()
+            # ax.plot([0, emb_pca[i, 0]], [0, emb_pca[i, 1]])
+            # ax.text(emb_pca[i, 0], emb_pca[i, 1], c)
+
+            plot_data = [0, emb_pca[i, 0]], [0, emb_pca[i, 1]]
+        
+        self._query_adata.uns["sample_embeddings"] = emb_pca
+
+        # from sklearn.decomposition import KernelPCA
+        # import matplotlib.pyplot as plt
+        # import seaborn as sns
+
+        # pca = KernelPCA(n_components=2, kernel='linear')
+        # emb_pca = pca.fit_transform(sample_embedding.X)
+        # conditions = self._model.conditions_['study']
+        # fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        # sns.scatterplot(x=emb_pca[:, 0], y=emb_pca[:, 1], hue=conditions, ax=ax)
+        # ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        # for i, c in enumerate(conditions):
+        #     ax.plot([0, emb_pca[i, 0]], [0, emb_pca[i, 1]])
+        #     ax.text(emb_pca[i, 0], emb_pca[i, 1], c)
+        # sns.despine()

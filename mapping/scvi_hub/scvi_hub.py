@@ -1,3 +1,5 @@
+import scarches
+
 import scarches_api.utils.utils as utils
 import scarches_api.utils.parameters as parameters
 from huggingface_hub import hf_hub_download, HfApi, ModelFilter, snapshot_download, login
@@ -114,17 +116,17 @@ class ScviHub:
         cache_path = Path("../scvi_hub/classifiers/")
         cache_path.mkdir(parents=True, exist_ok=True)
 
-        #Adjust upper case
+        #Set class for respective cls_name
         if self.__model_cls_name == "SCVI":
-            adjusted_model_type = "scVI"
+            model_class = scarches.models.SCVI.__class__
         if self.__model_cls_name == "SCANVI":
-            adjusted_model_type = "scANVI"
+            model_class = scarches.models.SCANVI.__class__
 
         #Initialize and create classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self.__model, adjusted_model_type)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self.__model, model_class)
         else:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, None, adjusted_model_type)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, None, model_class)
 
         clf.create_classifier(adata=atlas, latent_rep=False, model_path="../scvi_hub/model", label_key=self.__labels_key, classifier_directory="../scvi_hub/classifiers")
         
