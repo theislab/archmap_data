@@ -1,6 +1,7 @@
 # for scarches
 scanpy~=1.9.1
-scArches==0.5.10
+#scArches~=0.5.2
+#scArches instead installed with git for map_location parameter
 anndata==0.10.2
 pandas==1.5.3
 xgboost==1.7.4

@@ -325,8 +325,8 @@ class Preprocess:
             cell_type_key = "cell_type"
             batch_key = "batch_integration"
         elif atlas == "HRCA":
-            cell_type_key = "cell_type"
-            batch_key = "study_name"
+            cell_type_key = "cell_type_scarches"
+            batch_key = "batch_donor_asset"
 
 
         #Check if provided query contains respective labels

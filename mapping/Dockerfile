@@ -17,6 +17,9 @@ RUN apt-get update && \
     apt-get install -y gcc && \
     apt-get clean
 
+RUN apt-get install git -y \
+    pip install git+https://github.com/theislab/scarches.git -y
+
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 
