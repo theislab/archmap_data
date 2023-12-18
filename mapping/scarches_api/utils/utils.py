@@ -580,6 +580,8 @@ def translate_atlas_to_directory(configuration):
         return 'tonsil'
     elif atlas == 'Gut':
         return 'gut'
+    elif atlas == "HRCA":
+        return "HRCA"
 
 
 def set_keys(configuration):

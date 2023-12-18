@@ -112,7 +112,7 @@ class ArchmapBaseModel():
 
 
         #Remove later - for testing only
-        #self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation

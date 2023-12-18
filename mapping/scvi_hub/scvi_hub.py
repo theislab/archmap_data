@@ -50,7 +50,11 @@ class ScviHub:
             scvi.model.SCVI.prepare_query_anndata(reference, "../scvi_hub/model/")
             scvi.model.SCVI.setup_anndata(reference)
 
-            scvi.model.SCVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            try:
+                scvi.model.SCVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            except:
+                var_names = scvi.model.SCVI.prepare_query_anndata(query, "../scvi_hub/model/", return_reference_var_names=True)
+                raise ValueError(f"Make sure query var_names match the one of the chosen atlas: \n {var_names}")
             scvi.model.SCVI.setup_anndata(query)
 
             self.__model = scvi.model.SCVI.load_query_data(
@@ -63,7 +67,11 @@ class ScviHub:
             scvi.model.SCANVI.prepare_query_anndata(reference, "../scvi_hub/model/")
             scvi.model.SCANVI.setup_anndata(reference, labels_key=self.__labels_key, unlabeled_category="Unlabeled")
 
-            scvi.model.SCANVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            try:
+                scvi.model.SCANVI.prepare_query_anndata(query, "../scvi_hub/model/")
+            except:
+                var_names = scvi.model.SCANVI.prepare_query_anndata(query, "../scvi_hub/model/", return_reference_var_names=True)
+                raise ValueError("Make sure query var_names match the one of the chosen atlas: " + var_names)
             scvi.model.SCANVI.setup_anndata(query, labels_key=self.__labels_key, unlabeled_category="Unlabeled")
 
             self.__model = scvi.model.SCANVI.load_query_data(
@@ -161,7 +169,11 @@ class ScviHub:
 
         self.__read_metadata()
 
-        gdown.download(self.__training_data_url, "../scvi_hub/atlas/atlas.h5ad")
+        #Try to download if training_data_url exists in metadata else use the smaller existing one
+        if self.__training_data_url is not None:
+            gdown.download(self.__training_data_url, "../scvi_hub/atlas/atlas.h5ad")
+        else:
+            os.replace("../scvi_hub/download/adata.h5ad", "../scvi_hub/atlas/atlas.h5ad")
         utils.fetch_file_from_s3(query_download_path, "../scvi_hub/query/query.h5ad")
         os.replace("../scvi_hub/download/model.pt", "../scvi_hub/model/model.pt")
 
