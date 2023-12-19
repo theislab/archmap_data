@@ -125,11 +125,14 @@ class ArchmapBaseModel():
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
     def _transfer_labels(self):
+        if not self._clf_native and not self._clf_knn and not self._clf_xgb:
+            return
+
         if self._clf_native:
             clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
 
         #Instantiate xgb or knn classifier if selected
-        if self._clf_xgb or self._clf_knn:        
+        if self._clf_xgb or self._clf_knn:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__)
 
             #Download classifiers and encoding from GCP if kNN or XGBoost
