@@ -1,7 +1,7 @@
 import scarches
 import scanpy
 import pandas
-import numpy
+import numpy as np
 import tempfile
 import os
 import torch
@@ -285,7 +285,7 @@ class ScANVI(ArchmapBaseModel):
             model._unlabeled_indices = []
             model._labeled_indices = self._query_adata.n_obs
         else:
-            model._unlabeled_indices = numpy.arange(self._query_adata.n_obs)
+            model._unlabeled_indices = np.arange(self._query_adata.n_obs)
             model._labeled_indices = []
 
         self._model = model
@@ -306,6 +306,7 @@ class ScANVI(ArchmapBaseModel):
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 
 class ScPoli(ArchmapBaseModel):
+ 
     def _map_query(self):
         model = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
@@ -326,8 +327,18 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        #Save out the latent representation
-        self._compute_latent_representation(explicit_representation=self._reference_adata)
+        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+            print("||| SAMPLE LATENT OF STORED MEAN AND VAR FOR REFERENCE |||")
+            qzm = self._reference_adata.obsm["X_latent_qzm"]
+            qzv = self._reference_adata.obsm["X_latent_qzv"]
+            latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
+            self._reference_adata.obsm["latent_rep"] = latent
+
+        else:
+            print("||| CALC LATENT OF REFERENCE |||")
+            self._compute_latent_representation(explicit_representation=self._reference_adata)
+
+        #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
 
     def _compute_latent_representation(self, explicit_representation):
