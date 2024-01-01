@@ -62,7 +62,7 @@ class ArchmapBaseModel():
     def run(self):
         self._map_query()
         self._eval_mapping()
-        self._transfer_labels()
+        #self._transfer_labels()
         self._concat_data()
         self._save_data()
         self._cleanup()
@@ -76,9 +76,41 @@ class ArchmapBaseModel():
             use_gpu=self._use_gpu
         )
 
-        #Save out the latent representation
-        self._compute_latent_representation(explicit_representation=self._reference_adata)
+        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+            print("||| SAMPLE LATENT OF STORED MEAN AND VAR FOR REFERENCE |||")
+            qzm = self._reference_adata.obsm["X_latent_qzm"]
+            qzv = self._reference_adata.obsm["X_latent_qzv"]
+            #latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
+            self._reference_adata.obsm["latent_rep"] = qzm
+
+        else:
+            print("||| CALC LATENT OF REFERENCE |||")
+            self._compute_latent_representation(explicit_representation=self._reference_adata)
+
+        #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
+
+        print("query mapped and latent computed")
+
+
+        #Save out the latent representation
+        #self._compute_latent_representation(explicit_representation=self._reference_adata)
+        #self._compute_latent_representation(explicit_representation=self._query_adata)
+
+    # def _map_query(self):
+    #     #Map the query onto reference
+    #     self._model.train(
+    #         max_epochs=self._max_epochs,
+    #         plan_kwargs=dict(weight_decay=0.0),
+    #         check_val_every_n_epoch=10,
+    #         use_gpu=self._use_gpu
+    #     )
+
+    #     #Save out the latent representation
+    #     self._compute_latent_representation(explicit_representation=self._reference_adata)
+    #     self._compute_latent_representation(explicit_representation=self._query_adata)
+
+    #     print("query mapped and latent computed")
 
     def _acquire_data(self):
         #Download query and reference from GCP
@@ -124,6 +156,8 @@ class ArchmapBaseModel():
         classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
+        print("mapping evaluated")
+
     def _transfer_labels(self):
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
             return
@@ -155,47 +189,97 @@ class ArchmapBaseModel():
         clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
 
     def _concat_data(self):
-        #If minified for example, we need to get the counts stored in layer
+        import numpy as np
+        import time
+
+        ################################################
+        
+        start_time = time.time()
+        self.latent_full_from_mean_var = np.concatenate((self._query_adata.obsm["latent_rep"], self._reference_adata.obsm["latent_rep"]))
+        end_time = time.time()
+        execution_time_ms = (end_time - start_time) * 1000
+        print(f"Execution time of latent_full_from_mean_var concatenate: {execution_time_ms} ms")
+
+
+        start_time = time.time()
+        from scipy.sparse import csr_matrix
         if self._reference_adata.X.size == 0:
             self._reference_adata.X = self._reference_adata.layers["counts"]
+            all_zeros = csr_matrix(self._reference_adata.X.shape)
+            self._reference_adata.layers["counts"] = all_zeros.copy()
 
-        #Added because concat_on_disk only allows inner joins
-        self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
-        self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
+        self._combined_adata = self._query_adata.concatenate(self._reference_adata)
+        end_time = time.time()
+        execution_time_ms = (end_time - start_time) * 1000
+        print(f"Execution time of _combined_adata concatenate: {execution_time_ms} ms")
 
-        #Added because concat_on_disk only allows csr concat
-        if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
-            #self._query.X = csr_matrix(self._query.X)
-            #self._query_adata.X = self._query_adata.X.tocsr()
+        import gc
 
-            self._combined_adata = self._query_adata.concatenate(self._reference_adata, batch_key='bkey')
-            self._compute_latent_representation(explicit_representation=self._combined_adata)
-
-            return
-
-        #Create temp files on disk
-        temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-        temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-        temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
-
-        #Write data to temp files
-        scanpy.write(temp_reference.name, self._reference_adata)
-        scanpy.write(temp_query.name, self._query_adata)
-
-        del self._reference_adata
         del self._query_adata
+        del self._reference_adata
 
-        #Concatenate on disk to save memory
-        from anndata import experimental
-        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+        gc.collect()
 
-        #Read concatenated data back in
-        self._combined_adata = scanpy.read_h5ad(temp_combined.name)
+        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
+        
+        # start_time = time.time()
+        # self._compute_latent_representation(explicit_representation=self._combined_adata)
+        # end_time = time.time()
+        # execution_time_ms = (end_time - start_time) * 1000
+        # print(f"Execution time of _compute_latent_representation: {execution_time_ms} ms")
 
-        #Store latent representation of combined adata (query, reference)
-        self._compute_latent_representation(explicit_representation=self._combined_adata)
+        
+
+        print("Size of latent_full_from_mean_var:", self.latent_full_from_mean_var.shape)
+        print("Size of _combined_adata.obsm['latent_rep']:", self._combined_adata.obsm["latent_rep"].shape)
+
+        # np.save('latent_full_from_mean_var.npy', self.latent_full_from_mean_var)
+        # np.save('_combined_adata_obsm_latent_rep.npy', self._combined_adata.obsm["latent_rep"])
+
+        return
+
+    # def _concat_data(self):
+    #     #If minified for example, we need to get the counts stored in layer
+    #     if self._reference_adata.X.size == 0:
+    #         self._reference_adata.X = self._reference_adata.layers["counts"]
+
+    #     #Added because concat_on_disk only allows inner joins
+    #     self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
+    #     self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
+    #     self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
+    #     self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
+
+    #     #Added because concat_on_disk only allows csr concat
+    #     if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
+    #         #self._query.X = csr_matrix(self._query.X)
+    #         #self._query_adata.X = self._query_adata.X.tocsr()
+
+    #         self._combined_adata = self._query_adata.concatenate(self._reference_adata, batch_key='bkey')
+    #         self._compute_latent_representation(explicit_representation=self._combined_adata)
+
+    #         return
+
+    #     #Create temp files on disk
+    #     temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+    #     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+    #     temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+    #     #Write data to temp files
+    #     scanpy.write(temp_reference.name, self._reference_adata)
+    #     scanpy.write(temp_query.name, self._query_adata)
+
+    #     del self._reference_adata
+    #     del self._query_adata
+
+    #     #Concatenate on disk to save memory
+    #     from anndata import experimental
+    #     experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+
+    #     #Read concatenated data back in
+    #     self._combined_adata = scanpy.read_h5ad(temp_combined.name)
+
+    #     #Store latent representation of combined adata (query, reference)
+    #     self._compute_latent_representation(explicit_representation=self._combined_adata)
 
     def _compute_latent_representation(self, explicit_representation):
         #If no counts stored in X check for layers (minified atlases for example)
