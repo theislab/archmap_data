@@ -328,6 +328,7 @@ class ScPoli(ArchmapBaseModel):
 
         #Added because concat_on_disk only allows csr concat
         if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
+            # TODO: new approach for concatenation of latent spaces should be implemented for non csr matrices too, after its tested on them
             #self._query.X = csr_matrix(self._query.X)
             #self._query_adata.X = self._query_adata.X.tocsr()
 
