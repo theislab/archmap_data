@@ -1,7 +1,7 @@
 import scarches
 import scanpy
 import pandas
-import numpy
+import numpy as np
 import tempfile
 import os
 import torch
@@ -285,7 +285,7 @@ class ScANVI(ArchmapBaseModel):
             model._unlabeled_indices = []
             model._labeled_indices = self._query_adata.n_obs
         else:
-            model._unlabeled_indices = numpy.arange(self._query_adata.n_obs)
+            model._unlabeled_indices = np.arange(self._query_adata.n_obs)
             model._labeled_indices = []
 
         self._model = model
@@ -306,6 +306,59 @@ class ScANVI(ArchmapBaseModel):
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 
 class ScPoli(ArchmapBaseModel):
+    ####### TODO: _concat_data will be moved in parent class if it worked for other models #######
+    def _concat_data(self):
+        ############### NEW IMPLEMENTAION FOR CONCATENATION OF LATENT SPACE ###############
+        self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
+        ###################################################################################
+
+        #If minified for example, we need to get the counts stored in layer
+        if self._reference_adata.X.size == 0:
+            try:
+                self._reference_adata.X = self._reference_adata.layers["counts"]
+                del self._reference_adata.layers["counts"]
+            except ValueError as e:
+                raise ValueError("No counts stored in layers") from e
+
+        #Added because concat_on_disk only allows inner joins
+        self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
+        self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
+        self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
+        self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
+
+        #Added because concat_on_disk only allows csr concat
+        if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
+            # TODO: new approach for concatenation of latent spaces should be implemented for non csr matrices too, after its tested on them
+            #self._query.X = csr_matrix(self._query.X)
+            #self._query_adata.X = self._query_adata.X.tocsr()
+
+            self._combined_adata = self._query_adata.concatenate(self._reference_adata, batch_key='bkey')
+            self._compute_latent_representation(explicit_representation=self._combined_adata)
+
+            return
+
+        #Create temp files on disk
+        temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+        #Write data to temp files
+        scanpy.write(temp_reference.name, self._reference_adata)
+        scanpy.write(temp_query.name, self._query_adata)
+
+        del self._reference_adata
+        del self._query_adata
+
+        #Concatenate on disk to save memory
+        from anndata import experimental
+        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+
+        #Read concatenated data back in
+        self._combined_adata = scanpy.read_h5ad(temp_combined.name)
+
+        #Store latent representation of combined adata (query, reference)
+        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
+   
     def _map_query(self):
         model = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
@@ -326,8 +379,18 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        #Save out the latent representation
-        self._compute_latent_representation(explicit_representation=self._reference_adata)
+        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+            print("||| SAMPLE LATENT OF STORED MEAN AND VAR FOR REFERENCE |||")
+            qzm = self._reference_adata.obsm["X_latent_qzm"]
+            qzv = self._reference_adata.obsm["X_latent_qzv"]
+            latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
+            self._reference_adata.obsm["latent_rep"] = latent
+
+        else:
+            print("||| CALC LATENT OF REFERENCE |||")
+            self._compute_latent_representation(explicit_representation=self._reference_adata)
+
+        #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
 
     def _compute_latent_representation(self, explicit_representation):
