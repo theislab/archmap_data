@@ -375,6 +375,7 @@ class ScPoli(ArchmapBaseModel):
             pretraining_epochs=40,
             eta=10
         )
+        print(" ---- DEBUG: SCPOLI TRANING FINISHED ---- ")
 
         #Compute sample embeddings on query
         self._sample_embeddings()
@@ -417,20 +418,26 @@ class ScPoli(ArchmapBaseModel):
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
-        
+        print(" ---- DEBUG: 1 ----")
         sample_embedding = self._model.get_conditional_embeddings()        
-
+        print(" ---- DEBUG: 2 ----")
         pca = KernelPCA(n_components=2, kernel='linear')
+        print(" ---- DEBUG: 3 ----")
         emb_pca = pca.fit_transform(sample_embedding.X)
+        print(" ---- DEBUG: 4----")
+
         conditions = self._model.conditions_[self._batch_key]
+        print(" ---- DEBUG: 5 ----")
 
-        for i, c in enumerate(conditions):
-            # ax.plot([0, emb_pca[i, 0]], [0, emb_pca[i, 1]])
-            # ax.text(emb_pca[i, 0], emb_pca[i, 1], c)
 
-            plot_data = [0, emb_pca[i, 0]], [0, emb_pca[i, 1]]
+        # for i, c in enumerate(conditions):
+        #     # ax.plot([0, emb_pca[i, 0]], [0, emb_pca[i, 1]])
+        #     # ax.text(emb_pca[i, 0], emb_pca[i, 1], c)
+
+        #     plot_data = [0, emb_pca[i, 0]], [0, emb_pca[i, 1]]
         
         self._query_adata.uns["sample_embeddings"] = emb_pca
+        print(" ---- DEBUG: 6 ----")
 
         # from sklearn.decomposition import KernelPCA
         # import matplotlib.pyplot as plt
