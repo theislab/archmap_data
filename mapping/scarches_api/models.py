@@ -172,8 +172,6 @@ class ArchmapBaseModel():
             self._reference_adata.layers["counts"] = all_zeros.copy()
 
 
-        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-
 
         #Added because concat_on_disk only allows csr concat
         if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
@@ -181,7 +179,8 @@ class ArchmapBaseModel():
             #self._query_adata.X = self._query_adata.X.tocsr()
 
             self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey')
-            self._compute_latent_representation(explicit_representation=self._combined_adata)
+            self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
+            #self._compute_latent_representation(explicit_representation=self._combined_adata)
 
             del self._query_adata
             del self._reference_adata
@@ -189,6 +188,7 @@ class ArchmapBaseModel():
 
             return
         
+
         #Added because concat_on_disk only allows inner joins
         self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
         self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
@@ -212,9 +212,10 @@ class ArchmapBaseModel():
 
         #Read concatenated data back in
         self._combined_adata = scanpy.read_h5ad(temp_combined.name)
+        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
 
         #Store latent representation of combined adata (query, reference)
-        self._compute_latent_representation(explicit_representation=self._combined_adata)
+        #self._compute_latent_representation(explicit_representation=self._combined_adata)
 
         return
 
