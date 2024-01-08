@@ -313,12 +313,12 @@ class ScPoli(ArchmapBaseModel):
         ###################################################################################
 
         #If minified for example, we need to get the counts stored in layer
-        if self._reference_adata.X.size == 0:
-            try:
-                self._reference_adata.X = self._reference_adata.layers["counts"]
-                del self._reference_adata.layers["counts"]
-            except ValueError as e:
-                raise ValueError("No counts stored in layers") from e
+        # if self._reference_adata.X.size == 0:
+        #     try:
+        #         self._reference_adata.X = self._reference_adata.layers["counts"]
+        #         del self._reference_adata.layers["counts"]
+        #     except ValueError as e:
+        #         raise ValueError("No counts stored in layers") from e
 
         #Added because concat_on_disk only allows inner joins
         self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
@@ -396,14 +396,14 @@ class ScPoli(ArchmapBaseModel):
 
     def _compute_latent_representation(self, explicit_representation):
         #If no counts stored in X check for layers (minified atlases for example)
-        if explicit_representation.X.size == 0:
-            try:
-                explicit_representation.X = explicit_representation.layers["counts"]
-            except ValueError as e:
-                raise ValueError("No counts stored in either X or .layers") from e
+        # if explicit_representation.X.size == 0:
+        #     try:
+        #         explicit_representation.X = explicit_representation.layers["counts"]
+        #     except ValueError as e:
+        #         raise ValueError("No counts stored in either X or .layers") from e
             
-            if explicit_representation.X.size == 0:
-                raise ValueError("Counts stored in .layers are empty")
+        #     if explicit_representation.X.size == 0:
+        #         raise ValueError("Counts stored in .layers are empty")
 
         #Store latent representation
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation)
