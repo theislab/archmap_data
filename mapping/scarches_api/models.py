@@ -127,6 +127,9 @@ class ArchmapBaseModel():
         reference_latent = scanpy.AnnData(self._reference_adata.obsm["latent_rep"])
         reference_latent.obs = self._reference_adata.obs
 
+        print(f"size of query latent {query_latent.X.shape}")
+        print(f"size of ref latent {reference_latent.X.shape}")
+
         #Calculate mapping uncertainty and write into .obs
         classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
@@ -166,10 +169,10 @@ class ArchmapBaseModel():
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
         
-        if self._reference_adata.X.size == 0:
-            self._reference_adata.X = self._reference_adata.layers["counts"]
-            all_zeros = csr_matrix(self._reference_adata.X.shape)
-            self._reference_adata.layers["counts"] = all_zeros.copy()
+        # if self._reference_adata.X.size == 0:
+        #     self._reference_adata.X = self._reference_adata.layers["counts"]
+        #     all_zeros = csr_matrix(self._reference_adata.X.shape)
+        #     self._reference_adata.layers["counts"] = all_zeros.copy()
 
 
 
@@ -222,14 +225,14 @@ class ArchmapBaseModel():
 
     def _compute_latent_representation(self, explicit_representation):
         #If no counts stored in X check for layers (minified atlases for example)
-        if explicit_representation.X.size == 0:
-            try:
-                explicit_representation.X = explicit_representation.layers["counts"]
-            except ValueError as e:
-                raise ValueError("No counts stored in either X or .layers") from e
+        # if explicit_representation.X.size == 0:
+        #     try:
+        #         explicit_representation.X = explicit_representation.layers["counts"]
+        #     except ValueError as e:
+        #         raise ValueError("No counts stored in either X or .layers") from e
             
-            if explicit_representation.X.size == 0:
-                raise ValueError("Counts stored in .layers are empty")
+        #     if explicit_representation.X.size == 0:
+        #         raise ValueError("Counts stored in .layers are empty")
 
         #Store latent representation
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
