@@ -1,5 +1,6 @@
 import os
 import time
+import psutil
 
 startTime = time.time()
 
@@ -14,6 +15,10 @@ from models import ScVI
 from models import ScPoli
 
 from process.processing import Preprocess
+from utils.utils import read_h5ad_file_from_s3
+import scanpy as sc
+import tempfile
+import gc
 
 
 def default_config():
@@ -155,6 +160,26 @@ def query(user_config):
         if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
             utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+            if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
+                if not mapping._reference_adata_path.endswith("data.h5ad"):
+                    raise ValueError("The reference data should be named data.h5ad")
+                else:
+                    count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+                cellxgene_input = mapping._combined_adata
+                # del mapping
+                # gc.collect()
+                count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+                # concat ref to the query and add to cellxgene_input
+                combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
+                cellxgene_input.X = combined_data_X.X
+                #cellxgene_input.layers['counts'] = count_matrix.layers['counts']
+                cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+                filename = tempfile.mktemp( suffix=".h5ad")
+                sc.write(filename, cellxgene_input)
+                print("cxg_with_count_path written to: " + filename)
+                print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
+                utils.store_file_in_s3(filename, cxg_with_count_path)
+                utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
         return configuration
 
 
