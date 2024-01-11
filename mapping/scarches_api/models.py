@@ -104,10 +104,6 @@ class ArchmapBaseModel():
         self._query_adata = read_h5ad_file_from_s3(self._query_adata_path) 
         self._query_adata.obs["type"] = "query"
 
-        self.adata_query_X = scanpy.Anndata(self._query_adata.X.copy())
-        self.adata_query_X.var_names = self._query_adata.var_names
-        all_zeros = csr_matrix(self._query_adata.X.shape)
-        self._query_adata.X = all_zeros.copy()
 
         # #Check if cell_type_key exists in query
         # if self._cell_type_key not in self._query_adata.obs.columns:
