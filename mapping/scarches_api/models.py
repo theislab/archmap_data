@@ -72,6 +72,10 @@ class ArchmapBaseModel():
         self._cleanup()
 
     def _map_query(self):
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
         #Map the query onto reference
         self._model.train(
             max_epochs=self._max_epochs,
@@ -100,6 +104,11 @@ class ArchmapBaseModel():
         self._query_adata = read_h5ad_file_from_s3(self._query_adata_path) 
         self._query_adata.obs["type"] = "query"
 
+        self.adata_query_X = scanpy.Anndata(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
+
         # #Check if cell_type_key exists in query
         # if self._cell_type_key not in self._query_adata.obs.columns:
         #     self._query_adata.obs[self._cell_type_key] = "Unlabeled"
@@ -109,8 +118,8 @@ class ArchmapBaseModel():
         #     self._query_adata.obs[self._batch_key] = "query_batch"
 
         #Store counts in layer if not stored already (atlas should already have counts stored in layers)
-        if "counts" not in self._query_adata.layers.keys():
-            self._query_adata.layers['counts'] = self._query_adata.X
+        # if "counts" not in self._query_adata.layers.keys():
+        #     self._query_adata.layers['counts'] = self._query_adata.X
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
