@@ -72,11 +72,16 @@ class ArchmapBaseModel():
         self._cleanup()
 
     def _map_query(self):
+        #Map the query onto reference
+
+        #save .X and var_names of query in new adata for later concatenation after cellxgene
         self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
         self.adata_query_X.var_names = self._query_adata.var_names
+
+        #we can then zero out .X in original query
         all_zeros = csr_matrix(self._query_adata.X.shape)
         self._query_adata.X = all_zeros.copy()
-        #Map the query onto reference
+
         self._model.train(
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0),
@@ -113,9 +118,9 @@ class ArchmapBaseModel():
         # if self._batch_key not in self._query_adata.obs.columns:
         #     self._query_adata.obs[self._batch_key] = "query_batch"
 
-        #Store counts in layer if not stored already (atlas should already have counts stored in layers)
-        # if "counts" not in self._query_adata.layers.keys():
-        #     self._query_adata.layers['counts'] = self._query_adata.X
+        #Store counts in layer if not stored already
+        if "counts" not in self._query_adata.layers.keys():
+            self._query_adata.layers['counts'] = self._query_adata.X
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
@@ -131,9 +136,6 @@ class ArchmapBaseModel():
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         reference_latent = scanpy.AnnData(self._reference_adata.obsm["latent_rep"])
         reference_latent.obs = self._reference_adata.obs
-
-        print(f"size of query latent {query_latent.X.shape}")
-        print(f"size of ref latent {reference_latent.X.shape}")
 
         #Calculate mapping uncertainty and write into .obs
         classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
@@ -173,12 +175,6 @@ class ArchmapBaseModel():
     def _concat_data(self):
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
-        
-        # if self._reference_adata.X.size == 0:
-        #     self._reference_adata.X = self._reference_adata.layers["counts"]
-        #     all_zeros = csr_matrix(self._reference_adata.X.shape)
-        #     self._reference_adata.layers["counts"] = all_zeros.copy()
-
 
 
         #Added because concat_on_disk only allows csr concat
@@ -220,25 +216,13 @@ class ArchmapBaseModel():
 
         #Read concatenated data back in
         self._combined_adata = scanpy.read_h5ad(temp_combined.name)
-        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
 
-        #Store latent representation of combined adata (query, reference)
-        #self._compute_latent_representation(explicit_representation=self._combined_adata)
+        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
 
         return
 
 
     def _compute_latent_representation(self, explicit_representation):
-        #If no counts stored in X check for layers (minified atlases for example)
-        # if explicit_representation.X.size == 0:
-        #     try:
-        #         explicit_representation.X = explicit_representation.layers["counts"]
-        #     except ValueError as e:
-        #         raise ValueError("No counts stored in either X or .layers") from e
-            
-        #     if explicit_representation.X.size == 0:
-        #         raise ValueError("Counts stored in .layers are empty")
-
         #Store latent representation
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
@@ -337,59 +321,17 @@ class ScANVI(ArchmapBaseModel):
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 
 class ScPoli(ArchmapBaseModel):
-    ####### TODO: _concat_data will be moved in parent class if it worked for other models #######
-    def _concat_data(self):
-        ############### NEW IMPLEMENTAION FOR CONCATENATION OF LATENT SPACE ###############
-        self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
-        ###################################################################################
-
-        #If minified for example, we need to get the counts stored in layer
-        # if self._reference_adata.X.size == 0:
-        #     try:
-        #         self._reference_adata.X = self._reference_adata.layers["counts"]
-        #         del self._reference_adata.layers["counts"]
-        #     except ValueError as e:
-        #         raise ValueError("No counts stored in layers") from e
-
-        #Added because concat_on_disk only allows inner joins
-        self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
-        self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
-
-        #Added because concat_on_disk only allows csr concat
-        if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
-            #self._query.X = csr_matrix(self._query.X)
-            #self._query_adata.X = self._query_adata.X.tocsr()
-
-            self._combined_adata = self._query_adata.concatenate(self._reference_adata, batch_key='bkey')
-            self._compute_latent_representation(explicit_representation=self._combined_adata)
-
-            return
-
-        #Create temp files on disk
-        temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-        temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-        temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
-
-        #Write data to temp files
-        scanpy.write(temp_reference.name, self._reference_adata)
-        scanpy.write(temp_query.name, self._query_adata)
-
-        del self._reference_adata
-        del self._query_adata
-
-        #Concatenate on disk to save memory
-        from anndata import experimental
-        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-
-        #Read concatenated data back in
-        self._combined_adata = scanpy.read_h5ad(temp_combined.name)
-
-        #Store latent representation of combined adata (query, reference)
-        self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
    
     def _map_query(self):
+
+        #save .X and var_names of query in new adata for later concatenation after cellxgene
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+
+        #we can then zero out .X in original query
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
+
         model = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
             reference_model=self._temp_model_path,
@@ -410,30 +352,18 @@ class ScPoli(ArchmapBaseModel):
         self._sample_embeddings()
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
-            print("||| SAMPLE LATENT OF STORED MEAN AND VAR FOR REFERENCE |||")
             qzm = self._reference_adata.obsm["X_latent_qzm"]
             qzv = self._reference_adata.obsm["X_latent_qzv"]
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
 
         else:
-            print("||| CALC LATENT OF REFERENCE |||")
             self._compute_latent_representation(explicit_representation=self._reference_adata)
 
         #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
 
     def _compute_latent_representation(self, explicit_representation):
-        #If no counts stored in X check for layers (minified atlases for example)
-        # if explicit_representation.X.size == 0:
-        #     try:
-        #         explicit_representation.X = explicit_representation.layers["counts"]
-        #     except ValueError as e:
-        #         raise ValueError("No counts stored in either X or .layers") from e
-            
-        #     if explicit_representation.X.size == 0:
-        #         raise ValueError("Counts stored in .layers are empty")
-
         #Store latent representation
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation)
 

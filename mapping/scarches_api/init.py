@@ -14,6 +14,12 @@ from models import ScANVI
 from models import ScVI
 from models import ScPoli
 
+from utils.utils import read_h5ad_file_from_s3
+import scanpy as sc
+import tempfile
+import gc
+from anndata import experimental
+
 from process.processing import Preprocess
 from utils.utils import read_h5ad_file_from_s3
 import scanpy as sc
@@ -166,21 +172,50 @@ def query(user_config):
                 else:
                     count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
                 cellxgene_input = mapping._combined_adata
-                # del mapping
-                # gc.collect()
+
                 count_matrix = read_h5ad_file_from_s3(count_matrix_path)
-                # concat ref to the query and add to cellxgene_input
-                combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
+
+                #Added because concat_on_disk only allows csr concat
+                if count_matrix.X.format == "csc" or mapping.adata_query_X == "csc":
+
+                    combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
+
+                    del count_matrix
+                    del mapping.adata_query_X
+
+                else:
+
+                    #Create temp files on disk
+                    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+                    #Write data to temp files
+                    sc.write(temp_reference.name, count_matrix)
+                    sc.write(temp_query.name, mapping.adata_query_X)
+
+                    del count_matrix
+                    del mapping.adata_query_X
+                
+                    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+                    combined_data_X = sc.read_h5ad(temp_combined.name)
+                
                 cellxgene_input.X = combined_data_X.X
-                #cellxgene_input.layers['counts'] = count_matrix.layers['counts']
+            
                 cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+                
+                
                 filename = tempfile.mktemp( suffix=".h5ad")
                 sc.write(filename, cellxgene_input)
+                
                 print("cxg_with_count_path written to: " + filename)
                 print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
                 utils.store_file_in_s3(filename, cxg_with_count_path)
                 utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+
         return configuration
+    
+
 
 
 if __name__ == "__main__":
