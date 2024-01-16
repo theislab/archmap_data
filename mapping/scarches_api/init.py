@@ -176,7 +176,7 @@ def query(user_config):
                 count_matrix = read_h5ad_file_from_s3(count_matrix_path)
 
                 #Added because concat_on_disk only allows csr concat
-                if count_matrix.X.format == "csc" or mapping.adata_query_X == "csc":
+                if count_matrix.X.format == "csc" or mapping.adata_query_X.X.format == "csc":
 
                     combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
 
