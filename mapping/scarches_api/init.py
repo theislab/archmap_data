@@ -1,5 +1,6 @@
 import os
 import time
+import psutil
 
 startTime = time.time()
 
@@ -20,6 +21,10 @@ import gc
 from anndata import experimental
 
 from process.processing import Preprocess
+from utils.utils import read_h5ad_file_from_s3
+import scanpy as sc
+import tempfile
+import gc
 
 
 def default_config():
@@ -167,6 +172,7 @@ def query(user_config):
                 else:
                     count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
                 cellxgene_input = mapping._combined_adata
+
                 count_matrix = read_h5ad_file_from_s3(count_matrix_path)
 
                 #Added because concat_on_disk only allows csr concat

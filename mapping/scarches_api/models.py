@@ -72,6 +72,10 @@ class ArchmapBaseModel():
         self._cleanup()
 
     def _map_query(self):
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
         #Map the query onto reference
 
         #save .X and var_names of query in new adata for later concatenation after cellxgene
