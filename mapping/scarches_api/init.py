@@ -160,19 +160,14 @@ def query(user_config):
         #                                                                                     parameters.OUTPUT_PATH))
         if True or get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            #utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
             if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
                 if not mapping._reference_adata_path.endswith("data.h5ad"):
                     raise ValueError("The reference data should be named data.h5ad")
                 else:
                     count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
                 cellxgene_input = mapping._combined_adata
-                #del mapping
-                #gc.collect()
                 count_matrix = read_h5ad_file_from_s3(count_matrix_path)
-
-                # concat ref to the query and add to cellxgene_input
-                #combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
 
                 #Added because concat_on_disk only allows csr concat
                 if count_matrix.X.format == "csc" or mapping.adata_query_X == "csc":
@@ -211,7 +206,7 @@ def query(user_config):
                 print("cxg_with_count_path written to: " + filename)
                 print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
                 utils.store_file_in_s3(filename, cxg_with_count_path)
-                #utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+                utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
         return configuration
     
