@@ -163,7 +163,7 @@ def query(user_config):
         # run_time = (time.time() - start_time)
         # print('completed query in ' + str(run_time) + 's and stored it in: ' + get_from_config(configuration,
         #                                                                                     parameters.OUTPUT_PATH))
-        if True or get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
             utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
             if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
@@ -183,26 +183,25 @@ def query(user_config):
                     del count_matrix
                     del mapping.adata_query_X
 
-                    return
+                else:
 
+                    #Create temp files on disk
+                    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
 
-                #Create temp files on disk
-                temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    #Write data to temp files
+                    sc.write(temp_reference.name, count_matrix)
+                    sc.write(temp_query.name, mapping.adata_query_X)
 
-                #Write data to temp files
-                sc.write(temp_reference.name, count_matrix)
-                sc.write(temp_query.name, mapping.adata_query_X)
-
-                del count_matrix
-                del mapping.adata_query_X
+                    del count_matrix
+                    del mapping.adata_query_X
                 
-                experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-                combined_data_X = sc.read_h5ad(temp_combined.name)
+                    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+                    combined_data_X = sc.read_h5ad(temp_combined.name)
+                
                 cellxgene_input.X = combined_data_X.X
             
-                #cellxgene_input.layers['counts'] = count_matrix.layers['counts']
                 cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
                 
                 
