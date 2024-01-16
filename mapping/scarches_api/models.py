@@ -65,8 +65,8 @@ class ArchmapBaseModel():
 
     def run(self):
         self._map_query()
-        #self._eval_mapping()
-        #self._transfer_labels()
+        self._eval_mapping()
+        self._transfer_labels()
         self._concat_data()
         self._save_data()
         self._cleanup()
