@@ -612,15 +612,21 @@ class Postprocess:
         #     if("uncertainty" in combined_adata.obs):
         #         latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
 
-        
+        if "X_umap" in combined_adata.obsm:
+            print("X_umap WAS in obsm")
+            del combined_adata.obsm["X_umap"]
 
         if "X_umap" not in combined_adata.obsm:
+            print("X_umap not in obsm")
             #Get specified amount of neighbours for computation
             n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
 
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
+            print("neighbors")
             sc.tl.leiden(combined_adata)
+            print("leiden")
             sc.tl.umap(combined_adata)
+            print("umap")
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
