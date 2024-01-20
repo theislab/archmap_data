@@ -74,14 +74,6 @@ class ArchmapBaseModel():
     def _map_query(self):
         #Map the query onto reference
 
-        #save .X and var_names of query in new adata for later concatenation after cellxgene
-        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
-        self.adata_query_X.var_names = self._query_adata.var_names
-
-        #we can then zero out .X in original query
-        all_zeros = csr_matrix(self._query_adata.X.shape)
-        self._query_adata.X = all_zeros.copy()
-
         self._model.train(
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0),
@@ -90,8 +82,8 @@ class ArchmapBaseModel():
         )
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+            print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
             qzm = self._reference_adata.obsm["X_latent_qzm"]
-            qzv = self._reference_adata.obsm["X_latent_qzv"]
             self._reference_adata.obsm["latent_rep"] = qzm
 
         else:
@@ -99,6 +91,14 @@ class ArchmapBaseModel():
 
         #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
+
+        #save .X and var_names of query in new adata for later concatenation after cellxgene
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+
+        #we can then zero out .X in original query
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
 
 
     def _acquire_data(self):
@@ -324,14 +324,6 @@ class ScPoli(ArchmapBaseModel):
    
     def _map_query(self):
 
-        #save .X and var_names of query in new adata for later concatenation after cellxgene
-        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
-        self.adata_query_X.var_names = self._query_adata.var_names
-
-        #we can then zero out .X in original query
-        all_zeros = csr_matrix(self._query_adata.X.shape)
-        self._query_adata.X = all_zeros.copy()
-
         model = scarches.models.scPoli.load_query_data(
             adata=self._query_adata,
             reference_model=self._temp_model_path,
@@ -351,9 +343,10 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
-            qzm = self._reference_adata.obsm["X_latent_qzm"]
-            qzv = self._reference_adata.obsm["X_latent_qzv"]
+        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
+            print("__________getting X_latent_qzm_scpoli and X_latent_qzv_scpoli from minified atlas___________")
+            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
+            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
 
@@ -362,6 +355,14 @@ class ScPoli(ArchmapBaseModel):
 
         #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
+
+        #save .X and var_names of query in new adata for later concatenation after cellxgene
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+
+        #we can then zero out .X in original query
+        all_zeros = csr_matrix(self._query_adata.X.shape)
+        self._query_adata.X = all_zeros.copy()
 
     def _compute_latent_representation(self, explicit_representation):
         #Store latent representation
