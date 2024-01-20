@@ -351,11 +351,12 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
-            qzm = self._reference_adata.obsm["X_latent_qzm"]
-            qzv = self._reference_adata.obsm["X_latent_qzv"]
+        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
+            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
+            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
+
 
         else:
             self._compute_latent_representation(explicit_representation=self._reference_adata)
