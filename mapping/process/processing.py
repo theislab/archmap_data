@@ -298,8 +298,8 @@ class Preprocess:
         unlabeled_key = "Unlabeled"
 
         if atlas == 'pbmc':
-            cell_type_key = 'cell_type'
-            batch_key = 'sample_id'
+            cell_type_key = 'cell_type_for_integration'
+            batch_key = 'sample_ID_lataq'
         elif atlas == 'heart':
             cell_type_key = 'cell_type'
             batch_key = 'donor'
