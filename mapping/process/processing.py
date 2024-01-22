@@ -327,6 +327,9 @@ class Preprocess:
         elif atlas == "HRCA":
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
+        elif atlas == "HLCA":
+            cell_type_key = "ann_finest_level"
+            batch_key = "dataset"
 
 
         #Check if provided query contains respective labels
@@ -618,8 +621,12 @@ class Postprocess:
             #Get specified amount of neighbours for computation
             n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
 
+            print("calculating neigbbors")
+
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
+            print("calculating leiden")
             sc.tl.leiden(combined_adata)
+            print("calculating umap")
             sc.tl.umap(combined_adata)
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
@@ -653,6 +660,7 @@ class Postprocess:
         utils.store_file_in_s3(filename, output_path)
 
     def __output_cxg(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
+        print("postprocessing")
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
         print("Preparing output")
 
@@ -667,9 +675,11 @@ class Postprocess:
         #2. Embedding in adata.obsm (Handled in __prepare_output as needed for .csv and .h5ad)
 
         #3. Unique var index identifier
+        print("make vars unique")
         combined_adata.var_names_make_unique()
 
         #4. Unique obs index identifier
+        print("make obs unique")
         combined_adata.obs_names_make_unique()
 
         #Save as .h5ad
@@ -677,6 +687,7 @@ class Postprocess:
 
         filename = tempfile.mktemp( suffix=".h5ad")
         
+        print("write file")
         sc.write(filename, combined_adata)
         print("file written to: " + filename)
         print("Now storing to gcp with output path: " + output_path)
