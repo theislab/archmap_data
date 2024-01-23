@@ -298,14 +298,17 @@ class Preprocess:
         unlabeled_key = "Unlabeled"
 
         if atlas == 'pbmc':
-            cell_type_key = 'cell_type'
-            batch_key = 'sample_id'
+            cell_type_key = 'cell_type_for_integration'
+            batch_key = 'sample_ID_lataq'
         elif atlas == 'heart':
             cell_type_key = 'cell_type'
             batch_key = 'donor'
         elif atlas == 'human_lung':
             cell_type_key = 'scanvi_label'
             batch_key = 'dataset'
+        elif atlas == 'hlca':
+            cell_type_key = 'ann_finest_level'
+            batch_key = 'sample'
         elif atlas == 'retina':
             cell_type_key = 'CellType'
             batch_key = 'batch'
@@ -612,15 +615,21 @@ class Postprocess:
         #     if("uncertainty" in combined_adata.obs):
         #         latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
 
-        
+        if "X_umap" in combined_adata.obsm:
+            print("X_umap WAS in obsm")
+            del combined_adata.obsm["X_umap"]
 
         if "X_umap" not in combined_adata.obsm:
+            print("X_umap not in obsm")
             #Get specified amount of neighbours for computation
             n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
 
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
+            print("neighbors")
             sc.tl.leiden(combined_adata)
+            print("leiden")
             sc.tl.umap(combined_adata)
+            print("umap")
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)

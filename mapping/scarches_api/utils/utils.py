@@ -564,6 +564,8 @@ def translate_atlas_to_directory(configuration):
         return 'heart'
     elif atlas == 'Human lung':
         return 'human_lung'
+    elif atlas == 'HLCA':
+        return 'hlca'
     elif atlas == 'Bone marrow':
         return 'bone_marrow'
     elif atlas == 'Retina':
