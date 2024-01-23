@@ -306,6 +306,9 @@ class Preprocess:
         elif atlas == 'human_lung':
             cell_type_key = 'scanvi_label'
             batch_key = 'dataset'
+        elif atlas == 'hlca':
+            cell_type_key = 'ann_finest_level'
+            batch_key = 'sample'
         elif atlas == 'retina':
             cell_type_key = 'CellType'
             batch_key = 'batch'
