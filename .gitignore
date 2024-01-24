@@ -319,3 +319,5 @@ po/*~
 .DS_Store
 /mapping/.vscode
 /.vscode
+
+/mapping/scarches_api/config.py
