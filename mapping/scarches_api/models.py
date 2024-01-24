@@ -66,8 +66,8 @@ class ArchmapBaseModel():
 
     def run(self):
         self._map_query()
-        #self._eval_mapping()
-        #self._transfer_labels()
+        self._eval_mapping()
+        self._transfer_labels()
         self._concat_data()
         self._save_data()
         self._cleanup()
@@ -99,9 +99,11 @@ class ArchmapBaseModel():
 
         #we can then zero out .X in original query
         if self._query_adata.X.format == "csc":
-            all_zeros = csc_matrix(self._query_adata.X.shape)
+            all_zeros = csr_matrix(self._query_adata.X.shape)
         else:
             all_zeros = csr_matrix(self._query_adata.X.shape)
+
+        del self._query_adata.X 
 
         self._query_adata.X = all_zeros.copy()
 
@@ -358,10 +360,10 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
+        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm_scpoli and X_latent_qzv_scpoli from minified atlas___________")
-            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
-            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
+            qzm = self._reference_adata.obsm["X_latent_qzm"]
+            qzv = self._reference_adata.obsm["X_latent_qzv"]
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
 
@@ -385,7 +387,7 @@ class ScPoli(ArchmapBaseModel):
 
     def _compute_latent_representation(self, explicit_representation):
         #Store latent representation
-        explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=True)
+        explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation)
 
     def _acquire_data(self):
         super()._acquire_data()

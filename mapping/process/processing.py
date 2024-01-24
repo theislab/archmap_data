@@ -297,6 +297,7 @@ class Preprocess:
         #Set unlabeled key to always be "Unlabeled"
         unlabeled_key = "Unlabeled"
 
+
         if atlas == 'pbmc':
             cell_type_key = 'cell_type_for_integration'
             batch_key = 'sample_ID_lataq'
@@ -327,9 +328,9 @@ class Preprocess:
         elif atlas == "HRCA":
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
-        elif atlas == "HLCA":
+        elif atlas == "hlca":
             cell_type_key = "ann_finest_level"
-            batch_key = "dataset"
+            batch_key = "sample"
 
 
         #Check if provided query contains respective labels
@@ -627,8 +628,8 @@ class Postprocess:
             print("calculating neigbbors")
 
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
-            print("calculating leiden")
-            sc.tl.leiden(combined_adata)
+            #print("calculating leiden")
+            #sc.tl.leiden(combined_adata)
             print("calculating umap")
             sc.tl.umap(combined_adata)
             print("umap")
