@@ -293,7 +293,7 @@ class Preprocess:
         This is necessary as the reference files all have these keys under different names,
         although they contain the same information.
         """
-
+        #TODO: keys are stored on db, get rid of this hardcoding!!!!
         #Set unlabeled key to always be "Unlabeled"
         unlabeled_key = "Unlabeled"
 
@@ -330,6 +330,13 @@ class Preprocess:
         elif atlas == "HRCA":
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
+        elif atlas == "hnoca":
+            cell_type_key = "annot_level_2"
+            batch_key = "batch"
+        elif atlas == "heoca":
+            cell_type_key = "cell_type"
+            batch_key = "sample_id"
+        
 
 
         #Check if provided query contains respective labels
