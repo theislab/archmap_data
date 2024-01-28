@@ -176,6 +176,8 @@ class ArchmapBaseModel():
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
 
+        self._query_adata.obs["query"]=[True]*self._query_adata.n_obs
+        self._reference_adata.obs["query"]=[False]*self._reference_adata.n_obs
 
         #Added because concat_on_disk only allows csr concat
         if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
@@ -228,7 +230,16 @@ class ArchmapBaseModel():
 
     def _save_data(self):
         #Save output
-        Postprocess.output(None, self._combined_adata, self._configuration)
+
+        #make copy of ref and down sample (choose 10% of the cells from each CT in ref) for cellxgene output
+        #cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
+        ref_adata = self._combined_adata[self._combined_adata.obs["query"]==False]
+        celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+        sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size = int(ref_adata.obs[ref_adata.obs[self._cell_type_key] == celltype].shape[0]*0.1), replace = False) for celltype in celltypes])
+        combined_downsample=self._combined_adata[sampled_cell_index].copy()
+
+        Postprocess.output(None, 
+        combined_downsample, self._configuration)
 
     def _cleanup(self):
         #Remove all temp files
