@@ -176,8 +176,8 @@ class ArchmapBaseModel():
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
 
-        self._query_adata.obs["query"]=[True]*self._query_adata.n_obs
-        self._reference_adata.obs["query"]=[False]*self._reference_adata.n_obs
+        self._query_adata.obs["query"]=["1"]*self._query_adata.n_obs
+        self._reference_adata.obs["query"]=["0"]*self._reference_adata.n_obs
 
         #Added because concat_on_disk only allows csr concat
         if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
@@ -233,9 +233,12 @@ class ArchmapBaseModel():
 
         #make copy of ref and down sample (choose 10% of the cells from each CT in ref) for cellxgene output
         #cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-        ref_adata = self._combined_adata[self._combined_adata.obs["query"]==False]
+        ref_adata = self._combined_adata[self._combined_adata.obs["query"]=="0"]
+        query_adata_index = np.where(self._combined_adata.obs["query"]=="1")[0] 
+
         celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
         sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size = int(ref_adata.obs[ref_adata.obs[self._cell_type_key] == celltype].shape[0]*0.1), replace = False) for celltype in celltypes])
+        sampled_cell_index = np.concatenate([sampled_cell_index,query_adata_index])
         combined_downsample=self._combined_adata[sampled_cell_index].copy()
 
         Postprocess.output(None, 
@@ -361,11 +364,22 @@ class ScPoli(ArchmapBaseModel):
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
 
+            #Save out the latent representation for QUERY
+            self._compute_latent_representation(explicit_representation=self._query_adata)
+
+        elif "X_latent_qzm_scpoli" in self._reference_adata.obsm:
+            print("__________getting X_latent_qzm_scpoli from minified atlas___________")
+            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
+            self._reference_adata.obsm["latent_rep"] = qzm
+
+            #Save out the latent representation for QUERY
+            self._compute_latent_representation(explicit_representation=self._query_adata, mean=True)
+
         else:
             self._compute_latent_representation(explicit_representation=self._reference_adata)
+            self._compute_latent_representation(explicit_representation=self._query_adata)
 
-        #Save out the latent representation for QUERY
-        self._compute_latent_representation(explicit_representation=self._query_adata)
+        
 
         #save .X and var_names of query in new adata for later concatenation after cellxgene
         self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
@@ -375,9 +389,12 @@ class ScPoli(ArchmapBaseModel):
         all_zeros = csr_matrix(self._query_adata.X.shape)
         self._query_adata.X = all_zeros.copy()
 
-    def _compute_latent_representation(self, explicit_representation):
+    def _compute_latent_representation(self, explicit_representation, mean=False):
         #Store latent representation
-        explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation)
+        # if not self._reference_adata.X.any():
+        #     raise ValueError("count matrix of reference data is empty. Please provide a .X with count values")
+
+        explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
 
     def _acquire_data(self):
         super()._acquire_data()
