@@ -171,9 +171,10 @@ def query(user_config):
                     raise ValueError("The reference data should be named data.h5ad")
                 else:
                     count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
-                cellxgene_input = mapping._combined_adata
+                combined_adata = mapping._combined_adata
 
                 count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+
 
                 #Added because concat_on_disk only allows csr concat
                 if count_matrix.X.format == "csc" or mapping.adata_query_X.X.format == "csc":
@@ -200,13 +201,13 @@ def query(user_config):
                     experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
                     combined_data_X = sc.read_h5ad(temp_combined.name)
                 
-                cellxgene_input.X = combined_data_X.X
+                combined_adata.X = combined_data_X.X
             
                 cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
                 
                 
                 filename = tempfile.mktemp( suffix=".h5ad")
-                sc.write(filename, cellxgene_input)
+                sc.write(filename, combined_adata)
                 
                 print("cxg_with_count_path written to: " + filename)
                 print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
