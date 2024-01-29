@@ -293,7 +293,7 @@ class Preprocess:
         This is necessary as the reference files all have these keys under different names,
         although they contain the same information.
         """
-
+        #TODO: keys are stored on db, get rid of this hardcoding!!!!
         #Set unlabeled key to always be "Unlabeled"
         unlabeled_key = "Unlabeled"
 
@@ -307,6 +307,9 @@ class Preprocess:
         elif atlas == 'human_lung':
             cell_type_key = 'scanvi_label'
             batch_key = 'dataset'
+        elif atlas == 'hlca':
+            cell_type_key = 'ann_finest_level'
+            batch_key = 'sample'
         elif atlas == 'retina':
             cell_type_key = 'CellType'
             batch_key = 'batch'
@@ -331,6 +334,13 @@ class Preprocess:
         elif atlas == "hlca":
             cell_type_key = "ann_finest_level"
             batch_key = "sample"
+        elif atlas == "hnoca":
+            cell_type_key = "annot_level_2"
+            batch_key = "batch"
+        elif atlas == "heoca":
+            cell_type_key = "cell_type"
+            batch_key = "sample_id"
+        
 
 
         #Check if provided query contains respective labels
@@ -616,6 +626,8 @@ class Postprocess:
         #     if("uncertainty" in combined_adata.obs):
         #         latent_adata.obs['uncertainty'] = combined_adata.obs['uncertainty'].tolist()
 
+        
+
         if "X_umap" in combined_adata.obsm:
             print("X_umap WAS in obsm")
             del combined_adata.obsm["X_umap"]
@@ -633,6 +645,7 @@ class Postprocess:
             print("calculating umap")
             sc.tl.umap(combined_adata)
             print("umap")
+
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)
@@ -664,36 +677,32 @@ class Postprocess:
         final.to_csv(filename)
         utils.store_file_in_s3(filename, output_path)
 
-    def __output_cxg(latent_adata: sc.AnnData, combined_adata: sc.AnnData, config):
-        print("postprocessing")
-        Postprocess.__prepare_output(latent_adata, combined_adata, config)
+    def __output_cxg(latent_adata: sc.AnnData, combined_downsample: sc.AnnData, config):
+        Postprocess.__prepare_output(latent_adata, combined_downsample, config)
         print("Preparing output")
 
         #Cellxgene data format requirements
         #1. Expression values in adata.X
-        if combined_adata.X is None:
+        if combined_downsample.X is None:
             try:
-                combined_adata.X = combined_adata.raw
+                combined_downsample.X = combined_downsample.raw
             except Exception as e:
                 logging.warning(msg = e)
 
         #2. Embedding in adata.obsm (Handled in __prepare_output as needed for .csv and .h5ad)
 
         #3. Unique var index identifier
-        print("make vars unique")
-        combined_adata.var_names_make_unique()
+        combined_downsample.var_names_make_unique()
 
         #4. Unique obs index identifier
-        print("make obs unique")
-        combined_adata.obs_names_make_unique()
+        combined_downsample.obs_names_make_unique()
 
         #Save as .h5ad
         output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
 
         filename = tempfile.mktemp( suffix=".h5ad")
         
-        print("write file")
-        sc.write(filename, combined_adata)
+        sc.write(filename, combined_downsample)
         print("file written to: " + filename)
         print("Now storing to gcp with output path: " + output_path)
         utils.store_file_in_s3(filename, output_path)
@@ -706,5 +715,7 @@ class Postprocess:
             obs_to_drop = []
 
             Postprocess.__output_csv(obs_to_drop, latent_adata, combined_adata, configuration, True)
+
         if(output_type.get("cxg")):
+
             Postprocess.__output_cxg(latent_adata, combined_adata, configuration)
