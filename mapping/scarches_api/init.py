@@ -165,7 +165,7 @@ def query(user_config):
         #                                                                                     parameters.OUTPUT_PATH))
         if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            #utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
             if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
                 if not mapping._reference_adata_path.endswith("data.h5ad"):
                     raise ValueError("The reference data should be named data.h5ad")
@@ -203,16 +203,16 @@ def query(user_config):
                 
                 combined_adata.X = combined_data_X.X
             
-                #cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+                cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
                 
                 
                 filename = tempfile.mktemp( suffix=".h5ad")
                 sc.write(filename, combined_adata)
                 
                 print("cxg_with_count_path written to: " + filename)
-                #print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
-                #utils.store_file_in_s3(filename, cxg_with_count_path)
-                #utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+                print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
+                utils.store_file_in_s3(filename, cxg_with_count_path)
+                utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
         return configuration
     

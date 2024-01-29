@@ -331,9 +331,6 @@ class Preprocess:
         elif atlas == "HRCA":
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
-        elif atlas == "hlca":
-            cell_type_key = "ann_finest_level"
-            batch_key = "sample"
         elif atlas == "hnoca":
             cell_type_key = "annot_level_2"
             batch_key = "batch"
@@ -637,12 +634,11 @@ class Postprocess:
             #Get specified amount of neighbours for computation
             n_neighbors=config[parameters.NUMBER_OF_NEIGHBORS]
 
-            print("calculating neigbbors")
-
+            
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
-            #print("calculating leiden")
-            #sc.tl.leiden(combined_adata)
-            print("calculating umap")
+            print("neighbors")
+            sc.tl.leiden(combined_adata)
+            print("leiden")
             sc.tl.umap(combined_adata)
             print("umap")
 

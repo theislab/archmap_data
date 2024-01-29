@@ -55,8 +55,7 @@ class ArchmapBaseModel():
         self._batch_key = None
         self._unlabeled_key = None
 
-        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata)
-        print(self._batch_key)        
+        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata)        
 
         self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
@@ -254,6 +253,8 @@ class ArchmapBaseModel():
         query_adata_index = np.where(self._combined_adata.obs["query"]=="1")[0] 
 
         celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+
+        #TODO: make line more readable
         sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size = int(ref_adata.obs[ref_adata.obs[self._cell_type_key] == celltype].shape[0]*0.1), replace = False) for celltype in celltypes])
         sampled_cell_index = np.concatenate([sampled_cell_index,query_adata_index])
         combined_downsample=self._combined_adata[sampled_cell_index].copy()
@@ -374,10 +375,11 @@ class ScPoli(ArchmapBaseModel):
         #Compute sample embeddings on query
         self._sample_embeddings()
 
-        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+        #make separate if statements based on the key that is available in atlas. 
+        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm_scpoli and X_latent_qzv_scpoli from minified atlas___________")
-            qzm = self._reference_adata.obsm["X_latent_qzm"]
-            qzv = self._reference_adata.obsm["X_latent_qzv"]
+            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
+            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
             latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
             self._reference_adata.obsm["latent_rep"] = latent
 
