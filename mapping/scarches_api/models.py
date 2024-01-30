@@ -249,18 +249,67 @@ class ArchmapBaseModel():
 
         #make copy of ref and down sample (choose 10% of the cells from each CT in ref) for cellxgene output
         #cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-        ref_adata = self._combined_adata[self._combined_adata.obs["query"]=="0"]
-        query_adata_index = np.where(self._combined_adata.obs["query"]=="1")[0] 
+        # ref_adata = self._combined_adata[self._combined_adata.obs["query"]=="0"]
+        # query_adata_index = np.where(self._combined_adata.obs["query"]=="1")[0] 
 
-        celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+        # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
 
         #TODO: make line more readable
-        sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size = int(ref_adata.obs[ref_adata.obs[self._cell_type_key] == celltype].shape[0]*0.1), replace = False) for celltype in celltypes])
-        sampled_cell_index = np.concatenate([sampled_cell_index,query_adata_index])
-        combined_downsample=self._combined_adata[sampled_cell_index].copy()
+        # sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size = int(ref_adata.obs[ref_adata.obs[self._cell_type_key] == celltype].shape[0]*0.1), replace = False) for celltype in celltypes])
+        # sampled_cell_index = np.concatenate([sampled_cell_index,query_adata_index])
+        # combined_downsample=self._combined_adata[sampled_cell_index].copy()
+
+        combined_downsample = self.downsample_adata(self._combined_adata, self._cell_type_key)
 
         Postprocess.output(None, 
         combined_downsample, self._configuration)
+
+    def downsample_adata(combined_adata, cell_type_key, query_ratio=5):
+        """
+        Downsamples the reference data to be proportional to the query data.
+
+        Parameters:
+        combined_adata (AnnData): The combined AnnData object.
+        cell_type_key (str): Key in adata.obs for identifying cell types.
+        query_ratio (int, optional): The ratio of reference to query data size. Default is 5.
+
+        Returns:
+        AnnData: Downsampled AnnData object.
+        """
+        # Separate reference and query data
+        ref_adata = combined_adata[combined_adata.obs["query"] == "0"]
+        query_adata_index = np.where(combined_adata.obs["query"] == "1")[0]
+
+        # Calculate total number of cells to sample from reference
+        total_ref_cells_to_sample = len(query_adata_index) * query_ratio
+
+        # Get unique cell types
+        celltypes = np.unique(combined_adata.obs[cell_type_key])
+
+        # Calculate the proportion of each cell type in the reference data
+        celltype_proportions = {celltype: np.sum(ref_adata.obs[cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
+
+        # Sample cells from each cell type according to its proportion
+        sampled_cell_index = []
+        for celltype, proportion in celltype_proportions.items():
+            cell_indices = np.where(ref_adata.obs[cell_type_key] == celltype)[0]
+            sample_size = int(total_ref_cells_to_sample * proportion)
+            
+            # Adjust sample size if it exceeds the number of available cells
+            if sample_size > len(cell_indices):
+                sample_size = len(cell_indices)
+            
+            sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
+            sampled_cell_index.extend(sampled_cells)
+
+        # Combine sampled reference cells with query cells
+        sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
+
+        # Create downsampled AnnData object
+        combined_downsample = combined_adata[sampled_cell_index].copy()
+
+        return combined_downsample
+
 
     def _cleanup(self):
         #Remove all temp files
@@ -385,7 +434,8 @@ class ScPoli(ArchmapBaseModel):
 
             #Save out the latent representation for QUERY
             self._compute_latent_representation(explicit_representation=self._query_adata)
-
+        
+        # in case the atlas provider stored mean for the latent space and want to use that for mapping
         elif "X_latent_qzm_scpoli" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm_scpoli from minified atlas___________")
             qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
@@ -413,10 +463,6 @@ class ScPoli(ArchmapBaseModel):
         self._query_adata.X = all_zeros.copy()
 
     def _compute_latent_representation(self, explicit_representation, mean=False):
-        #Store latent representation
-        # if not self._reference_adata.X.any():
-        #     raise ValueError("count matrix of reference data is empty. Please provide a .X with count values")
-
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
 
     def _acquire_data(self):

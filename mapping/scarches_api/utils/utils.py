@@ -585,8 +585,6 @@ def translate_atlas_to_directory(configuration):
         return 'gut'
     elif atlas == "HRCA":
         return "HRCA"
-    elif atlas == "HLCA":
-        return "hlca"
     elif atlas == "HNOCA":
         return "hnoca"
     elif atlas == "HEOCA":
