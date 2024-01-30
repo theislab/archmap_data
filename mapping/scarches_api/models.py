@@ -98,7 +98,7 @@ class ArchmapBaseModel():
 
         #we can then zero out .X in original query
         if self._query_adata.X.format == "csc":
-            all_zeros = csr_matrix(self._query_adata.X.shape)
+            all_zeros = csc_matrix(self._query_adata.X.shape)
         else:
             all_zeros = csr_matrix(self._query_adata.X.shape)
 
