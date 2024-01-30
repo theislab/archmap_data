@@ -259,12 +259,11 @@ class ArchmapBaseModel():
         # sampled_cell_index = np.concatenate([sampled_cell_index,query_adata_index])
         # combined_downsample=self._combined_adata[sampled_cell_index].copy()
 
-        combined_downsample = self.downsample_adata(self._combined_adata, self._cell_type_key)
+        combined_downsample = self.downsample_adata()
 
-        Postprocess.output(None, 
-        combined_downsample, self._configuration)
+        Postprocess.output(None, combined_downsample, self._configuration)
 
-    def downsample_adata(combined_adata, cell_type_key, query_ratio=5):
+    def downsample_adata(self, query_ratio=5):
         """
         Downsamples the reference data to be proportional to the query data.
 
@@ -277,22 +276,22 @@ class ArchmapBaseModel():
         AnnData: Downsampled AnnData object.
         """
         # Separate reference and query data
-        ref_adata = combined_adata[combined_adata.obs["query"] == "0"]
-        query_adata_index = np.where(combined_adata.obs["query"] == "1")[0]
+        ref_adata = self.combined_adata[self.combined_adata.obs["query"] == "0"]
+        query_adata_index = np.where(self.combined_adata.obs["query"] == "1")[0]
 
         # Calculate total number of cells to sample from reference
         total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
         # Get unique cell types
-        celltypes = np.unique(combined_adata.obs[cell_type_key])
+        celltypes = np.unique(self.combined_adata.obs[self.cell_type_key])
 
         # Calculate the proportion of each cell type in the reference data
-        celltype_proportions = {celltype: np.sum(ref_adata.obs[cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
+        celltype_proportions = {celltype: np.sum(ref_adata.obs[self.cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
 
         # Sample cells from each cell type according to its proportion
         sampled_cell_index = []
         for celltype, proportion in celltype_proportions.items():
-            cell_indices = np.where(ref_adata.obs[cell_type_key] == celltype)[0]
+            cell_indices = np.where(ref_adata.obs[self.cell_type_key] == celltype)[0]
             sample_size = int(total_ref_cells_to_sample * proportion)
             
             # Adjust sample size if it exceeds the number of available cells
@@ -306,7 +305,7 @@ class ArchmapBaseModel():
         sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
 
         # Create downsampled AnnData object
-        combined_downsample = combined_adata[sampled_cell_index].copy()
+        combined_downsample = self.combined_adata[sampled_cell_index].copy()
 
         return combined_downsample
 
