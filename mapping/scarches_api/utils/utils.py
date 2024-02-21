@@ -626,3 +626,41 @@ def set_keys(configuration):
         configuration[parameters.CONDITION_KEY] = 'bbk'
         configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
         return configuration
+    
+def get_file_size_in_gb(key):
+    """
+    Fetches the size of a file in S3 and returns it in gigabytes.
+    :param key: key in s3
+    :return: size in GB
+    """
+    client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
+                          aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+                          aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
+
+    # Get file metadata
+    response = client.head_object(Bucket=os.getenv('AWS_BUCKET'), Key=key)
+    size_bytes = response['ContentLength']
+
+    # Convert size to gigabytes
+    size_gb = size_bytes / (1024 ** 3)
+    return size_gb
+
+
+def fetch_file_to_temp_path_from_s3(key):
+    """
+    Downloads an .h5ad file from s3 and saves it to the /tmp directory, returning the file path.
+    :param key: The S3 key for the .h5ad file.
+    :return: The path to the downloaded file.
+    """
+    if key is None or len(key) == 0:
+        return None
+    
+    # Create a temporary file path in /tmp
+    filename = tempfile.mktemp(suffix=".h5ad", prefix="temp_", dir="/tmp")
+    
+    # Download the file
+    fetch_file_from_s3(key, filename)
+    print(f"File downloaded to {filename}")
+    
+    return filename
+
