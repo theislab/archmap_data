@@ -160,7 +160,7 @@ def query(user_config):
                 count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
                 temp_output = tempfile.mktemp( suffix=".h5ad")
                 print("1")
-                if count_matrix_size_gb < 2:
+                if count_matrix_size_gb < 10:
                     print("2")
                     count_matrix = read_h5ad_file_from_s3(count_matrix_path)
                     #Added because concat_on_disk only allows csr concat
