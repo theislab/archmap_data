@@ -3,7 +3,6 @@ import tempfile
 
 import pynndescent
 import numpy
-from scvi.model.utils import mde
 import numba
 
 from utils import parameters
