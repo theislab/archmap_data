@@ -3,27 +3,21 @@ import time
 
 startTime = time.time()
 
-from scANVI.scANVI import compute_scANVI
-from scVI.scVI import compute_scVI
-from totalVI.totalVI import computeTotalVI
 from utils import utils, parameters
 
 from scvi_hub.scvi_hub import ScviHub
 from models import ScANVI
 from models import ScVI
 from models import ScPoli
+import gc
 
 from utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, fetch_file_to_temp_path_from_s3
-import scanpy as sc
-import tempfile
-import gc
+
 from anndata import experimental
 
-from process.processing import Preprocess
-from utils.utils import read_h5ad_file_from_s3
+# from process.processing import Preprocess
 import scanpy as sc
 import tempfile
-import gc
 import h5py
 from anndata.experimental import write_elem, read_elem
 
@@ -145,9 +139,9 @@ def query(user_config):
             mapping = ScPoli(configuration=configuration)
             mapping.run()
 
-        if True or get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            # utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
             if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
                 if not mapping._reference_adata_path.endswith("data.h5ad"):
                     raise ValueError("The reference data should be named data.h5ad")
@@ -169,6 +163,7 @@ def query(user_config):
 
                         del count_matrix
                         del mapping.adata_query_X
+                        gc.collect()
 
                     else:
                         print("4")
@@ -183,6 +178,7 @@ def query(user_config):
 
                         del count_matrix
                         del mapping.adata_query_X
+                        gc.collect()
                     
                         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
                         combined_data_X = sc.read_h5ad(temp_combined.name)
@@ -195,6 +191,7 @@ def query(user_config):
                     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
                     mapping.adata_query_X.write_h5ad(temp_query.name)
                     del mapping.adata_query_X
+                    gc.collect()
                     temp_output=replace_X_on_disk(combined_adata,temp_output, temp_query.name, count_matrix_path)
                 
                 print("11")
@@ -202,7 +199,7 @@ def query(user_config):
                 print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
                 utils.store_file_in_s3(temp_output, cxg_with_count_path)
                 print("12")
-                # utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+                utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
         return configuration
     
