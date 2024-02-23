@@ -12,7 +12,7 @@ from aiohttp import ClientError
 import scanpy
 from pathlib import Path
 import pandas as pd
-from scarches.dataset.trvae.data_handling import remove_sparsity
+# from scarches.dataset.trvae.data_handling import remove_sparsity
 import traceback
 
 UNWANTED_LABELS = ['leiden', '', '_scvi_labels', '_scvi_batch']
@@ -483,70 +483,70 @@ def check_model_atlas_compatibility(model, atlas):
     return atlas in compatible_atlases
 
 
-def pre_process_data(configuration):
-    """
-    Used to pre-process the adata objects.\n
-    After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
-    and reintroduces the counts layer if it has been deleted during sparsity removal.
-    """
-    source_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
-    target_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.QUERY_DATA_PATH))
-    source_adata.obs["type"] = "reference"
-    target_adata.obs["type"] = "query"
-    #TODO: HARDCODING---------------------------------------------------
-    if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
-        X_train = source_adata.X
-        ref_nn_index = pynndescent.NNDescent(X_train)
-        ref_nn_index.prepare()
-    # source_adata.raw = source_adata
-    #-------------------------------------------------------------------
+# def pre_process_data(configuration):
+#     """
+#     Used to pre-process the adata objects.\n
+#     After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
+#     and reintroduces the counts layer if it has been deleted during sparsity removal.
+#     """
+#     source_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+#     target_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.QUERY_DATA_PATH))
+#     source_adata.obs["type"] = "reference"
+#     target_adata.obs["type"] = "query"
+#     #TODO: HARDCODING---------------------------------------------------
+#     if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+#         X_train = source_adata.X
+#         ref_nn_index = pynndescent.NNDescent(X_train)
+#         ref_nn_index.prepare()
+#     # source_adata.raw = source_adata
+#     #-------------------------------------------------------------------
 
 
 
-    ### NEW IMPLEMENTATION ###
-    var_names = _utils._load_saved_files("assets/scVI/retina/", False, None,  "cpu")[1]
+#     ### NEW IMPLEMENTATION ###
+#     var_names = _utils._load_saved_files("assets/scVI/retina/", False, None,  "cpu")[1]
 
-    genes = source_adata.var.index[source_adata.var.index.isin(var_names)].tolist()
+#     genes = source_adata.var.index[source_adata.var.index.isin(var_names)].tolist()
 
-    adata_sub = source_adata[:,genes].copy()
-    # Pad object with 0 genes if needed
-    # Genes to pad with
-    genes_to_add = set(var_names).difference(set(adata_sub.var_names))
+#     adata_sub = source_adata[:,genes].copy()
+#     # Pad object with 0 genes if needed
+#     # Genes to pad with
+#     genes_to_add = set(var_names).difference(set(adata_sub.var_names))
 
-    genes_to_add = list(genes_to_add)
+#     genes_to_add = list(genes_to_add)
 
-    df_padding = pd.DataFrame(data=numpy.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
-    adata_padding = scanpy.AnnData(df_padding)
-    # Concatenate object
-    adata_sub = scanpy.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
+#     df_padding = pd.DataFrame(data=numpy.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
+#     adata_padding = scanpy.AnnData(df_padding)
+#     # Concatenate object
+#     adata_sub = scanpy.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
 
-    # and order:
-    adata_sub = adata_sub[:,var_names].copy()
-    ### NEW IMPLEMENTATION ###
+#     # and order:
+#     adata_sub = adata_sub[:,var_names].copy()
+#     ### NEW IMPLEMENTATION ###
     
 
 
-    try:
-        source_adata = remove_sparsity(source_adata)
-    except Exception as e:
-        pass
-    try:
-        target_adata = remove_sparsity(target_adata)
-    except Exception as e:
-        pass
-    try:
-        source_adata.layers['counts']
-    except Exception as e:
-        source_adata.layers['counts'] = source_adata.X.copy()
-        print("counts layer source")
+#     try:
+#         source_adata = remove_sparsity(source_adata)
+#     except Exception as e:
+#         pass
+#     try:
+#         target_adata = remove_sparsity(target_adata)
+#     except Exception as e:
+#         pass
+#     try:
+#         source_adata.layers['counts']
+#     except Exception as e:
+#         source_adata.layers['counts'] = source_adata.X.copy()
+#         print("counts layer source")
 
-    try:
-        target_adata.layers['counts']
-    except Exception as e:
-        target_adata.layers['counts'] = target_adata.X.copy()
-        print("counts layer query")
+#     try:
+#         target_adata.layers['counts']
+#     except Exception as e:
+#         target_adata.layers['counts'] = target_adata.X.copy()
+#         print("counts layer query")
 
-    return source_adata, target_adata
+#     return source_adata, target_adata
 
 
 def translate_atlas_to_directory(configuration):
