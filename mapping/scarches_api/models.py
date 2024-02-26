@@ -295,7 +295,7 @@ class ArchmapBaseModel():
         else:
             # Old approach: Sample 10% from each cell type in the reference data
             celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
-            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]) * 0.01), replace=False) for celltype in celltypes])
+            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]) * 0.1), replace=False) for celltype in celltypes])
 
         # Combine sampled reference cells with query cells
         sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
