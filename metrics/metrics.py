@@ -10,6 +10,9 @@ import numpy
 import pandas as pd
 import scvi
 import scanorama
+import os
+
+from mapping.scarches_api.utils.utils import read_h5ad_file_from_s3
 
 from xgboost import XGBClassifier
 
@@ -329,7 +332,12 @@ def Scanorama(adata, batch_key, labels_key):
         adata.obsm["Scanorama"][adata.obs.batch == b] = adata_list[i].obsm["X_scanorama"]
 
 if __name__ == "__main__":
-    adata = scanpy.read_h5ad("NSCLC_reduced.h5ad")
+    os.environ["AWS_BUCKET"] = "jst-2021-bucket-2022-dev"
+    os.environ['AWS_ENDPOINT'] = 'https://storage.googleapis.com'
+    os.environ['AWS_ACCESS_KEY'] = 'GOOG1EILWP3VDCDQAZ2A2YSSW3T2N6FZXONGNSVXN6GWOLWQHIWCEOS6WTAIS'
+    os.environ['AWS_SECRET_KEY'] = 'G/vFPyejHpT3aZKsD/bVNikUpk7SIz3snS1kl9f1'
+
+    adata = read_h5ad_file_from_s3("atlas/628668d56f930d8b7f44d579/data.h5ad")
     # embedding = scanpy.read_h5ad("HLCA_emb_and_metadata.h5ad")
 
     # Classifiers(adata, False, "", "CellType", True, True)

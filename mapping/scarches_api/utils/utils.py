@@ -555,6 +555,7 @@ def translate_atlas_to_directory(configuration):
     Translates the atlas names, received in the request as per the JSON atlas information file,
     into the folder names for the pre-trained atlases. 
     """
+    #TODO: get rid of this function!
     atlas = get_from_config(configuration, 'atlas')
     if atlas == 'Pancreas':
         return 'pancreas'
@@ -564,6 +565,8 @@ def translate_atlas_to_directory(configuration):
         return 'heart'
     elif atlas == 'Human lung':
         return 'human_lung'
+    elif atlas == 'HLCA':
+        return 'hlca'
     elif atlas == 'Bone marrow':
         return 'bone_marrow'
     elif atlas == 'Retina':
@@ -582,6 +585,10 @@ def translate_atlas_to_directory(configuration):
         return 'gut'
     elif atlas == "HRCA":
         return "HRCA"
+    elif atlas == "HNOCA":
+        return "hnoca"
+    elif atlas == "HEOCA":
+        return "heoca"
 
 
 def set_keys(configuration):

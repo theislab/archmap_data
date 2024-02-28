@@ -8,7 +8,7 @@ import scarches as sca
 from scipy.stats import entropy
 import anndata as ad
 #import milopy
-#import pertpy as pt
+import pertpy as pt
 from matplotlib.lines import Line2D
 
 import pickle
@@ -164,7 +164,7 @@ def classification_uncert_euclidean(
     
     return uncertainties
 
-# Test differential abundance analysis on neighbourhoods with Milo.
+# # Test differential abundance analysis on neighbourhoods with Milo.
 # def classification_uncert_milo(
 #         adata_latent,
 #         cell_type_key,
@@ -197,38 +197,51 @@ def classification_uncert_euclidean(
 #     return results["logFC"], results["PValue"], results["SpatialFDR"]
 
 # Test differential abundance analysis on neighbourhoods with Milo.
-# def classification_uncert_milo2(
-#         adata_latent,
-#         cell_type_key,
-#         ref_or_query_key="ref_or_query",
-#         ref_key="ref",
-#         query_key="query",
-#         n_neighbors=15,
-#         sample_col="batch",
-#         red_name = "X_trVAE",
-#         d=30):
+def classification_uncert_milo2(
+        configuration,
+        adata_ref,
+        adata_query_latent,
+        adata_query_raw,
+        embedding_name,
+        cell_type_key,
+        batch_key,
+        pretrained,
+        ref_or_query_key="ref_or_query",
+        ref_key="is_ref",
+        query_key="is_query",
+        n_neighbors=15,
+        red_name = "X_trVAE",
+        d=30
+    ):        
 
-#     milo = pt.tl.Milo()
-#     mdata = milo.load(adata_latent)
+    milo = pt.tl.Milo()
+    mdata = milo.load(adata_ref)
 
-#     adata_all_latent = adata_latent.copy()
-#     x = pd.DataFrame(adata_latent.X, index=adata_latent.obs_names)
-#     adata_all_latent.obsm[red_name] = x.values
-#     print(adata_all_latent)
-#     sc.pp.neighbors(adata_all_latent, n_neighbors=n_neighbors, use_rep=red_name)
+    sc.pp.neighbors(mdata["rna"], use_rep="latent_rep")
+    milo.make_nhoods(mdata["rna"], prop=0.1)
 
-#     milo.make_nhoods(adata_all_latent, prop=0.1)
+    # adata_all_latent = adata_ref_latent.copy()
+    # x = pd.DataFrame(adata_ref_latent.X, index=adata_ref_latent.obs_names)
+    # adata_all_latent.obsm[red_name] = x.values
+    # print(adata_all_latent)
+    # sc.pp.neighbors(adata_ref_latent, n_neighbors=n_neighbors, key_added="neighbors", use_rep="X")
 
-#     adata_all_latent[adata_all_latent.obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
+    # milo.make_nhoods(data=adata_ref_latent, neighbors_key="neighbors", prop=0.1)
 
-#     milo.count_nhoods(adata_all_latent, sample_col=sample_col)
+    # mdata["rna"][mdata["rna"].obs['nhood_ixs_refined'] != 0].obs[['nhood_ixs_refined', 'nhood_kth_distance']]
+
+    mdata = milo.count_nhoods(mdata["rna"], sample_col=batch_key)
+
+    milo.annotate_nhoods(mdata, cell_type_key)
     
-#     adata_all_latent.obs["is_query"] = adata_all_latent.obs[ref_or_query_key] == query_key
-#     milo.da_nhoods(adata_all_latent, design="is_query")
+    mdata["rna"].obs["is_query"] = "is_query"
+    #mdata["rna"].obs["is_query"] = mdata["rna"].obs[ref_or_query_key] == query_key
 
-#     results = adata_all_latent.uns["nhood_adata"].obs
-#     adata_latent.obsm["logFC"] = results["logFC"]
-#     return results["logFC"], results["PValue"], results["SpatialFDR"]
+    milo.da_nhoods(mdata, design=query_key, solver="batchglm")
+
+    results = mdata["rna"].uns["nhood_adata"].obs
+    mdata["rna"].obsm["logFC"] = results["logFC"]
+    return results["logFC"], results["PValue"], results["SpatialFDR"]
 
 def uncert_diagram(uncertainties, cell_type_key):
     """Creates a plot for classification uncertainty per cell type
