@@ -9,7 +9,7 @@ numpy~=1.22
 gdown~=4.4.0
 torch~=1.11.0
 #jaxlib==0.3.7
-leidenalg==0.8.9
+#leidenalg==0.8.9
 scikit-misc==0.1.4
 protobuf==3.19.4
 pymde==0.1.15
@@ -28,7 +28,8 @@ gunicorn==20.1.0
 boto3==1.22.1
 
 #for uncertainty
-#pertpy
+#pertpy instead installed with git for new features (rpy2 error)
+pertpy
 
 #scvi-hub
 huggingface_hub

@@ -4,6 +4,8 @@
 # from scib_metrics.benchmark import BioConservation
 # from scib_metrics.benchmark import BatchCorrection
 
+import os
+
 import scanpy
 import anndata
 import numpy
@@ -11,7 +13,7 @@ import pandas as pd
 import scvi
 # import scanorama
 
-from process.processing import Preprocess
+# from process.processing import Preprocess
 
 from xgboost import XGBClassifier
 
@@ -75,7 +77,18 @@ class Classifiers:
             if self.__model_class == sca.models.scPoli.__class__:
                 query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
 
+    '''
+    Parameters
+    ----------
+    latent_rep: False if latent representation should be computed from raw adata and model input
+    model_path: Only needed if latent_rep is set to "False"
+    label_key: Cell type label
+    classifier_directory: Output directory for classifier and evaluation files
+    '''
     def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output"):
+        if not os.path.exists(classifier_directory):
+            os.makedirs(classifier_directory, exist_ok=True)
+        
         train_data = Classifiers.__get_train_data(
             self,
             adata=adata,

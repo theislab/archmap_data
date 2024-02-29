@@ -164,6 +164,8 @@ class ScviHub:
         metadata_path.mkdir(parents=True, exist_ok=True)
         model_path = Path("../scvi_hub/model/")
         model_path.mkdir(parents=True, exist_ok=True)
+        clf_path = Path("../scvi_hub/classifiers/")
+        clf_path.mkdir(parents=True, exist_ok=True)
 
         folder_path = snapshot_download(repo_id=scvi_hub_id, allow_patterns=["*.h5ad","*.pt","*.json","*.md"], cache_dir="../scvi_hub/cache/", local_dir="../scvi_hub/download/")
 

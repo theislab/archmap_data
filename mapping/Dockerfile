@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 
 # Install system dependencies
@@ -16,6 +16,7 @@ RUN set -e; \
 RUN apt-get update && \
     apt-get install -y gcc && \
     apt-get clean
+    #pip install git+https://github.com/theislab/pertpy
 
 RUN apt-get install -y git && \
     pip install git+https://github.com/theislab/scarches.git
