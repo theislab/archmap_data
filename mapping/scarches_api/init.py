@@ -44,7 +44,7 @@ def default_config():
         parameters.USE_PRETRAINED_SCVI_MODEL: True,
         parameters.USE_PRETRAINED_TOTALVI_MODEL: True,
         parameters.USE_PRETRAINED_SCANVI_MODEL: True,
-        parameters.USE_GPU: False,
+        # parameters.USE_GPU: False,
 
         # scANVI stuff
         # parameters.SCANVI_COMPARE_REFERENCE_AND_QUERY: False,
@@ -139,67 +139,67 @@ def query(user_config):
             mapping = ScPoli(configuration=configuration)
             mapping.run()
 
-        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
-                get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
-            if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
-                if not mapping._reference_adata_path.endswith("data.h5ad"):
-                    raise ValueError("The reference data should be named data.h5ad")
-                else:
-                    count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
-                combined_adata = mapping._combined_adata
+        # if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+        #         get_from_config(configuration, parameters.WEBHOOK)) > 0:
+        #     utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        #     if ("counts" not in mapping._combined_adata.layers or mapping._combined_adata.layers["counts"].size == 0):
+        #         if not mapping._reference_adata_path.endswith("data.h5ad"):
+        #             raise ValueError("The reference data should be named data.h5ad")
+        #         else:
+        #             count_matrix_path = mapping._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+        #         combined_adata = mapping._combined_adata
 
-                cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
-                count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
-                temp_output = tempfile.mktemp( suffix=".h5ad")
-                print("1")
-                if count_matrix_size_gb < 10:
-                    print("2")
-                    count_matrix = read_h5ad_file_from_s3(count_matrix_path)
-                    #Added because concat_on_disk only allows csr concat
-                    if count_matrix.X.format == "csc" or mapping.adata_query_X.X.format == "csc":
-                        print("3")
-                        combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
+        #         cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+        #         count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
+        #         temp_output = tempfile.mktemp( suffix=".h5ad")
+        #         print("1")
+        #         if count_matrix_size_gb < 10:
+        #             print("2")
+        #             count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+        #             #Added because concat_on_disk only allows csr concat
+        #             if count_matrix.X.format == "csc" or mapping.adata_query_X.X.format == "csc":
+        #                 print("3")
+        #                 combined_data_X = count_matrix.concatenate(mapping.adata_query_X)
 
-                        del count_matrix
-                        del mapping.adata_query_X
-                        gc.collect()
+        #                 del count_matrix
+        #                 del mapping.adata_query_X
+        #                 gc.collect()
 
-                    else:
-                        print("4")
-                        #Create temp files on disk
-                        temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                        temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                        temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        #             else:
+        #                 print("4")
+        #                 #Create temp files on disk
+        #                 temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        #                 temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        #                 temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
 
-                        #Write data to temp files
-                        count_matrix.write_h5ad(temp_reference.name)
-                        mapping.adata_query_X.write_h5ad(temp_query.name)
+        #                 #Write data to temp files
+        #                 count_matrix.write_h5ad(temp_reference.name)
+        #                 mapping.adata_query_X.write_h5ad(temp_query.name)
 
-                        del count_matrix
-                        del mapping.adata_query_X
-                        gc.collect()
+        #                 del count_matrix
+        #                 del mapping.adata_query_X
+        #                 gc.collect()
                     
-                        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-                        combined_data_X = sc.read_h5ad(temp_combined.name)
+        #                 experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+        #                 combined_data_X = sc.read_h5ad(temp_combined.name)
 
-                    combined_adata.X = combined_data_X.X
-                    sc.write(temp_output, combined_adata)
+        #             combined_adata.X = combined_data_X.X
+        #             sc.write(temp_output, combined_adata)
 
-                else:
-                    print("5")
-                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                    mapping.adata_query_X.write_h5ad(temp_query.name)
-                    del mapping.adata_query_X
-                    gc.collect()
-                    temp_output=replace_X_on_disk(combined_adata,temp_output, temp_query.name, count_matrix_path)
+        #         else:
+        #             print("5")
+        #             temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        #             mapping.adata_query_X.write_h5ad(temp_query.name)
+        #             del mapping.adata_query_X
+        #             gc.collect()
+        #             temp_output=replace_X_on_disk(combined_adata,temp_output, temp_query.name, count_matrix_path)
                 
-                print("11")
-                print("cxg_with_count_path written to: " + temp_output)
-                print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
-                utils.store_file_in_s3(temp_output, cxg_with_count_path)
-                print("12")
-                utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        #         print("11")
+        #         print("cxg_with_count_path written to: " + temp_output)
+        #         print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
+        #         utils.store_file_in_s3(temp_output, cxg_with_count_path)
+        #         print("12")
+        #         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
         return configuration
     

@@ -36,7 +36,7 @@ class ArchmapBaseModel():
         self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
-        self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
+        # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
         self._temp_model_path = ""
@@ -78,7 +78,7 @@ class ArchmapBaseModel():
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
-            use_gpu=self._use_gpu
+            # use_gpu=self._use_gpu
         )
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
