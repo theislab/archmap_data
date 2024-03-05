@@ -3,7 +3,6 @@ import tempfile
 
 import pynndescent
 import numpy
-from scvi.model.utils import mde
 import numba
 
 from utils import parameters
@@ -13,7 +12,7 @@ from aiohttp import ClientError
 import scanpy
 from pathlib import Path
 import pandas as pd
-from scarches.dataset.trvae.data_handling import remove_sparsity
+# from scarches.dataset.trvae.data_handling import remove_sparsity
 import traceback
 
 UNWANTED_LABELS = ['leiden', '', '_scvi_labels', '_scvi_batch']
@@ -484,70 +483,70 @@ def check_model_atlas_compatibility(model, atlas):
     return atlas in compatible_atlases
 
 
-def pre_process_data(configuration):
-    """
-    Used to pre-process the adata objects.\n
-    After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
-    and reintroduces the counts layer if it has been deleted during sparsity removal.
-    """
-    source_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
-    target_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.QUERY_DATA_PATH))
-    source_adata.obs["type"] = "reference"
-    target_adata.obs["type"] = "query"
-    #TODO: HARDCODING---------------------------------------------------
-    if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
-        X_train = source_adata.X
-        ref_nn_index = pynndescent.NNDescent(X_train)
-        ref_nn_index.prepare()
-    # source_adata.raw = source_adata
-    #-------------------------------------------------------------------
+# def pre_process_data(configuration):
+#     """
+#     Used to pre-process the adata objects.\n
+#     After reading the .h5ad files, it makes the distinction ref/query, removes sparsity
+#     and reintroduces the counts layer if it has been deleted during sparsity removal.
+#     """
+#     source_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.REFERENCE_DATA_PATH))
+#     target_adata = read_h5ad_file_from_s3(get_from_config(configuration, parameters.QUERY_DATA_PATH))
+#     source_adata.obs["type"] = "reference"
+#     target_adata.obs["type"] = "query"
+#     #TODO: HARDCODING---------------------------------------------------
+#     if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+#         X_train = source_adata.X
+#         ref_nn_index = pynndescent.NNDescent(X_train)
+#         ref_nn_index.prepare()
+#     # source_adata.raw = source_adata
+#     #-------------------------------------------------------------------
 
 
 
-    ### NEW IMPLEMENTATION ###
-    var_names = _utils._load_saved_files("assets/scVI/retina/", False, None,  "cpu")[1]
+#     ### NEW IMPLEMENTATION ###
+#     var_names = _utils._load_saved_files("assets/scVI/retina/", False, None,  "cpu")[1]
 
-    genes = source_adata.var.index[source_adata.var.index.isin(var_names)].tolist()
+#     genes = source_adata.var.index[source_adata.var.index.isin(var_names)].tolist()
 
-    adata_sub = source_adata[:,genes].copy()
-    # Pad object with 0 genes if needed
-    # Genes to pad with
-    genes_to_add = set(var_names).difference(set(adata_sub.var_names))
+#     adata_sub = source_adata[:,genes].copy()
+#     # Pad object with 0 genes if needed
+#     # Genes to pad with
+#     genes_to_add = set(var_names).difference(set(adata_sub.var_names))
 
-    genes_to_add = list(genes_to_add)
+#     genes_to_add = list(genes_to_add)
 
-    df_padding = pd.DataFrame(data=numpy.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
-    adata_padding = scanpy.AnnData(df_padding)
-    # Concatenate object
-    adata_sub = scanpy.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
+#     df_padding = pd.DataFrame(data=numpy.zeros((adata_sub.shape[0],len(genes_to_add))), index=adata_sub.obs_names, columns=genes_to_add)
+#     adata_padding = scanpy.AnnData(df_padding)
+#     # Concatenate object
+#     adata_sub = scanpy.concat([adata_sub, adata_padding], axis=1, join='outer', index_unique=None, merge='unique')
 
-    # and order:
-    adata_sub = adata_sub[:,var_names].copy()
-    ### NEW IMPLEMENTATION ###
+#     # and order:
+#     adata_sub = adata_sub[:,var_names].copy()
+#     ### NEW IMPLEMENTATION ###
     
 
 
-    try:
-        source_adata = remove_sparsity(source_adata)
-    except Exception as e:
-        pass
-    try:
-        target_adata = remove_sparsity(target_adata)
-    except Exception as e:
-        pass
-    try:
-        source_adata.layers['counts']
-    except Exception as e:
-        source_adata.layers['counts'] = source_adata.X.copy()
-        print("counts layer source")
+#     try:
+#         source_adata = remove_sparsity(source_adata)
+#     except Exception as e:
+#         pass
+#     try:
+#         target_adata = remove_sparsity(target_adata)
+#     except Exception as e:
+#         pass
+#     try:
+#         source_adata.layers['counts']
+#     except Exception as e:
+#         source_adata.layers['counts'] = source_adata.X.copy()
+#         print("counts layer source")
 
-    try:
-        target_adata.layers['counts']
-    except Exception as e:
-        target_adata.layers['counts'] = target_adata.X.copy()
-        print("counts layer query")
+#     try:
+#         target_adata.layers['counts']
+#     except Exception as e:
+#         target_adata.layers['counts'] = target_adata.X.copy()
+#         print("counts layer query")
 
-    return source_adata, target_adata
+#     return source_adata, target_adata
 
 
 def translate_atlas_to_directory(configuration):
@@ -626,3 +625,41 @@ def set_keys(configuration):
         configuration[parameters.CONDITION_KEY] = 'bbk'
         configuration[parameters.USE_PRETRAINED_SCANVI_MODEL] = False
         return configuration
+    
+def get_file_size_in_gb(key):
+    """
+    Fetches the size of a file in S3 and returns it in gigabytes.
+    :param key: key in s3
+    :return: size in GB
+    """
+    client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
+                          aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+                          aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
+
+    # Get file metadata
+    response = client.head_object(Bucket=os.getenv('AWS_BUCKET'), Key=key)
+    size_bytes = response['ContentLength']
+
+    # Convert size to gigabytes
+    size_gb = size_bytes / (1024 ** 3)
+    return size_gb
+
+
+def fetch_file_to_temp_path_from_s3(key):
+    """
+    Downloads an .h5ad file from s3 and saves it to the /tmp directory, returning the file path.
+    :param key: The S3 key for the .h5ad file.
+    :return: The path to the downloaded file.
+    """
+    if key is None or len(key) == 0:
+        return None
+    
+    # Create a temporary file path in /tmp
+    filename = tempfile.mktemp(suffix=".h5ad", prefix="temp_", dir="/tmp")
+    
+    # Download the file
+    fetch_file_from_s3(key, filename)
+    print(f"File downloaded to {filename}")
+    
+    return filename
+
