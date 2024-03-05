@@ -13,6 +13,7 @@ torch~=2.2.1
 scikit-misc==0.1.4
 protobuf==3.19.4
 pymde==0.1.15
+scikit-learn
 
 
 #concatenation on disk
@@ -30,7 +31,7 @@ boto3==1.22.1
 
 #for uncertainty
 #pertpy instead installed with git for new features (rpy2 error)
-pertpy
+# pertpy
 
 #scvi-hub
 huggingface_hub
