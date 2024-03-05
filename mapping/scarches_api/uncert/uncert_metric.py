@@ -8,7 +8,7 @@ import scarches as sca
 from scipy.stats import entropy
 import anndata as ad
 #import milopy
-import pertpy as pt
+# import pertpy as pt
 from matplotlib.lines import Line2D
 
 import pickle
