@@ -54,7 +54,7 @@ def write_latent_csv(latent, key=None, filename=tempfile.mktemp(), drop_columns=
 
     drop_columns = to_drop(latent.obs_keys())
     #TODO: This is HARDCODING for the lung atlas
-    if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+    if get_from_config(configuration, parameters.ATLAS) == 'hlca':
         drop_columns = ['sample', 'study_long', 'study', 'last_author_PI', 'subject_ID', 'sex', 'ethnicity',
                         'mixed_ethnicity', 'smoking_status', 'BMI', 'condition', 'subject_type', 'sample_type',
                         'single_cell_platform', "3'_or_5'", 'sequencing_platform', 'cell_ranger_version',
@@ -71,7 +71,7 @@ def write_latent_csv(latent, key=None, filename=tempfile.mktemp(), drop_columns=
 
     final = latent.obs.drop(columns=drop_columns)
     #TODO: HARDCODING for the lung atlas
-    if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+    if get_from_config(configuration, parameters.ATLAS) == 'hlca':
         final['ann_coarse_for_GWAS_and_modeling'] = final['ann_coarse_for_GWAS_and_modeling'].astype(str).apply(
             lambda cell: '' if cell == 'nan' else cell)
         final['ann_level_1_pred'] = final['ann_level_1_pred'].astype(str).apply(
@@ -94,7 +94,7 @@ def write_latent_csv(latent, key=None, filename=tempfile.mktemp(), drop_columns=
     #Merging the columns cell_type and predicted to fill in 'Unknown'(which is our unlabelled key) cell types
     #We make a separate column "predicted" with values yes/no. Wherever a merge is done, it's marked as a yes in the predicted column, else no
     try:
-        if predictScanvi and get_from_config(configuration, parameters.ATLAS) != 'human_lung':
+        if predictScanvi and get_from_config(configuration, parameters.ATLAS) != 'hlca':
             cell_types = list(map(lambda p: p, latent.obs['cell_type']))
             predictions = list(map(lambda p: p, latent.obs['predicted']))
             for i in range(len(cell_types)):
@@ -292,7 +292,7 @@ def write_adata_to_csv(model, adata=None, source_adata=None, target_adata=None, 
             anndata = adata
 
     #TODO: HARDCODING for the lung atlas------------------------------------------------
-    if get_from_config(configuration, parameters.ATLAS) == 'human_lung':
+    if get_from_config(configuration, parameters.ATLAS) == 'hlca':
         
         query_emb = scanpy.AnnData(model.get_latent_representation())
         query_emb.obs_names = target_adata.obs_names
@@ -310,12 +310,12 @@ def write_adata_to_csv(model, adata=None, source_adata=None, target_adata=None, 
     print("calculate neighbors")
     scanpy.pp.neighbors(latent)
 
-    if get_from_config(configuration, parameters.ATLAS) != 'human_lung':
+    if get_from_config(configuration, parameters.ATLAS) != 'hlca':
         print("calculate leiden")
         scanpy.tl.leiden(latent)
     print("create umap")
     scanpy.tl.umap(latent)
-    if predictScanvi and get_from_config(configuration, parameters.ATLAS) != 'human_lung':
+    if predictScanvi and get_from_config(configuration, parameters.ATLAS) != 'hlca':
         print("predicting")
         latent.obs['predicted'] = model.predict(adata=adata)
     print("writing csv")
@@ -475,9 +475,9 @@ def check_model_atlas_compatibility(model, atlas):
     """
     compatible_atlases = []
     if model == 'scVI':
-        compatible_atlases = ['pancreas', 'heart', 'human_lung', 'retina', 'fetal_immune']
+        compatible_atlases = ['pancreas', 'heart', 'hlca', 'retina', 'fetal_immune']
     if model == 'scANVI':
-        compatible_atlases = ['pancreas', 'heart', 'human_lung', 'retina', 'fetal_immune']
+        compatible_atlases = ['pancreas', 'heart', 'hlca', 'retina', 'fetal_immune']
     if model == 'totalVI':
         compatible_atlases = ['pmbc', 'bone_marrow']
     return atlas in compatible_atlases
@@ -562,10 +562,10 @@ def translate_atlas_to_directory(configuration):
         return 'pbmc'
     elif atlas == 'Heart':
         return 'heart'
-    elif atlas == 'Human lung':
-        return 'human_lung'
     elif atlas == 'HLCA':
         return 'hlca'
+    elif atlas == 'HLCA retrained':
+        return 'hlca_retrained'
     elif atlas == 'Bone marrow':
         return 'bone_marrow'
     elif atlas == 'Retina':
