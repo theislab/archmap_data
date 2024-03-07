@@ -304,10 +304,10 @@ class Preprocess:
         elif atlas == 'heart':
             cell_type_key = 'cell_type'
             batch_key = 'donor'
-        elif atlas == 'human_lung':
+        elif atlas == 'hlca':
             cell_type_key = 'scanvi_label'
             batch_key = 'dataset'
-        elif atlas == 'hlca':
+        elif atlas == 'hlca_retrained':
             cell_type_key = 'ann_finest_level'
             batch_key = 'sample'
         elif atlas == 'retina':
