@@ -332,7 +332,7 @@ class Preprocess:
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
         elif atlas == "hnoca":
-            cell_type_key = "annot_level_2"
+            cell_type_key = 'snapseed_pca_rss_level_123'
             batch_key = "batch"
         elif atlas == "heoca":
             cell_type_key = "cell_type"
@@ -342,7 +342,7 @@ class Preprocess:
 
         #Check if provided query contains respective labels
         if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
-            raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
+                raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
 
         return cell_type_key, batch_key, unlabeled_key
 
