@@ -409,6 +409,8 @@ class ScPoli(ArchmapBaseModel):
             map_location=torch.device("cpu")
         )
 
+        self._query_adata = model.adata
+
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
 
