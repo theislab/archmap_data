@@ -332,7 +332,7 @@ class Preprocess:
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
         elif atlas == "hnoca":
-            cell_type_key = 'snapseed_pca_rss_level_123'
+            cell_type_key = "snapseed_pca_rss_level_123"
             batch_key = "batch"
         elif atlas == "heoca":
             cell_type_key = "cell_type"
