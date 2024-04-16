@@ -9,6 +9,7 @@ import gc
 import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
+from utils import utils
 
 import utils.parameters as parameters
 from utils.utils import get_from_config
@@ -131,6 +132,16 @@ class ArchmapBaseModel():
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
         Preprocess.bool_to_categorical(self._query_adata)
+
+        ref_vars = self._reference_adata.var_names
+        query_vars = self._query_adata.var_names
+
+        intersection = ref_vars.intersection(query_vars)
+        inter_len = len(intersection)
+        ratio = inter_len / len(ref_vars)
+
+        # utils.notify_backend(parameters.WEBHOOK, ratio)
+
 
         
 
