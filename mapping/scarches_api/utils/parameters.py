@@ -66,6 +66,7 @@ SCANVI_COMPARE_OBSERVED_AND_PREDICTED_CELLTYPES = 'scanvi_compare_observed_and_p
 SCANVI_PREDICT_CELLTYPES = 'predict'
 # sets the key for the webhook to call after the computation
 WEBHOOK = 'webhook'
+WEBHOOK_RATIO = 'webhook_ratio'
 # sets the path/s3 key of the pretrained model
 PRETRAINED_MODEL_PATH = 'model_path'
 # set scpoli model attr key

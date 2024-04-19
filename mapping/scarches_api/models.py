@@ -140,7 +140,7 @@ class ArchmapBaseModel():
         inter_len = len(intersection)
         ratio = inter_len / len(ref_vars)
 
-        # utils.notify_backend(parameters.WEBHOOK, ratio)
+        utils.notify_backend(parameters.WEBHOOK_RATIO, {"ratio":ratio})
 
 
         
@@ -202,13 +202,21 @@ class ArchmapBaseModel():
             print("concatenating in memory")
             #self._query_adata.X = csr_matrix(self._query_adata.X.copy())
 
-            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey')
+            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey', join="outer")
             self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
             #self._compute_latent_representation(explicit_representation=self._combined_adata)
+
+            query_obs=set(self._query_adata.obs.columns)
+            ref_obs=set(self._reference_adata.obs.columns)
+            inter = ref_obs.intersection(query_obs)
+            new_columns = query_obs.union(inter)
+            self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
 
             del self._query_adata
             del self._reference_adata
             gc.collect()
+
+            
 
             return
         
@@ -229,18 +237,24 @@ class ArchmapBaseModel():
         self._reference_adata.write_h5ad(temp_reference.name)
         self._query_adata.write_h5ad(temp_query.name)
 
+        #Concatenate on disk to save memory
+        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, join="outer")
+
+        query_obs=set(self._query_adata.obs.columns)
+        ref_obs=set(self._reference_adata.obs.columns)
+        inter = ref_obs.intersection(query_obs)
+        new_columns = query_obs.union(inter)
+
         del self._reference_adata
         del self._query_adata
         gc.collect()
-
-        #Concatenate on disk to save memory
-        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-
 
         print("successfully concatenated")
 
         #Read concatenated data back in
         self._combined_adata = scanpy.read_h5ad(temp_combined.name)
+
+        self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
 
         print("read concatenated file")
 
