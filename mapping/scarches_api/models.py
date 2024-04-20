@@ -37,7 +37,7 @@ class ArchmapBaseModel():
         self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
-        self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK)
+        self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
@@ -204,7 +204,7 @@ class ArchmapBaseModel():
             print("concatenating in memory")
             #self._query_adata.X = csr_matrix(self._query_adata.X.copy())
 
-            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey', join="inner")
+            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey')
             self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
             #self._compute_latent_representation(explicit_representation=self._combined_adata)
 
@@ -240,7 +240,7 @@ class ArchmapBaseModel():
         self._query_adata.write_h5ad(temp_query.name)
 
         #Concatenate on disk to save memory
-        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name, join="inner")
+        experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
 
         # query_obs=set(self._query_adata.obs.columns)
         # ref_obs=set(self._reference_adata.obs.columns)
