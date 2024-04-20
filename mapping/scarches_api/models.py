@@ -11,7 +11,7 @@ from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
 from utils import utils
 
-import utils.parameters as parameters
+from utils import parameters
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
 from utils.utils import read_h5ad_file_from_s3
@@ -37,6 +37,7 @@ class ArchmapBaseModel():
         self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
+        self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
@@ -141,7 +142,7 @@ class ArchmapBaseModel():
         ratio = inter_len / len(ref_vars)
 
         # utils.notify_backend(parameters.WEBHOOK_RATIO, {"ratio":ratio})
-        utils.notify_backend(parameters.WEBHOOK, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
 
         
