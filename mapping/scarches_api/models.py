@@ -141,7 +141,6 @@ class ArchmapBaseModel():
         inter_len = len(intersection)
         ratio = inter_len / len(ref_vars)
 
-        # utils.notify_backend(parameters.WEBHOOK_RATIO, {"ratio":ratio})
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
 

@@ -139,7 +139,6 @@ def query(user_config):
             mapping = ScPoli(configuration=configuration)
             mapping.run()
 
-        utils.notify_backend(mapping._webhook, {"ratio":mapping.ratio})
 
         # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
         
