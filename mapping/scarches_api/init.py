@@ -139,6 +139,12 @@ def query(user_config):
             mapping = ScPoli(configuration=configuration)
             mapping.run()
 
+        utils.notify_backend(mapping._webhook, {"ratio":mapping.ratio})
+
+        # atlas_name = utils.get_from_config(configuration, parameters.ATLAS)
+        
+        # sc.AnnData(mapping._combined_adata.obsm["latent_rep"], mapping._combined_adata.obs).write(f"results/{atlas_name}.h5ad")
+
         if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(configuration, parameters.WEBHOOK)) > 0:
             utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
