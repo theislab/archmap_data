@@ -337,6 +337,10 @@ class Preprocess:
         elif atlas == "heoca":
             cell_type_key = "cell_type"
             batch_key = "sample_id"
+        elif atlas == "fetal_brain":
+            cell_type_key = "subregion_class"
+            batch_key = "batch"
+        
         
 
 
@@ -640,8 +644,7 @@ class Postprocess:
             sc.tl.leiden(combined_adata)
             print("leiden")
             sc.tl.umap(combined_adata)
-            print("umap")
-
+            print("umap")   
 
     def __output_csv(obs_to_drop: list, latent_adata: sc.AnnData, combined_adata: sc.AnnData, config, predict_scanvi):
         Postprocess.__prepare_output(latent_adata, combined_adata, config)

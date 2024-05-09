@@ -588,6 +588,8 @@ def translate_atlas_to_directory(configuration):
         return "hnoca"
     elif atlas == "HEOCA":
         return "heoca"
+    elif atlas == "Fetal Brain":
+        return "fetal_brain"
 
 
 def set_keys(configuration):
