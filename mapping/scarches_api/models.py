@@ -393,7 +393,7 @@ class ScVI(ArchmapBaseModel):
         )
 
         self._model = model
-        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCVI_QUERY_MAX_EPOCHS)
+        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.MAX_EPOCHS_QUERY)
 
         super()._map_query()
 
@@ -433,7 +433,7 @@ class ScANVI(ArchmapBaseModel):
             model._labeled_indices = []
 
         self._model = model
-        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCANVI_MAX_EPOCHS_QUERY)
+        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.MAX_EPOCHS_QUERY)
 
         super()._map_query()
 
@@ -463,7 +463,7 @@ class ScPoli(ArchmapBaseModel):
         self._query_adata = model.adata
 
         self._model = model
-        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
+        self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.MAX_EPOCHS_QUERY)
 
         model.train(
             n_epochs=self._max_epochs,
