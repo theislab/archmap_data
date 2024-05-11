@@ -159,7 +159,7 @@ class ArchmapBaseModel():
         inter_len = len(intersection)
         ratio = inter_len / len(ref_vars)
 
-        # utils.notify_backend(self._webhook, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
         self._query_adata.obs_names_make_unique()
         self._query_adata.var_names_make_unique()
@@ -217,8 +217,6 @@ class ArchmapBaseModel():
         self._reference_adata.obs["query"]=["0"]*self._reference_adata.n_obs
 
         #Added because concat_on_disk only allows csr concat
-
-
         if scipy.sparse.issparse(self._query_adata.X) and (self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc"):
 
             print("concatenating in memory")
@@ -433,6 +431,7 @@ class ScANVI(ArchmapBaseModel):
             model._labeled_indices = []
 
         self._model = model
+
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCANVI_MAX_EPOCHS_QUERY)
 
         super()._map_query()
