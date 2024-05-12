@@ -118,13 +118,11 @@ class ArchmapBaseModel():
 
         self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
 
-        clust_pres_score=cluster_preservation_score(self._query_adata)
-        print(f"clust_pres_score: {clust_pres_score}")
+        self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        print(f"clust_pres_score: {self.clust_pres_score}")
         
-        query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
-        print(f"query_with_anchor: {query_with_anchor}")
-
-        # utils.notify_backend(self._webhook, {"clust_pres_score":clust_pres_score, "query_with_anchor":query_with_anchor})
+        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        print(f"query_with_anchor: {self.query_with_anchor}")
 
 
     def _acquire_data(self):
@@ -207,7 +205,10 @@ class ArchmapBaseModel():
         #Compute label transfer and save to respective .obs
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         
-        clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
+        percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
+
+        utils.notify_backend(self._webhook, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
+
 
     def _concat_data(self):
         

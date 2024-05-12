@@ -31,6 +31,7 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import roc_auc_score
 
 from sklearn.preprocessing import LabelEncoder
+from scarches_api.utils.metrics import percentage_unknown
 
 from sklearn.model_selection import train_test_split
 
@@ -61,6 +62,7 @@ class Classifiers:
             xgb_model.load_model(classifier_path)
             
             query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
+            prediction_label = "prediction_xgb"
 
         if self.__classifier_knn:
             with open(encoding_path, "rb") as file:
@@ -70,12 +72,22 @@ class Classifiers:
                 knn_model = pickle.load(file)
 
             query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
+            prediction_label = "prediction_knn"
 
         if self.__classifier_native is not None:
             if self.__model_class == sca.models.SCANVI.__class__:
                 query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
+                prediction_label = "prediction_scanvi"
             if self.__model_class == sca.models.scPoli.__class__:
                 query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
+                prediction_label = "prediction_scpoli"
+
+        # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
+        percent_unknown = percentage_unknown(query, prediction_label)
+        print(percent_unknown)
+
+        return percent_unknown
+
 
     '''
     Parameters
@@ -89,8 +101,6 @@ class Classifiers:
         if not os.path.exists(classifier_directory):
             os.makedirs(classifier_directory, exist_ok=True)
 
-        if query is not None:
-            validate_on_query=True
         
         train_data = Classifiers.__get_train_data(
             self,
@@ -132,7 +142,7 @@ class Classifiers:
             self,
             reports,
             classifier_directory=classifier_directory
-        )
+        ) 
 
         Classifiers.__save_eval_metrics_csv(
             self,
@@ -179,7 +189,7 @@ class Classifiers:
     '''
     def __split_train_data(self, train_data, input_adata, label_key, classifier_directory, validate_on_query=False):
         train_data['cell_type'] = input_adata.obs[label_key]
-        train_data['type'] = input_adata.obs["type"]
+        # train_data['type'] = input_adata.obs["type"]
 
 
         #Enable if at least one class has only 1 sample -> Error in stratification for validation set

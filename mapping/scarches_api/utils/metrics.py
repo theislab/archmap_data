@@ -158,14 +158,14 @@ def get_wknn(
         warnings.warn(
             "At least one of query2ref and ref2query should be True. Reset to default with both being True."
         )
-        adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0
+        adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0 # 1 if either R_i or Q_j are considered a nn of the other 
 
     if ref2 is None:
         ref2 = ref
     adj_ref = build_nn(ref=ref2, k=k)
 
 
-    num_shared_neighbors = adj_q2r @ adj_ref 
+    num_shared_neighbors = adj_q2r @ adj_ref # no. neighbours that Q_i and R_j have in common 
     num_shared_neighbors_nn = num_shared_neighbors.multiply(adj_knn.T) # only keep weights if q and r are both nearest neigbours of eachother
 
     del num_shared_neighbors
@@ -362,14 +362,14 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
         stat = np.clip(stat, 0.00, 5.00)
         return stat
 
-    def percentage_unknown(query, prediction_label, uncertainty_threshold=0.5):
-        query.obs[f"{prediction_label}_filtered_by_uncert>0.5"] = query.obs[
-        prediction_label
-        ].mask(
-            query.obs["uncertainty_mahalanobis"] > uncertainty_threshold,
-            "Unknown",
-        )
+def percentage_unknown(query, prediction_label, uncertainty_threshold=0.5):
+    query.obs[f"{prediction_label}_filtered_by_uncert>0.5"] = query.obs[
+    prediction_label
+    ].mask(
+        query.obs["uncertainty_mahalanobis"] > uncertainty_threshold,
+        "Unknown",
+    )
 
-        number_unknown = (query.obs["uncertainty_mahalanobis"] > uncertainty_threshold).sum()
+    number_unknown = (query.obs["uncertainty_mahalanobis"] > uncertainty_threshold).sum()
 
-        return number_unknown/len(query)*100
+    return number_unknown/len(query)*100
