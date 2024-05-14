@@ -67,6 +67,7 @@ SCANVI_PREDICT_CELLTYPES = 'predict'
 # sets the key for the webhook to call after the computation
 WEBHOOK = 'webhook'
 WEBHOOK_RATIO = 'webhook_ratio'
+WEBHOOK_METRICS = 'webhook_metrics'
 # sets the path/s3 key of the pretrained model
 PRETRAINED_MODEL_PATH = 'model_path'
 # set scpoli model attr key
