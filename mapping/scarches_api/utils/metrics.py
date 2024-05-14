@@ -84,7 +84,7 @@ def percent_query_with_anchor(ref_adata, query_adata):
     adj_mnn=build_mutual_nn(ref,query)
     has_anchor=adj_mnn.sum(0)>0 #all query cells that have an anchor (output dim: no query cells)
     percentage = (has_anchor.sum()/adj_mnn.shape[1])*100
-    return percentage
+    return round(percentage, 2)
 
 
 def get_transition_prob_mat(dat, k=50, symm=True):
@@ -200,7 +200,7 @@ def estimate_presence_score(
     weighting_scheme_wknn="jaccard_square",
     ref_trans_prop=None,
     use_rep_ref_trans_prop=None,
-    k_ref_trans_prop=50,
+    k_ref_trans_prop=15,
     symm_ref_trans_prop=True,
     split_by=None,
     do_random_walk=True,
@@ -298,7 +298,7 @@ import pandas as pd
 
 def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
     """
-    Calculate the cluster preservation score for an AnnData object after preprocessing.
+    Calculate the cluster preservation score for a query after mapping.
     Parameters:
     - adata: AnnData object containing single-cell data.
     - ds_amount: Maximum number of cells to include.

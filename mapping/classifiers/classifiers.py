@@ -75,10 +75,10 @@ class Classifiers:
             prediction_label = "prediction_knn"
 
         if self.__classifier_native is not None:
-            if self.__model_class == sca.models.SCANVI.__class__:
+            if "SCANVI" in str(self.__model_class):
                 query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
                 prediction_label = "prediction_scanvi"
-            if self.__model_class == sca.models.scPoli.__class__:
+            else:
                 query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
                 prediction_label = "prediction_scpoli"
 
@@ -86,7 +86,7 @@ class Classifiers:
         percent_unknown = percentage_unknown(query, prediction_label)
         print(percent_unknown)
 
-        return percent_unknown
+        return round(percent_unknown, 2)
 
 
     '''

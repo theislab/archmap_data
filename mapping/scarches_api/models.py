@@ -40,6 +40,7 @@ class ArchmapBaseModel():
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
+        self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
@@ -156,6 +157,7 @@ class ArchmapBaseModel():
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
         ratio = inter_len / len(ref_vars)
+        print(ratio)
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
@@ -207,7 +209,7 @@ class ArchmapBaseModel():
         
         percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
 
-        utils.notify_backend(self._webhook, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
 
 
     def _concat_data(self):
@@ -517,7 +519,14 @@ class ScPoli(ArchmapBaseModel):
             self._query_adata)
         
         self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
+
+        self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        print(f"clust_pres_score: {self.clust_pres_score}")
         
+        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        print(f"query_with_anchor: {self.query_with_anchor}")
+        
+
 
     def _compute_latent_representation(self, explicit_representation, mean=False):
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
