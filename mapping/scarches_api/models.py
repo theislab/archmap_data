@@ -7,10 +7,13 @@ import os
 import torch
 import gc
 import numpy as np
+import scipy
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
+from utils import utils
 
-import utils.parameters as parameters
+from utils import parameters
+from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
 from utils.utils import read_h5ad_file_from_s3
@@ -36,6 +39,8 @@ class ArchmapBaseModel():
         self._scpoli_var_names = get_from_config(configuration=configuration, key=parameters.SCPOLI_VAR_NAMES)
         self._reference_adata_path = get_from_config(configuration=configuration, key=parameters.REFERENCE_DATA_PATH)
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
+        self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
+        self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
@@ -106,6 +111,20 @@ class ArchmapBaseModel():
 
         self._query_adata.X = all_zeros.copy()
 
+        # Calculate presence score
+
+        presence_score=estimate_presence_score(
+            self._reference_adata,
+            self._query_adata)
+
+        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
+
+        self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        print(f"clust_pres_score: {self.clust_pres_score}")
+        
+        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        print(f"query_with_anchor: {self.query_with_anchor}")
+
 
     def _acquire_data(self):
         #Download query and reference from GCP
@@ -132,7 +151,19 @@ class ArchmapBaseModel():
         Preprocess.bool_to_categorical(self._reference_adata)
         Preprocess.bool_to_categorical(self._query_adata)
 
-        
+        ref_vars = self._reference_adata.var_names
+        query_vars = self._query_adata.var_names
+
+        intersection = ref_vars.intersection(query_vars)
+        inter_len = len(intersection)
+        ratio = inter_len / len(ref_vars)
+        print(ratio)
+
+        utils.notify_backend(self._webhook, {"ratio":ratio})
+
+        self._query_adata.obs_names_make_unique()
+        self._query_adata.var_names_make_unique()
+    
 
         #Remove later - for testing only
         # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
@@ -176,7 +207,10 @@ class ArchmapBaseModel():
         #Compute label transfer and save to respective .obs
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         
-        clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
+        percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
+
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
+
 
     def _concat_data(self):
         
@@ -186,18 +220,29 @@ class ArchmapBaseModel():
         self._reference_adata.obs["query"]=["0"]*self._reference_adata.n_obs
 
         #Added because concat_on_disk only allows csr concat
-        if self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc":
+        if scipy.sparse.issparse(self._query_adata.X) and (self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc"):
 
             print("concatenating in memory")
             #self._query_adata.X = csr_matrix(self._query_adata.X.copy())
 
-            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey')
+            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey',join="outer")
+
+            query_obs=set(self._query_adata.obs.columns)
+            ref_obs=set(self._reference_adata.obs.columns)
+            inter = ref_obs.intersection(query_obs)
+            new_columns = query_obs.union(inter)
+            self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
+
             self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-            #self._compute_latent_representation(explicit_representation=self._combined_adata)
+            self._combined_adata.obs["presence_score"] = self.presence_score
+            
+            
 
             del self._query_adata
             del self._reference_adata
             gc.collect()
+
+            
 
             return
         
@@ -218,22 +263,29 @@ class ArchmapBaseModel():
         self._reference_adata.write_h5ad(temp_reference.name)
         self._query_adata.write_h5ad(temp_query.name)
 
-        del self._reference_adata
-        del self._query_adata
-        gc.collect()
-
         #Concatenate on disk to save memory
         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
 
+        # query_obs=set(self._query_adata.obs.columns)
+        # ref_obs=set(self._reference_adata.obs.columns)
+        # inter = ref_obs.intersection(query_obs)
+        # new_columns = query_obs.union(inter)
+
+        del self._reference_adata
+        del self._query_adata
+        gc.collect()
 
         print("successfully concatenated")
 
         #Read concatenated data back in
         self._combined_adata = scanpy.read_h5ad(temp_combined.name)
 
+        # self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
+
         print("read concatenated file")
 
         self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
+        self._combined_adata.obs["presence_score"] = self.presence_score
 
         print("added latent rep to adata")
 
@@ -382,6 +434,7 @@ class ScANVI(ArchmapBaseModel):
             model._labeled_indices = []
 
         self._model = model
+
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCANVI_MAX_EPOCHS_QUERY)
 
         super()._map_query()
@@ -460,6 +513,20 @@ class ScPoli(ArchmapBaseModel):
             all_zeros = csr_matrix(self._query_adata.X.shape)
 
         self._query_adata.X = all_zeros.copy()
+
+        presence_score = estimate_presence_score(
+            self._reference_adata,
+            self._query_adata)
+        
+        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
+
+        self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        print(f"clust_pres_score: {self.clust_pres_score}")
+        
+        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        print(f"query_with_anchor: {self.query_with_anchor}")
+        
+
 
     def _compute_latent_representation(self, explicit_representation, mean=False):
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
