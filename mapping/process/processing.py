@@ -641,8 +641,8 @@ class Postprocess:
             
             sc.pp.neighbors(combined_adata, n_neighbors, use_rep="latent_rep")
             print("neighbors")
-            sc.tl.leiden(combined_adata)
-            print("leiden")
+            # sc.tl.leiden(combined_adata)
+            # print("leiden")
             sc.tl.umap(combined_adata)
             print("umap")   
 

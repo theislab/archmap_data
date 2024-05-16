@@ -79,7 +79,9 @@ class Classifiers:
                 query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
                 prediction_label = "prediction_scanvi"
             else:
-                query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
+                output=self.__classifier_native.classify(query, scale_uncertainties=True)
+                query.obs["prediction_scpoli"] = list(output.values())[0]["preds"]
+                query.obs["uncertainty_scpoli"] = list(output.values())[0]["uncert"]
                 prediction_label = "prediction_scpoli"
 
         # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)

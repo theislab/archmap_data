@@ -17,6 +17,7 @@ from utils.metrics import estimate_presence_score, cluster_preservation_score, b
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
 from utils.utils import read_h5ad_file_from_s3
+import pandas as pd
 
 from process.processing import Preprocess
 from process.processing import Postprocess
@@ -96,20 +97,6 @@ class ArchmapBaseModel():
 
         #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
-
-        #save .X and var_names of query in new adata for later concatenation after cellxgene
-        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
-        self.adata_query_X.var_names = self._query_adata.var_names
-
-        #we can then zero out .X in original query
-        if self._query_adata.X.format == "csc":
-            all_zeros = csc_matrix(self._query_adata.X.shape)
-        else:
-            all_zeros = csr_matrix(self._query_adata.X.shape)
-
-        del self._query_adata.X 
-
-        self._query_adata.X = all_zeros.copy()
 
         # Calculate presence score
 
@@ -213,6 +200,18 @@ class ArchmapBaseModel():
 
 
     def _concat_data(self):
+
+        #save .X and var_names of query in new adata for later concatenation after cellxgene
+        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
+        self.adata_query_X.var_names = self._query_adata.var_names
+
+        #we can then zero out .X in original query
+        if self._query_adata.X.format == "csc":
+            all_zeros = csc_matrix(self._query_adata.X.shape)
+        else:
+            all_zeros = csr_matrix(self._query_adata.X.shape)
+
+        self._query_adata.X = all_zeros.copy()
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
 
@@ -266,10 +265,10 @@ class ArchmapBaseModel():
         #Concatenate on disk to save memory
         experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
 
-        # query_obs=set(self._query_adata.obs.columns)
-        # ref_obs=set(self._reference_adata.obs.columns)
-        # inter = ref_obs.intersection(query_obs)
-        # new_columns = query_obs.union(inter)
+        query_obs_columns=set(self._query_adata.obs.columns)
+        ref_obs_columns=set(self._reference_adata.obs.columns)
+        columns_only_query = query_obs_columns.difference(ref_obs_columns)
+        query_obs = self._query_adata.obs[columns_only_query].copy()
 
         del self._reference_adata
         del self._query_adata
@@ -286,6 +285,8 @@ class ArchmapBaseModel():
 
         self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
         self._combined_adata.obs["presence_score"] = self.presence_score
+        
+        self._combined_adata.obs=pd.concat([self._combined_adata.obs,query_obs], axis=1)
 
         print("added latent rep to adata")
 
@@ -467,7 +468,7 @@ class ScPoli(ArchmapBaseModel):
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
 
-        model.train(
+        self._model.train(
             n_epochs=self._max_epochs,
             pretraining_epochs=40,
             eta=10
@@ -501,18 +502,6 @@ class ScPoli(ArchmapBaseModel):
             self._compute_latent_representation(explicit_representation=self._query_adata)
 
         
-
-        #save .X and var_names of query in new adata for later concatenation after cellxgene
-        self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
-        self.adata_query_X.var_names = self._query_adata.var_names
-
-        #we can then zero out .X in original query
-        if self._query_adata.X.format == "csc":
-            all_zeros = csc_matrix(self._query_adata.X.shape)
-        else:
-            all_zeros = csr_matrix(self._query_adata.X.shape)
-
-        self._query_adata.X = all_zeros.copy()
 
         presence_score = estimate_presence_score(
             self._reference_adata,
