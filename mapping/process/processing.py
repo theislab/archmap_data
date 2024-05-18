@@ -294,8 +294,8 @@ class Preprocess:
         although they contain the same information.
         """
         #TODO: keys are stored on db, get rid of this hardcoding!!!!
-        #Set unlabeled key to always be "Unlabeled"
-        unlabeled_key = "Unlabeled"
+        #Set unlabeled key to always be "unlabeled"
+        unlabeled_key = "unlabeled"
 
 
         if atlas == 'pbmc':

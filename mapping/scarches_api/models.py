@@ -13,7 +13,7 @@ from anndata import experimental
 from utils import utils
 
 from utils import parameters
-from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor
+from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor, stress_score
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
 from utils.utils import read_h5ad_file_from_s3
@@ -285,6 +285,8 @@ class ArchmapBaseModel():
 
         self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
         self._combined_adata.obs["presence_score"] = self.presence_score
+
+        self._combined_adata.obs_names_make_unique()
         
         self._combined_adata.obs=pd.concat([self._combined_adata.obs,query_obs], axis=1)
 
@@ -298,6 +300,11 @@ class ArchmapBaseModel():
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
+
+        if self._atlas=="hnoca":
+            print("calculating stress score")
+            stress_score(self._combined_adata)
+            print(self._combined_adata.obs["Hallmark_Glycolysis"])
         
         combined_downsample = self.downsample_adata()
         #Save output
@@ -448,7 +455,7 @@ class ScANVI(ArchmapBaseModel):
 
     def _compute_latent_representation(self, explicit_representation):
         #Setup adata before quering model for latent representation
-        scarches.models.SCANVI.setup_anndata(explicit_representation, labels_key=self._cell_type_key, unlabeled_category="Unlabeled", batch_key=self._batch_key)
+        scarches.models.SCANVI.setup_anndata(explicit_representation, labels_key=self._cell_type_key, unlabeled_category="unlabeled", batch_key=self._batch_key)
 
         super()._compute_latent_representation(explicit_representation=explicit_representation)
 

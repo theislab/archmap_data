@@ -312,7 +312,7 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
         # sc.pp.scale(adata, zero_center=True)
         if adata.n_obs > ds_amount:
             adata = adata[np.random.choice(adata.obs_names, ds_amount, replace=False), :]
-        sc.tl.pca(adata, svd_solver='arpack', n_comps=dims)
+        sc.pp.pca(adata, svd_solver='arpack', n_comps=dims, use_highly_variable=False)
         sc.pp.neighbors(adata, n_neighbors=15, n_pcs=dims, method='umap', metric='euclidean')
         sc.tl.leiden(adata, resolution=0.6)
         # sc.pp.neighbors(adata, use_rep='latent_rep', key_added="integrated_neighbors")
@@ -347,7 +347,9 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
         return rel_entr(counts, np.full_like(counts, fill_value=1/len(counts))).sum()
 
     orig_ent = np.array([entropy_of_labels(idx) for idx in orig_indices])
+    print(f"orig_ent: {orig_ent}")
     integrated_ent = np.array([entropy_of_labels(idx) for idx in integrated_indices])
+    print(f"integrated_ent: {integrated_ent}")
 
     # Calculate the cluster preservation statistic
     ids = adata.obs['leiden'].to_numpy()
@@ -373,3 +375,10 @@ def percentage_unknown(query, prediction_label, uncertainty_threshold=0.5):
     number_unknown = (query.obs["uncertainty_mahalanobis"] > uncertainty_threshold).sum()
 
     return number_unknown/len(query)*100
+
+
+def stress_score(adata):
+    
+    msigdb_glycolysis = np.array(pd.read_csv('https://www.gsea-msigdb.org/gsea/msigdb/human/download_geneset.jsp?geneSetName=HALLMARK_GLYCOLYSIS&fileType=TSV', sep='\t', header=None, index_col=0).loc['GENE_SYMBOLS',1].split(','))
+    msigdb_glycolysis = np.intersect1d(msigdb_glycolysis, adata.var_names)
+    sc.tl.score_genes(adata, msigdb_glycolysis, score_name='Hallmark_Glycolysis')
