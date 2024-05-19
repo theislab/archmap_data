@@ -1,9 +1,10 @@
-from flask import Flask, request
+from flask import Flask, request, current_app
 import os
 import init as scarches
 from threading import Thread
 from utils import utils, parameters
 import traceback
+import subprocess
 
 app = Flask(__name__)
 
@@ -13,32 +14,61 @@ def get_from_config(configuration, key):
         return configuration[key]
     return None
 
+#execute cloud run job with query input
 
-@app.route('/query', methods=['POST'])
-def query():
+@app.route("/execute_job", methods=["POST"])
+def execute_cloud_run_job():
+    """
+    Execute the desired Cloud Run Job with updated query.
+    """
     try:
         config = request.get_json(force=True)
-        run_async = get_from_config(config, parameters.RUN_ASYNCHRONOUSLY)
-        if run_async is not None and run_async:
-            actual_config = scarches.merge_configs(config)
-            thread = Thread(target=scarches.query, args=(config,))
-            thread.start()
-            return actual_config, 200
-        else:
-            actual_configuration = scarches.query(config)
-            return actual_configuration, 200
-    except Exception as e:
-        print("Error in query\n")
-        traceback.print_exc()
-        if e is not None:
-            if len(str(e)) > 0:
-                utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': str(e)})
-            else:
-                utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': "Unknown error"})
-        else:
-            utils.notify_backend(get_from_config(config, parameters.WEBHOOK), {'error': "Unknown error"})
+        actual_config = scarches.merge_configs(config)
+
+        job_name = "archmap-data-1"
+        script_path = "query.py"
         
-        return {'error': str(e)}, 500
+        current_app.logger.info(
+            f"Updating the Cloud Run Job {job_name}"
+        )
+
+
+        result = subprocess.run(
+            ["gcloud", "beta", "run", "jobs", "deploy",
+             job_name,
+             f" --command=['python', {script_path}, '--query {actual_config}']",
+            #  f" --args={actual_config}"
+            ],
+            capture_output=True,
+            text=True,
+        )
+        current_app.logger.info(
+          f"Std. Out: {result.stdout}\nStd. Error: {result.stderr}"
+        )
+
+        # Triggering the job to actually run
+        current_app.logger.info(
+            f"Executing the Cloud Run Job {job_name}"
+        )
+        result = subprocess.run(
+            ["gcloud", "beta", "run", "jobs", "execute",
+             job_name, 
+             ],
+            capture_output=True,
+          text=True,
+        )
+
+        current_app.logger.info(
+          f"Std. Out: {result.stdout}\nStd. Error: {result.stderr}"
+        )
+
+        return "Cloud Run Job successfully triggered", 201
+    except Exception as e:
+        return f"Server Error: {e}", 500
+
+     
+
+# TODO: Notify that job is finished
 
 
 @app.route("/liveness")
