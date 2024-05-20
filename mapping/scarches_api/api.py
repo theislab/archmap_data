@@ -22,16 +22,18 @@ def query():
     Execute the desired Cloud Run Job with updated query.
     """
     try:
+
+        print("getting config!!!")
         config = request.get_json(force=True)
         actual_config = scarches.merge_configs(config)
 
+        print("got config!!!")
         job_name = "archmap-data-1"
         script_path = "query.py"
         
         current_app.logger.info(
             f"Updating the Cloud Run Job {job_name}"
         )
-
 
         result = subprocess.run(
             ["gcloud", "beta", "run", "jobs", "deploy",
