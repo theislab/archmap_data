@@ -35,18 +35,18 @@ def query():
             f"Updating the Cloud Run Job {job_name}"
         )
 
-        result = subprocess.run(
-            ["gcloud", "beta", "run", "jobs", "deploy",
-             job_name,
-             f" --command=['python', {script_path}, '--query {actual_config}']",
-            #  f" --args={actual_config}"
-            ],
-            capture_output=True,
-            text=True,
-        )
-        current_app.logger.info(
-          f"Std. Out: {result.stdout}\nStd. Error: {result.stderr}"
-        )
+        # result = subprocess.run(
+        #     ["gcloud", "beta", "run", "jobs", "update",
+        #      job_name,
+        #      f" --command=['python', {script_path}, '--query {actual_config}']",
+        #     #  f" --args={actual_config}"
+        #     ],
+        #     capture_output=True,
+        #     text=True,
+        # )
+        # current_app.logger.info(
+        #   f"Std. Out: {result.stdout}\nStd. Error: {result.stderr}"
+        # )
 
         # Triggering the job to actually run
         current_app.logger.info(
@@ -55,6 +55,7 @@ def query():
         result = subprocess.run(
             ["gcloud", "beta", "run", "jobs", "execute",
              job_name, 
+             f" --command=['python', {script_path}, '--query {actual_config}']",
              ],
             capture_output=True,
           text=True,
