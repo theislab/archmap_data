@@ -16,7 +16,7 @@ def get_from_config(configuration, key):
 
 #execute cloud run job with query input
 
-@app.route("/execute_job", methods=["POST"])
+@app.route("/query", methods=["POST"])
 def execute_cloud_run_job():
     """
     Execute the desired Cloud Run Job with updated query.
