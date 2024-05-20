@@ -45,4 +45,5 @@ pwd;
 
 
 #run the api
-gunicorn --bind :$PORT --workers $WORKERS --threads $THREADS --timeout 0 --chdir ./scarches_api/ api:app
+# gunicorn --bind :$PORT --workers $WORKERS --threads $THREADS --timeout 0 --chdir ./scarches_api/ api:app
+python scarches_api/query.py 
