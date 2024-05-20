@@ -3,6 +3,7 @@ import os
 import init as scarches
 from threading import Thread
 from utils import parameters
+import ast
 
 def get_from_config(configuration, key):
     if key in configuration:
@@ -43,8 +44,13 @@ if __name__ == "__main__":
         "scanvi_max_epochs_query": 1
     }
 
-    parser = argparse.ArgumentParser(description='Train model')
-    parser.add_argument('--query', type=dict, default=configuration, help='Query input for training')
-    args = parser.parse_args()
     
-    query(args.query)
+
+    queryinfo = ast.literal_eval(os.environ["QUERY"])
+    query(queryinfo)
+
+    # parser = argparse.ArgumentParser(description='Train model')
+    # parser.add_argument('--query', type=dict, default=configuration, help='Query input for training')
+    # args = parser.parse_args()
+    
+    # query(args.query)
