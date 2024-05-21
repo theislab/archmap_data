@@ -165,6 +165,11 @@ class ArchmapBaseModel():
         classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
+        #stress score
+        if self._atlas=="hnoca":
+            print("calculating stress score")
+            stress_score(self._query_adata)
+            print(self._query_adata.obs["Hallmark_Glycolysis"])
 
     def _transfer_labels(self):
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
@@ -300,11 +305,6 @@ class ArchmapBaseModel():
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
-
-        if self._atlas=="hnoca":
-            print("calculating stress score")
-            stress_score(self._combined_adata)
-            print(self._combined_adata.obs["Hallmark_Glycolysis"])
         
         combined_downsample = self.downsample_adata()
         #Save output
