@@ -13,6 +13,7 @@ import os
 import importlib.util
 import argparse
 from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
 
 warnings.filterwarnings("ignore")
 
@@ -290,11 +291,7 @@ def estimate_presence_score(
 
 # cluster preservation score
 
-import numpy as np
-import scanpy as sc
-from sklearn.neighbors import NearestNeighbors
-from scipy.special import rel_entr
-import pandas as pd
+
 
 def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
     """
@@ -344,7 +341,7 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
     def entropy_of_labels(indices):
         labels = adata.obs['leiden'][indices].to_numpy()
         _, counts = np.unique(labels, return_counts=True)
-        return rel_entr(counts, np.full_like(counts, fill_value=1/len(counts))).sum()
+        return (counts*np.log(counts/(1/len(counts)))).sum()
 
     orig_ent = np.array([entropy_of_labels(idx) for idx in orig_indices])
     print(f"orig_ent: {orig_ent}")
