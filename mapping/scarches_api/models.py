@@ -96,7 +96,7 @@ class ArchmapBaseModel():
             datasplitter_kwargs = dict(distributed_sampler = True),
             strategy='ddp_find_unused_parameters_true',
             accelerator="cpu", 
-            devices=-1
+            devices=4
         )
 
         end_time = time.time() 
