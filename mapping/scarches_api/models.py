@@ -11,12 +11,13 @@ import scipy
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
 from utils import utils
+import scanpy as sc
 
 from utils import parameters
 from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor, stress_score
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
-from utils.utils import read_h5ad_file_from_s3
+from utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
 import pandas as pd
 
 from process.processing import Preprocess
@@ -87,6 +88,8 @@ class ArchmapBaseModel():
             # use_gpu=self._use_gpu
         )
 
+        utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
             qzm = self._reference_adata.obsm["X_latent_qzm"]
@@ -118,28 +121,17 @@ class ArchmapBaseModel():
         self._reference_adata = read_h5ad_file_from_s3(self._reference_adata_path)
         self._reference_adata.obs["type"] = "reference"
 
-        self._query_adata = read_h5ad_file_from_s3(self._query_adata_path) 
-        self._query_adata.obs["type"] = "query"
+        self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
+        self._query_adata_raw.obs["type"] = "query"
 
-
-        # #Check if cell_type_key exists in query
-        # if self._cell_type_key not in self._query_adata.obs.columns:
-        #     self._query_adata.obs[self._cell_type_key] = "Unlabeled"
-
-        # #Check if batch_key exists in query
-        # if self._batch_key not in self._query_adata.obs.columns:
-        #     self._query_adata.obs[self._batch_key] = "query_batch"
-
-        #Store counts in layer if not stored already
-        if "counts" not in self._query_adata.layers.keys():
-            self._query_adata.layers['counts'] = self._query_adata.X
+        self._query_adata_raw.obs_names_make_unique()
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
-        Preprocess.bool_to_categorical(self._query_adata)
+        Preprocess.bool_to_categorical(self._query_adata_raw)
 
         ref_vars = self._reference_adata.var_names
-        query_vars = self._query_adata.var_names
+        query_vars = self._query_adata_raw.var_names
 
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
@@ -148,12 +140,18 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
-        self._query_adata.obs_names_make_unique()
-        self._query_adata.var_names_make_unique()
-    
+        
+        # save only necessary data for mapping to new adata
+        self._query_adata = self._query_adata_raw.copy()
+        del self._query_adata.varm
+        del self._query_adata.obsm
+        del self._query_adata.layers
+        del self._query_adata.uns
+        del self._query_adata.obsp
+        del self._query_adata.varp
 
-        #Remove later - for testing only
-        # self._reference_adata = scanpy.pp.subsample(self._reference_adata, 0.1, copy=True)
+        self._query_adata.layers['counts'] = self._query_adata.X
+
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -169,7 +167,7 @@ class ArchmapBaseModel():
         if self._atlas=="hnoca":
             print("calculating stress score")
             stress_score(self._query_adata)
-            print(self._query_adata.obs["Hallmark_Glycolysis"])
+            print(self._query_adata.obs["Hallmark_Glycolysis_Score"])
 
     def _transfer_labels(self):
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
@@ -305,10 +303,73 @@ class ArchmapBaseModel():
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
-        
+        # add .X to self._combined_adata
+
+        print("adding X from cloud")
+        self.add_X_from_cloud()
+
         combined_downsample = self.downsample_adata()
+        
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
+
+    def add_X_from_cloud(self):
+        if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
+                get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
+            
+            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            if not self._reference_adata_path.endswith("data.h5ad"):
+                raise ValueError("The reference data should be named data.h5ad")
+            else:
+                count_matrix_path = self._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+
+            combined_adata = self._combined_adata
+            count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
+            self.temp_output_combined = tempfile.mktemp( suffix=".h5ad")
+
+            if count_matrix_size_gb < 10:
+                print("Count matrix size less than 10 gb.")
+                count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+                #Added because concat_on_disk only allows csr concat
+                if count_matrix.X.format == "csc" or self.adata_query_X.X.format == "csc":
+                    print("Concatenating query and reference count matrices in memory")
+                    combined_data_X = count_matrix.concatenate(self.adata_query_X)
+
+                    del count_matrix
+                    del self.adata_query_X
+                    gc.collect()
+
+                else:
+                    print("Concatenating query and reference count matrices on disk")
+                    #Create temp files on disk
+                    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+                    #Write data to temp files
+                    count_matrix.write_h5ad(temp_reference.name)
+                    self.adata_query_X.write_h5ad(temp_query.name)
+
+                    del count_matrix
+                    del self.adata_query_X
+                    gc.collect()
+                
+                    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+                    combined_data_X = sc.read_h5ad(temp_combined.name)
+
+                combined_adata.X = combined_data_X.X
+                sc.write(self.temp_output_combined, combined_adata)
+
+            else:
+                print("Count matrix size larger than 10 gb.")
+                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                self.adata_query_X.write_h5ad(temp_query.name)
+                del self.adata_query_X
+                gc.collect()
+                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
+
+            self._combined_adata = combined_adata
+
 
     def downsample_adata(self, query_ratio=5):
         """

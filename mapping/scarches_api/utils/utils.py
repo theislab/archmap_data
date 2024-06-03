@@ -14,6 +14,9 @@ from pathlib import Path
 import pandas as pd
 # from scarches.dataset.trvae.data_handling import remove_sparsity
 import traceback
+from anndata import experimental
+from anndata.experimental import write_elem, read_elem
+import h5py
 
 UNWANTED_LABELS = ['leiden', '', '_scvi_labels', '_scvi_batch']
 
@@ -664,4 +667,51 @@ def fetch_file_to_temp_path_from_s3(key):
     print(f"File downloaded to {filename}")
     
     return filename
+
+
+def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path):
+    """
+    Writes combined_adata to disk, fetches another .h5ad file specified by ref_count_matrix_path.
+    Concatenates the .X of the fetched file with query_X_file.
+    Writes concatenated adata metadata (eg .obs and .vars and .varm and .obsm and uns) to adata with .X on disk
+  
+    :param combined_adata: The Anndata object in memory.
+    :param temp_output: Temp file to write combined_adata to.
+    :param query_X_file: File with .X for query.
+    :param ref_count_matrix_path: The S3 key for the .h5ad file to be fetched.
+
+    Returns: File path to saved adata with concatenated metadata and .X
+    """
+
+    # Write combined_adata to disk
+    combined_adata.write(temp_output)
+    print(f"combined_adata written to {temp_output}")
+    # Fetch the new file and get its path
+    temp_ref_count_matrix_path = fetch_file_to_temp_path_from_s3(ref_count_matrix_path)
+    if temp_ref_count_matrix_path is None:
+        print("No file fetched. Exiting.")
+        return
+    print("Fetched reference adata with counts")
+    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False)
+    
+    experimental.concat_on_disk([temp_ref_count_matrix_path, query_X_file], temp_combined.name)
+    print("Concatenated reference and query counts")
+
+    # write concatenated adata metadata (eg .obs and .vars and .varm and .obsm and uns) to adata with .X on disk
+    with h5py.File(temp_output, "r") as f:
+        with h5py.File(temp_combined.name, 'r+') as target_file:
+
+            elems=list(f.keys())
+            if "X" in elems:
+                elems.remove("X")
+                
+            for elem in elems:
+                v=read_elem(f[elem])
+                if isinstance(v,dict) and not bool(v):
+                    continue
+
+                write_elem(target_file, f"{elem}", v)
+        print("Added concatenated metadata to anndata with full .X on disk")
+
+    return temp_combined.name
 

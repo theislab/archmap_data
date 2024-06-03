@@ -302,7 +302,7 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
     Returns:
     - score: Cluster preservation score.
     """
-    dims = min(50, adata.uns.get('Azimuth_map_ndims', 50))
+    dims = 50
 
     if type == 'standard':
         # Following the standard preprocessing workflow
@@ -378,4 +378,4 @@ def stress_score(adata):
     
     msigdb_glycolysis = np.array(pd.read_csv('https://www.gsea-msigdb.org/gsea/msigdb/human/download_geneset.jsp?geneSetName=HALLMARK_GLYCOLYSIS&fileType=TSV', sep='\t', header=None, index_col=0).loc['GENE_SYMBOLS',1].split(','))
     msigdb_glycolysis = np.intersect1d(msigdb_glycolysis, adata.var_names)
-    sc.tl.score_genes(adata, msigdb_glycolysis, score_name='Hallmark_Glycolysis')
+    sc.tl.score_genes(adata, msigdb_glycolysis, score_name='Hallmark_Glycolysis_Score')
