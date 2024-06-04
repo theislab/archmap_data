@@ -7,11 +7,13 @@ import os
 import torch
 import gc
 import numpy as np
+import time
 import scipy
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
 from utils import utils
 import scanpy as sc
+from scvi.dataloaders import BatchDistributedSampler
 
 from utils import parameters
 from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor, stress_score
@@ -32,6 +34,8 @@ from classifiers.classifiers import Classifiers
 class ArchmapBaseModel():
     def __init__(self, configuration) -> None:
         self._configuration = configuration
+
+        start_time = time.time() 
 
         self._atlas = get_from_config(configuration=configuration, key=parameters.ATLAS)
         self._model_type = get_from_config(configuration=configuration, key=parameters.MODEL)
@@ -62,13 +66,17 @@ class ArchmapBaseModel():
         self._batch_key = None
         self._unlabeled_key = None
 
-        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata)        
+        # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
+        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._query_adata, configuration)        
 
         self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
         self._clf_knn = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
         self._clf_model_path = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_PATH)
         self._clf_encoding_path = get_from_config(configuration=configuration, key=parameters.ENCODING_PATH)
+
+        end_time = time.time() 
+        print(f"time {end_time-start_time}")
 
     def run(self):
         self._map_query()
@@ -80,15 +88,21 @@ class ArchmapBaseModel():
 
     def _map_query(self):
         #Map the query onto reference
+        start_time = time.time()
 
+        # threshold = 10000
         self._model.train(
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
-            # use_gpu=self._use_gpu
+            # datasplitter_kwargs = dict(distributed_sampler = True),
+            # strategy='ddp_find_unused_parameters_true',
+            # accelerator="cpu", 
+            # devices=4
         )
 
-        utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+        end_time = time.time() 
+        print(f"time {end_time-start_time}")
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
@@ -535,7 +549,7 @@ class ScPoli(ArchmapBaseModel):
 
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
-
+        
         self._model.train(
             n_epochs=self._max_epochs,
             pretraining_epochs=40,

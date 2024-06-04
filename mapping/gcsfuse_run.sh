@@ -43,6 +43,8 @@ ls -l $MNT_DIR;
 echo "the pwd is now: "
 pwd;
 
+ABSOLUTE_PATH=$(pwd)
+
 
 #run the api
-gunicorn --bind :$PORT --workers $WORKERS --threads $THREADS --timeout 0 --chdir ./scarches_api/ api:app
+gunicorn --bind :$PORT --workers $WORKERS --threads $THREADS --timeout 0 --chdir $ABSOLUTE_PATH/scarches_api/ api:app
