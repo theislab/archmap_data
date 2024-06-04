@@ -287,77 +287,72 @@ class Preprocess:
             if adata.var[col].dtype.name == "bool" or adata.var[col].dtype.name == "object":
                 adata.var[col] = adata.var[col].astype("category")
 
-    def get_keys(atlas, target_adata):
-        """
-        Sets the batch(condition) and cell_type keys, according to the atlas chosen.
-        This is necessary as the reference files all have these keys under different names,
-        although they contain the same information.
-        """
-        #TODO: keys are stored on db, get rid of this hardcoding!!!!
-        #Set unlabeled key to always be "unlabeled"
-        unlabeled_key = "unlabeled"
+    # def get_keys(atlas, target_adata):
+    #     """
+    #     Sets the batch(condition) and cell_type keys, according to the atlas chosen.
+    #     This is necessary as the reference files all have these keys under different names,
+    #     although they contain the same information.
+    #     """
+    #     #TODO: keys are stored on db, get rid of this hardcoding!!!!
+    #     #Set unlabeled key to always be "unlabeled"
+    #     unlabeled_key = "unlabeled"
 
 
-        if atlas == 'pbmc':
-            cell_type_key = 'cell_type_for_integration'
-            batch_key = 'sample_ID_lataq'
-        elif atlas == 'heart':
-            cell_type_key = 'cell_type'
-            batch_key = 'donor'
-        elif atlas == 'hlca':
-            cell_type_key = 'scanvi_label'
-            batch_key = 'dataset'
-        elif atlas == 'hlca_retrained':
-            cell_type_key = 'ann_finest_level'
-            batch_key = 'sample'
-        elif atlas == 'retina':
-            cell_type_key = 'CellType'
-            batch_key = 'batch'
-        elif atlas == 'fetal_immune':
-            cell_type_key = 'celltype_annotation'
-            batch_key = 'bbk'
-        elif atlas == "nsclc":
-            cell_type_key = 'cell_type'
-            batch_key = 'sample'
-        elif atlas == "gb":
-            cell_type_key = 'CellID'
-            batch_key = 'author'
-        elif atlas == "hypomap":
-            cell_type_key = 'Author_CellType'
-            batch_key = 'Batch_ID'
-        elif atlas == "pancreas":
-            cell_type_key = "cell_type"
-            batch_key = "batch_integration"
-        elif atlas == "HRCA":
-            cell_type_key = "cell_type_scarches"
-            batch_key = "batch_donor_asset"
-        elif atlas == "hnoca":
-            cell_type_key = "snapseed_pca_rss_level_123"
-            batch_key = "batch"
-        elif atlas == "heoca":
-            cell_type_key = "cell_type"
-            batch_key = "sample_id"
-        elif atlas == "fetal_brain":
-            cell_type_key = "subregion_class"
-            batch_key = "batch"
+    #     if atlas == 'pbmc':
+    #         cell_type_key = 'cell_type_for_integration'
+    #         batch_key = 'sample_ID_lataq'
+    #     elif atlas == 'heart':
+    #         cell_type_key = 'cell_type'
+    #         batch_key = 'donor'
+    #     elif atlas == 'hlca':
+    #         cell_type_key = 'scanvi_label'
+    #         batch_key = 'dataset'
+    #     elif atlas == 'hlca_retrained':
+    #         cell_type_key = 'ann_finest_level'
+    #         batch_key = 'sample'
+    #     elif atlas == 'retina':
+    #         cell_type_key = 'CellType'
+    #         batch_key = 'batch'
+    #     elif atlas == 'fetal_immune':
+    #         cell_type_key = 'celltype_annotation'
+    #         batch_key = 'bbk'
+    #     elif atlas == "nsclc":
+    #         cell_type_key = 'cell_type'
+    #         batch_key = 'sample'
+    #     elif atlas == "gb":
+    #         cell_type_key = 'CellID'
+    #         batch_key = 'author'
+    #     elif atlas == "hypomap":
+    #         cell_type_key = 'Author_CellType'
+    #         batch_key = 'Batch_ID'
+    #     elif atlas == "pancreas":
+    #         cell_type_key = "cell_type"
+    #         batch_key = "batch_integration"
+    #     elif atlas == "HRCA":
+    #         cell_type_key = "cell_type_scarches"
+    #         batch_key = "batch_donor_asset"
+    #     elif atlas == "hnoca":
+    #         cell_type_key = "snapseed_pca_rss_level_123"
+    #         batch_key = "batch"
+    #     elif atlas == "heoca":
+    #         cell_type_key = "cell_type"
+    #         batch_key = "sample_id"
+    #     elif atlas == "fetal_brain":
+    #         cell_type_key = "subregion_class"
+    #         batch_key = "batch"
         
         
 
 
-        #Check if provided query contains respective labels
-        if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
-            raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
+    #     #Check if provided query contains respective labels
+    #     if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
+    #         raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
 
-        return cell_type_key, batch_key, unlabeled_key
+    #     return cell_type_key, batch_key, unlabeled_key
 
         
 
-    def __get_keys_model(configuration):
-        #Get relative model path
-        model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
-
-        #Get label names the model was set up with
-        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+    def _get_keys(target_adata, configuration):
 
         # try:
         #     attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
@@ -374,20 +369,41 @@ class Preprocess:
         condition_key_model = None
         unlabeled_key_model = None
 
-        if("registry_" not in attr_dict):
-            data_registry = attr_dict["scvi_setup_dict_"]["categorical_mappings"]
+        model_type = utils.get_from_config(configuration, parameters.MODEL)
 
-            cell_type_key_model = data_registry["_scvi_labels"]["original_key"]
-            condition_key_model = data_registry["_scvi_batch"]["original_key"]
+        if model_type in ["scANVI","scVI"]:
+
+            model_path = utils.get_from_config(configuration, parameters.PRETRAINED_MODEL_PATH)
+            attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+
+            if("registry_" not in attr_dict):
+                data_registry = attr_dict["scvi_setup_dict_"]["categorical_mappings"]
+
+                cell_type_key_model = data_registry["_scvi_labels"]["original_key"]
+                condition_key_model = data_registry["_scvi_batch"]["original_key"]
+            else:
+                data_registry = attr_dict["registry_"]["field_registries"]
+
+                cell_type_key_model = data_registry["labels"]["state_registry"]["original_key"]
+                condition_key_model = data_registry["batch"]["state_registry"]["original_key"]
+
+            if "unlabeled_category_" in attr_dict:
+                if attr_dict["unlabeled_category_"] is not None:
+                    unlabeled_key_model = attr_dict["unlabeled_category_"]
+
+            else:
+                unlabeled_key_model = "unlabeled"
+
+        
         else:
-            data_registry = attr_dict["registry_"]["field_registries"]
+            attr_dict = utils.get_from_config(configuration, parameters.SCPOLI_ATTR)
+            cell_type_key_model = attr_dict["cell_type_keys_"][-1]
+            condition_key_model = attr_dict["condition_keys_"][-1]
+            unlabeled_key_model = "unlabeled"
 
-            cell_type_key_model = data_registry["labels"]["state_registry"]["original_key"]
-            condition_key_model = data_registry["batch"]["state_registry"]["original_key"]
-
-        if "unlabeled_category_" in attr_dict:
-            if attr_dict["unlabeled_category_"] is not None:
-                unlabeled_key_model = attr_dict["unlabeled_category_"]
+        #Check if provided query contains respective labels
+        if cell_type_key_model not in target_adata.obs.columns or condition_key_model not in target_adata.obs.columns:
+            raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
 
         return cell_type_key_model, condition_key_model, unlabeled_key_model
 

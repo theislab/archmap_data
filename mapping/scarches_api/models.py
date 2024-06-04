@@ -65,7 +65,8 @@ class ArchmapBaseModel():
         self._batch_key = None
         self._unlabeled_key = None
 
-        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata)        
+        # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
+        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._query_adata, configuration)        
 
         self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
