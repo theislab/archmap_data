@@ -352,15 +352,9 @@ class Preprocess:
 
         
 
-    def _get_keys(target_adata, configuration):
+    def get_keys(target_adata, configuration):
 
-        # try:
-        #     attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
-        # except:
-        #     if utils.get_from_config(configuration, parameters.MODEL) == "scANVI":
-        #         sca.models.SCANVI.convert_legacy_save(model_path, model_path, True)
-        #     if utils.get_from_config(configuration, parameters.MODEL) == "scVI":
-        #         sca.models.SCVI.convert_legacy_save(model_path, model_path, True)
+        
 
         #Get model data registry and labels
         #Data management can be different among models, no clear indication in docs
@@ -373,19 +367,13 @@ class Preprocess:
 
         if model_type in ["scANVI","scVI"]:
 
-            model_path = utils.get_from_config(configuration, parameters.PRETRAINED_MODEL_PATH)
+            model_path = "."
             attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
 
-            if("registry_" not in attr_dict):
-                data_registry = attr_dict["scvi_setup_dict_"]["categorical_mappings"]
+            data_registry = attr_dict["registry_"]
 
-                cell_type_key_model = data_registry["_scvi_labels"]["original_key"]
-                condition_key_model = data_registry["_scvi_batch"]["original_key"]
-            else:
-                data_registry = attr_dict["registry_"]["field_registries"]
-
-                cell_type_key_model = data_registry["labels"]["state_registry"]["original_key"]
-                condition_key_model = data_registry["batch"]["state_registry"]["original_key"]
+            cell_type_key_model = data_registry["field_registries"]["labels"]["state_registry"]["original_key"]
+            condition_key_model = data_registry["field_registries"]["batch"]["state_registry"]["original_key"]
 
             if "unlabeled_category_" in attr_dict:
                 if attr_dict["unlabeled_category_"] is not None:
