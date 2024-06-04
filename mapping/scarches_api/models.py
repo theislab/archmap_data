@@ -67,7 +67,7 @@ class ArchmapBaseModel():
         self._unlabeled_key = None
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
-        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._query_adata, configuration)        
+        self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
         self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
@@ -463,7 +463,7 @@ class ArchmapBaseModel():
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
-        #Align genes and gene order to model
+        #Align genes and gene order to model      
         scarches.models.SCVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
         #Setup adata internals for mapping
@@ -496,6 +496,9 @@ class ScVI(ArchmapBaseModel):
 class ScANVI(ArchmapBaseModel):
     def _map_query(self, supervised=False):
         #Align genes and gene order to model
+        if self._cell_type_key in self._query_adata.obs.columns:
+            self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
+        self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
         scarches.models.SCANVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
         #Setup adata internals for mapping
