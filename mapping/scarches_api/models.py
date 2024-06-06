@@ -91,9 +91,13 @@ class ArchmapBaseModel():
         start_time = time.time()
 
         # threshold = 10000
+        if self._atlas == "fetal_brain":
+            lr=0.01
+        else:
+            lr=0.001
         self._model.train(
             max_epochs=self._max_epochs,
-            plan_kwargs=dict(weight_decay=0.0),
+            plan_kwargs=dict(weight_decay=0.0,lr=lr),
             check_val_every_n_epoch=10,
             # datasplitter_kwargs = dict(distributed_sampler = True),
             # strategy='ddp_find_unused_parameters_true',
@@ -117,17 +121,17 @@ class ArchmapBaseModel():
 
         # Calculate presence score
 
-        presence_score=estimate_presence_score(
-            self._reference_adata,
-            self._query_adata)
+        # presence_score=estimate_presence_score(
+        #     self._reference_adata,
+        #     self._query_adata)
 
-        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
+        # self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
 
-        self.clust_pres_score=cluster_preservation_score(self._query_adata)
-        print(f"clust_pres_score: {self.clust_pres_score}")
+        # self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        # print(f"clust_pres_score: {self.clust_pres_score}")
         
-        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
-        print(f"query_with_anchor: {self.query_with_anchor}")
+        # self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        # print(f"query_with_anchor: {self.query_with_anchor}")
 
 
     def _acquire_data(self):
@@ -152,7 +156,7 @@ class ArchmapBaseModel():
         ratio = inter_len / len(ref_vars)
         print(ratio)
 
-        utils.notify_backend(self._webhook, {"ratio":ratio})
+        # utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
@@ -213,7 +217,7 @@ class ArchmapBaseModel():
         
         percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
 
-        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
+        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
 
 
     def _concat_data(self):
@@ -250,7 +254,7 @@ class ArchmapBaseModel():
             self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
 
             self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-            self._combined_adata.obs["presence_score"] = self.presence_score
+            # self._combined_adata.obs["presence_score"] = self.presence_score
             
             
 
@@ -301,7 +305,7 @@ class ArchmapBaseModel():
         print("read concatenated file")
 
         self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-        self._combined_adata.obs["presence_score"] = self.presence_score
+        # self._combined_adata.obs["presence_score"] = self.presence_score
 
         self._combined_adata.obs_names_make_unique()
         
@@ -331,7 +335,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:
@@ -588,17 +592,17 @@ class ScPoli(ArchmapBaseModel):
 
         
 
-        presence_score = estimate_presence_score(
-            self._reference_adata,
-            self._query_adata)
+        # presence_score = estimate_presence_score(
+        #     self._reference_adata,
+        #     self._query_adata)
         
-        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
+        # self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
 
-        self.clust_pres_score=cluster_preservation_score(self._query_adata)
-        print(f"clust_pres_score: {self.clust_pres_score}")
+        # self.clust_pres_score=cluster_preservation_score(self._query_adata)
+        # print(f"clust_pres_score: {self.clust_pres_score}")
         
-        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
-        print(f"query_with_anchor: {self.query_with_anchor}")
+        # self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
+        # print(f"query_with_anchor: {self.query_with_anchor}")
         
 
 
