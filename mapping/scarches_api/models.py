@@ -92,9 +92,11 @@ class ArchmapBaseModel():
 
         # threshold = 10000
         if self._atlas == "fetal_brain":
-            lr=0.01
+            lr=0.1
         else:
             lr=0.001
+
+        print(f"lr: {lr}")
         self._model.train(
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0,lr=lr),
@@ -325,6 +327,8 @@ class ArchmapBaseModel():
 
         print("adding X from cloud")
         self.add_X_from_cloud()
+
+        print("add all genes")
 
         combined_downsample = self.downsample_adata()
         
