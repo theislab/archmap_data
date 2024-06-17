@@ -95,6 +95,7 @@ class ArchmapBaseModel():
         # threshold = 10000
         if self._atlas == "fetal_brain":
             lr=0.1
+            self._max_epochs = 20
         else:
             lr=0.001
 
