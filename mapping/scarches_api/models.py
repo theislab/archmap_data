@@ -16,7 +16,7 @@ import scanpy as sc
 from scvi.dataloaders import BatchDistributedSampler
 
 from utils import parameters
-from utils.metrics import estimate_presence_score, cluster_preservation_score, build_mutual_nn, percent_query_with_anchor, stress_score
+from utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 from utils.utils import get_from_config
 from utils.utils import fetch_file_from_s3
 from utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
@@ -79,16 +79,18 @@ class ArchmapBaseModel():
         print(f"time {end_time-start_time}")
 
     def run(self):
+        start_time = time.time()
         self._map_query()
         self._eval_mapping()
         self._transfer_labels()
         self._concat_data()
         self._save_data()
+        end_time = time.time() 
+        print(f"time {end_time-start_time}")
         self._cleanup()
 
     def _map_query(self):
         #Map the query onto reference
-        start_time = time.time()
 
         # threshold = 10000
         if self._atlas == "fetal_brain":
@@ -96,7 +98,6 @@ class ArchmapBaseModel():
         else:
             lr=0.001
 
-        print(f"lr: {lr}")
         self._model.train(
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0,lr=lr),
@@ -106,9 +107,6 @@ class ArchmapBaseModel():
             # accelerator="cpu", 
             # devices=4
         )
-
-        end_time = time.time() 
-        print(f"time {end_time-start_time}")
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
@@ -121,19 +119,6 @@ class ArchmapBaseModel():
         #Save out the latent representation for QUERY
         self._compute_latent_representation(explicit_representation=self._query_adata)
 
-        # Calculate presence score
-
-        presence_score=estimate_presence_score(
-            self._reference_adata,
-            self._query_adata)
-
-        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
-
-        self.clust_pres_score=cluster_preservation_score(self._query_adata)
-        print(f"clust_pres_score: {self.clust_pres_score}")
-        
-        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
-        print(f"query_with_anchor: {self.query_with_anchor}")
 
 
     def _acquire_data(self):
@@ -180,7 +165,7 @@ class ArchmapBaseModel():
         reference_latent.obs = self._reference_adata.obs
 
         #Calculate mapping uncertainty and write into .obs
-        classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
+        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
         #stress score
@@ -256,10 +241,6 @@ class ArchmapBaseModel():
             self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
 
             self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-            self._combined_adata.obs["presence_score"] = self.presence_score
-            
-            
-
             del self._query_adata
             del self._reference_adata
             gc.collect()
@@ -307,7 +288,6 @@ class ArchmapBaseModel():
         print("read concatenated file")
 
         self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-        self._combined_adata.obs["presence_score"] = self.presence_score
 
         self._combined_adata.obs_names_make_unique()
         
@@ -328,9 +308,43 @@ class ArchmapBaseModel():
         print("adding X from cloud")
         self.add_X_from_cloud()
 
-        print("add all genes")
 
         combined_downsample = self.downsample_adata()
+
+        # Calculate presence score
+
+        ref_downsample = combined_downsample[combined_downsample.obs["query"]=="0"]
+        query_downsample = combined_downsample[combined_downsample.obs["query"]=="1"]
+
+        ref_latent_downsample = combined_downsample[combined_downsample.obs["query"]=="0"].obsm["latent_rep"]
+        query_latent_downsample = combined_downsample[combined_downsample.obs["query"]=="1"].obsm["latent_rep"]
+
+        self.knn_ref = self.knn_ref_trainer.fit_transform(ref_latent_downsample)
+
+        wknn, adjs = get_wknn(
+            ref=ref_latent_downsample,
+            query=query_latent_downsample,
+            k=15,
+            # adj_q2r=self.knn_q2r,
+            adj_ref=self.knn_ref,
+            return_adjs=True
+        )
+
+        presence_score = estimate_presence_score(
+            ref_downsample,
+            query_downsample,
+            wknn = wknn)
+    
+        
+        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(query_downsample)))
+
+        combined_downsample.obs["presence_score"] = self.presence_score
+
+        self.clust_pres_score=cluster_preservation_score(query_downsample)
+        print(f"clust_pres_score: {self.clust_pres_score}")
+        
+        self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
+        print(f"query_with_anchor: {self.query_with_anchor}")
         
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -593,20 +607,6 @@ class ScPoli(ArchmapBaseModel):
         else:
             self._compute_latent_representation(explicit_representation=self._reference_adata)
             self._compute_latent_representation(explicit_representation=self._query_adata)
-
-        
-
-        presence_score = estimate_presence_score(
-            self._reference_adata,
-            self._query_adata)
-        
-        self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(self._query_adata)))
-
-        self.clust_pres_score=cluster_preservation_score(self._query_adata)
-        print(f"clust_pres_score: {self.clust_pres_score}")
-        
-        self.query_with_anchor=percent_query_with_anchor(self._reference_adata, self._query_adata)
-        print(f"query_with_anchor: {self.query_with_anchor}")
         
 
 
