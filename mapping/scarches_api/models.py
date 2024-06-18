@@ -103,10 +103,10 @@ class ArchmapBaseModel():
             max_epochs=self._max_epochs,
             plan_kwargs=dict(weight_decay=0.0,lr=lr),
             check_val_every_n_epoch=10,
-            # datasplitter_kwargs = dict(distributed_sampler = True),
-            # strategy='ddp_find_unused_parameters_true',
-            # accelerator="cpu", 
-            # devices=4
+            datasplitter_kwargs = dict(distributed_sampler = True),
+            strategy='ddp_find_unused_parameters_true',
+            accelerator="cpu", 
+            devices=4
         )
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
