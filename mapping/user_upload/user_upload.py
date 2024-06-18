@@ -69,7 +69,7 @@ class UserUpload:
 
     def __check_atlas_labels(self, local_model_path):
         tuple = os.path.split(local_model_path)
-        cell_type_key, batch_key, unlabeled_key = Preprocess.get_keys_model(tuple[0])
+        cell_type_key, batch_key, unlabeled_key = Preprocess.get_keys(tuple[0])
 
         #Cell type keys only relevant to scANVI models
         if self.__model_type == "scANVI":

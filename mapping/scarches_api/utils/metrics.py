@@ -77,12 +77,10 @@ def build_mutual_nn(dat1, dat2=None, k1=15, k2=None):
     adj_21 = build_nn(dat2, dat1, k=k1)
 
     adj_mnn = adj_12.multiply(adj_21.T)
-    return adj_mnn
+    return adj_mnn, adj_12, adj_21
 
-def percent_query_with_anchor(ref_adata, query_adata):
-    ref = ref_adata.obsm["latent_rep"]
-    query = query_adata.obsm["latent_rep"]
-    adj_mnn=build_mutual_nn(ref,query)
+def percent_query_with_anchor( adj_r2q, adj_q2r):
+    adj_mnn = adj_r2q.multiply(adj_q2r.T)
     has_anchor=adj_mnn.sum(0)>0 #all query cells that have an anchor (output dim: no query cells)
     percentage = (has_anchor.sum()/adj_mnn.shape[1])*100
     return round(percentage, 2)
@@ -109,10 +107,9 @@ def random_walk_with_restart(init, transition_prob, alpha=0.5, num_rounds=100):
 def get_wknn(
     ref,
     query,
-    ref2=None,
     k: int = 100,
-    query2ref: bool = True,
-    ref2query: bool = True,
+    adj_q2r=None,
+    adj_ref=None,
     weighting_scheme: Literal[
         "n", "top_n", "jaccard", "jaccard_square", "gaussian", "dist"
     ] = "jaccard_square",
@@ -143,28 +140,17 @@ def get_wknn(
     return_adjs : bool
         Whether to return the adjacency matrices of ref-query, query-ref, and ref-ref for weighting
     """
-    adj_q2r = build_nn(ref=ref, query=query, k=k)
+    if adj_q2r is None:
+        adj_q2r = build_nn(ref=ref, query=query, k=k)
 
-    adj_r2q = None
-    if ref2query:
-        adj_r2q = build_nn(ref=query, query=ref, k=k)
+    adj_r2q = build_nn(ref=query, query=ref, k=k)
 
-    if query2ref and not ref2query:
-        adj_knn = adj_q2r.T
-    elif ref2query and not query2ref:
-        adj_knn = adj_r2q
-    elif ref2query and query2ref:
-        adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0
-    else:
-        warnings.warn(
-            "At least one of query2ref and ref2query should be True. Reset to default with both being True."
-        )
-        adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0 # 1 if either R_i or Q_j are considered a nn of the other 
+    adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0
 
-    if ref2 is None:
-        ref2 = ref
-    adj_ref = build_nn(ref=ref2, k=k)
+    adj_knn = ((adj_r2q + adj_q2r.T) > 0) + 0 # 1 if either R_i or Q_j are considered a nn of the other 
 
+    if adj_ref is None:
+        adj_ref = build_nn(ref=ref, k=k)
 
     num_shared_neighbors = adj_q2r @ adj_ref # no. neighbours that Q_i and R_j have in common 
     num_shared_neighbors_nn = num_shared_neighbors.multiply(adj_knn.T) # only keep weights if q and r are both nearest neigbours of eachother
@@ -182,7 +168,8 @@ def get_wknn(
         wknn.data = (wknn.data / (k + k - wknn.data)) ** 2
 
     if return_adjs:
-        adjs = {"q2r": adj_q2r, "r2q": adj_r2q, "knn": adj_knn, "r2r": adj_ref}
+        adjs = {"q2r": adj_q2r, "r2q": adj_r2q}
+        # adjs = {"q2r": adj_q2r, "r2q": adj_r2q, "knn": adj_knn, "r2r": adj_ref}
         return (wknn, adjs)
     else:
         return wknn
@@ -209,17 +196,7 @@ def estimate_presence_score(
     num_rounds_random_walk=100,
     log=True,
 ):
-    if wknn is None:
-        ref = ref_adata.obsm[use_rep_ref_wknn]
-        query = query_adata.obsm[use_rep_query_wknn]
-        wknn = get_wknn(
-            ref=ref,
-            query=query,
-            k=k_wknn,
-            query2ref=query2ref_wknn,
-            ref2query=ref2query_wknn,
-            weighting_scheme=weighting_scheme_wknn,
-        )
+
 
     if ref_trans_prop is None and do_random_walk:
         if use_rep_ref_trans_prop is None:
@@ -302,7 +279,7 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
     Returns:
     - score: Cluster preservation score.
     """
-    dims = min(50, adata.uns.get('Azimuth_map_ndims', 50))
+    dims = 50
 
     if type == 'standard':
         # Following the standard preprocessing workflow
@@ -378,4 +355,4 @@ def stress_score(adata):
     
     msigdb_glycolysis = np.array(pd.read_csv('https://www.gsea-msigdb.org/gsea/msigdb/human/download_geneset.jsp?geneSetName=HALLMARK_GLYCOLYSIS&fileType=TSV', sep='\t', header=None, index_col=0).loc['GENE_SYMBOLS',1].split(','))
     msigdb_glycolysis = np.intersect1d(msigdb_glycolysis, adata.var_names)
-    sc.tl.score_genes(adata, msigdb_glycolysis, score_name='Hallmark_Glycolysis')
+    sc.tl.score_genes(adata, msigdb_glycolysis, score_name='Hallmark_Glycolysis_Score')

@@ -153,7 +153,6 @@ def classification_uncert_euclidean(
         cell_type_key,
         trainer
     )
-
     #Important to store as numpy array in obs for cellbygene visualization
     if(len(uncertainties.columns) > 1):
         for entry in uncertainties.columns:
@@ -162,7 +161,7 @@ def classification_uncert_euclidean(
     else:
         adata_query_raw.obs[cell_type_key + '_uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
     
-    return uncertainties
+    return trainer
 
 # # Test differential abundance analysis on neighbourhoods with Milo.
 # def classification_uncert_milo(
