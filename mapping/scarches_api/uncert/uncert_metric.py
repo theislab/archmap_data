@@ -146,7 +146,7 @@ def classification_uncert_euclidean(
     for col in cell_type_cols:
         adata_ref_latent.obs[col] = adata_ref_latent.obs[col].astype(str)
 
-    _, uncertainties = sca.utils.weighted_knn_transfer(
+    _, uncertainties, _ = sca.utils.weighted_knn_transfer(
         adata_query_latent,
         embedding_name,
         adata_ref_latent.obs,
