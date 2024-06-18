@@ -203,9 +203,7 @@ class ArchmapBaseModel():
         #Compute label transfer and save to respective .obs
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         
-        percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
-
-        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": percent_unknown})
+        self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
 
 
     def _concat_data(self):
@@ -346,6 +344,8 @@ class ArchmapBaseModel():
         
         self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
         print(f"query_with_anchor: {self.query_with_anchor}")
+
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
         
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
