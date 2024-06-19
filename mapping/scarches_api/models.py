@@ -57,6 +57,7 @@ class ArchmapBaseModel():
         self._query_adata = None
         self._reference_adata = None
         self._combined_adata = None
+        self.percent_unknown = "n/a"
 
         #Load and process required data
         self._acquire_data()
