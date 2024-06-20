@@ -362,6 +362,7 @@ class Preprocess:
         cell_type_key_model = None
         condition_key_model = None
         unlabeled_key_model = None
+        cell_type_key_list = None
 
         if atlas == 'pbmc':
             cell_type_key = 'cell_type_for_integration'
@@ -398,6 +399,12 @@ class Preprocess:
             batch_key = "batch_donor_asset"
         elif atlas == "hnoca":
             cell_type_key = "snapseed_pca_rss_level_123"
+            cell_type_key_list = ['annot_level_1',
+                                    'annot_level_2',
+                                    'annot_level_3_rev2',
+                                    'annot_level_4_rev2',
+                                    'annot_region_rev2',
+                                    'annot_ntt_rev2',]
             batch_key = "batch"
         elif atlas == "heoca":
             cell_type_key = "cell_type"
@@ -437,7 +444,7 @@ class Preprocess:
         if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
             raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
 
-        return cell_type_key, batch_key, unlabeled_key_model
+        return cell_type_key, cell_type_key_list, batch_key, unlabeled_key_model
 
     def __get_keys_user(configuration):
         #Get parameters from user input
