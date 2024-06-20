@@ -70,6 +70,10 @@ class ArchmapBaseModel():
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
+        # if self._cell_type_key_list is None:
+        #     self._cell_type_key_list = [self._cell_type_key]
+
+
         self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
         self._clf_knn = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
@@ -167,7 +171,7 @@ class ArchmapBaseModel():
         reference_latent.obs = self._reference_adata.obs
 
         #Calculate mapping uncertainty and write into .obs
-        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, self._cell_type_key_list, False)
+        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", False)
         classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
 
         #stress score
