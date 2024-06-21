@@ -491,7 +491,8 @@ class ArchmapBaseModel():
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
-        #Align genes and gene order to model      
+        #Align genes and gene order to model 
+        self._query_adata.var_names_make_unique()
         scarches.models.SCVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
         #Setup adata internals for mapping
@@ -527,6 +528,9 @@ class ScANVI(ArchmapBaseModel):
         if self._cell_type_key in self._query_adata.obs.columns:
             self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
         self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
+
+        self._query_adata.var_names_make_unique()
+        
         scarches.models.SCANVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
         #Setup adata internals for mapping
