@@ -10,6 +10,7 @@ import anndata as ad
 #import milopy
 # import pertpy as pt
 from matplotlib.lines import Line2D
+from utils.utils import fetch_file_from_s3
 
 import pickle
 
@@ -33,82 +34,91 @@ def mahalanobis(v, data):
         vector[centroid_index] = mahal
     return vector
 
+# def classification_uncert_mahalanobis(
+#         configuration, 
+#         adata_ref_latent, 
+#         adata_query_latent,
+#         adata_query_raw,
+#         embedding_name, 
+#         cell_type_key,
+#         pretrained
+#     ):
+#     """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
+#     to the cell cluster centroids
+
+#     Args:
+#         adata_ref_latent (AnnData): Latent representation of the reference
+#         adata_query_latent (AnnData): Latent representation of the query
+
+#     Returns:
+#         uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
+#     """    
+
+#     #Load model
+#     if pretrained:
+#         atlas = get_from_config(configuration, utils.parameters.ATLAS)
+
+#         with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
+#             kmeans = pickle.load(file)
+#     else:
+#         kmeans = train_mahalanobis(None, adata_ref_latent, embedding_name, cell_type_key, pretrained)
+    
+#     uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_raw.obs_names)
+#     centroids = kmeans.cluster_centers_
+#     adata_query = kmeans.transform(adata_query_latent.X)
+
+#     for query_cell_index in range(len(adata_query)):
+#         query_cell = adata_query_latent.X[query_cell_index]
+#         distance = mahalanobis(query_cell, centroids)
+#         uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(distance)
+        
+#     max_distance = np.max(uncertainties["uncertainty"])
+#     min_distance = np.min(uncertainties["uncertainty"])
+#     uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
+#     adata_query_raw.obs['uncertainty_mahalanobis'] = uncertainties.to_numpy(dtype="float32")
+    
+#     return uncertainties, centroids
+
 def classification_uncert_mahalanobis(
         configuration, 
         adata_ref_latent, 
-        adata_query_latent,
+        adata_query_latent, 
         adata_query_raw,
         embedding_name, 
-        cell_type_key,
-        pretrained
-    ):
-    """ Computes classification uncertainty, based on the Mahalanobis distance of each cell
-    to the cell cluster centroids
-
-    Args:
-        adata_ref_latent (AnnData): Latent representation of the reference
-        adata_query_latent (AnnData): Latent representation of the query
-
-    Returns:
-        uncertainties (pandas DataFrame): Classification uncertainties for all of the query cell types
-    """    
-
-    #Load model
-    if pretrained:
-        atlas = get_from_config(configuration, utils.parameters.ATLAS)
-
-        with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
-            kmeans = pickle.load(file)
-    else:
-        kmeans = train_mahalanobis(None, adata_ref_latent, embedding_name, cell_type_key, pretrained)
-    
-    uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_raw.obs_names)
-    centroids = kmeans.cluster_centers_
-    adata_query = kmeans.transform(adata_query_latent.X)
-
-    for query_cell_index in range(len(adata_query)):
-        query_cell = adata_query_latent.X[query_cell_index]
-        distance = mahalanobis(query_cell, centroids)
-        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(distance)
-        
-    max_distance = np.max(uncertainties["uncertainty"])
-    min_distance = np.min(uncertainties["uncertainty"])
-    uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
-    adata_query_raw.obs['uncertainty_mahalanobis'] = uncertainties.to_numpy(dtype="float32")
-    
-    return uncertainties, centroids
-
-def classification_uncert_mahalanobis2(
-        configuration, 
-        adata_ref_latent, 
-        adata_query_latent, 
-        embedding_name, 
-        cell_type_key,
-        pretrained
+        cell_type_key_list,
+        pretrained=True
     ):
     #Load model
-    if pretrained:
-        atlas = get_from_config(configuration, utils.parameters.ATLAS)
+    for cell_type_key in cell_type_key_list:
 
-        with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "rb") as file:
-            gmm = pickle.load(file)
-    else:
-        gmm = train_mahalanobis(None, adata_ref_latent, cell_type_key, pretrained)
-    
-    centroids = gmm.means_
-    cluster_membership = gmm.predict_proba(adata_query_latent[embedding_name])
+        if pretrained:
+            atlas = get_from_config(configuration, utils.parameters.ATLAS)
+            cloud_model_path = get_from_config(configuration, utils.parameters.PRETRAINED_MODEL_PATH)[:-len("model.pt")]
 
-    uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
-    for query_cell_index, query_cell in enumerate(adata_query_latent.X):
-        distance = mahalanobis(query_cell, centroids)
-        weighed_distance = np.multiply(cluster_membership[query_cell_index], distance)
-        uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(weighed_distance)
+            uncert_model_path = "/models/" + atlas + "/uncertainty/" + cell_type_key + "_mahalanobis_distance.pickle"
+            fetch_file_from_s3(cloud_model_path, uncert_model_path)
+
+            with open(uncert_model_path, "rb") as file:
+                gmm = pickle.load(file)
+        else:
+            gmm = train_mahalanobis(None, adata_ref_latent, cell_type_key, pretrained)
         
-    max_distance = np.max(uncertainties["uncertainty"])
-    min_distance = np.min(uncertainties["uncertainty"])
-    uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
-    adata_query_latent.obsm['uncertainty_mahalanobis'] = uncertainties
-    return uncertainties, centroids
+        centroids = gmm.means_
+        cluster_membership = gmm.predict_proba(adata_query_latent[embedding_name])
+
+        uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
+        for query_cell_index, query_cell in enumerate(adata_query_latent.X):
+            distance = mahalanobis(query_cell, centroids)
+            weighed_distance = np.multiply(cluster_membership[query_cell_index], distance)
+            uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(weighed_distance)
+            
+        max_distance = np.max(uncertainties["uncertainty"])
+        min_distance = np.min(uncertainties["uncertainty"])
+        uncertainties["uncertainty"] = (uncertainties["uncertainty"] - min_distance) / (max_distance - min_distance + 1e-8)
+
+        adata_query_raw.obs[f"{cell_type_key}_uncertainty_mahalanobis"] = uncertainties.to_numpy(dtype="float32")
+    
+        # return uncertainties, centroids
 
 def classification_uncert_euclidean(
         configuration,
@@ -116,8 +126,8 @@ def classification_uncert_euclidean(
         adata_query_latent,
         adata_query_raw,
         embedding_name,
-        cell_type_key,
-        pretrained
+        cell_type_key_list=None,
+        pretrained=True
     ):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
@@ -132,34 +142,40 @@ def classification_uncert_euclidean(
         uncertainties (pandas DataFrame): Classification uncertainties for all of query cell_types
     """    
 
+
     #Load model
     if pretrained:
         atlas = get_from_config(configuration, utils.parameters.ATLAS)
+        cloud_model_path = get_from_config(configuration, utils.parameters.PRETRAINED_MODEL_PATH)[:-len("model.pt")]
 
-        with open("/models/" + atlas + "/" + "euclidian_distance.pickle", "rb") as file:
+        uncert_model_path = "/models/" + atlas + "/euclidian_distance.pickle"
+        fetch_file_from_s3(cloud_model_path, uncert_model_path)
+
+        with open(uncert_model_path, "rb") as file:
             trainer = pickle.load(file)
     else:
         trainer = train_euclidian(None, adata_ref_latent, embedding_name, pretrained)
 
     #Make sure cell_type is all strings (comparison with NaN and string doesnt work)
-    cell_type_cols = adata_ref_latent.obs.columns[adata_ref_latent.obs.columns.str.startswith(cell_type_key)]
-    for col in cell_type_cols:
-        adata_ref_latent.obs[col] = adata_ref_latent.obs[col].astype(str)
+    for cell_type_key in cell_type_key_list:
+        cell_type_cols = adata_ref_latent.obs.columns[adata_ref_latent.obs.columns.str.startswith(cell_type_key)]
+        for col in cell_type_cols:
+            adata_ref_latent.obs[col] = adata_ref_latent.obs[col].astype(str)
 
-    _, uncertainties, _ = sca.utils.weighted_knn_transfer(
-        adata_query_latent,
-        embedding_name,
-        adata_ref_latent.obs,
-        cell_type_key,
-        trainer
-    )
-    #Important to store as numpy array in obs for cellbygene visualization
-    if(len(uncertainties.columns) > 1):
-        for entry in uncertainties.columns:
-            name = str(entry + '_uncertainty_euclidean')
-            adata_query_raw.obs[name] = uncertainties[entry].to_numpy(dtype="float32")
-    else:
-        adata_query_raw.obs[cell_type_key + '_uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
+        _, uncertainties = sca.utils.weighted_knn_transfer(
+            adata_query_latent,
+            embedding_name,
+            adata_ref_latent.obs,
+            cell_type_key,
+            trainer
+        )
+        #Important to store as numpy array in obs for cellbygene visualization
+        if(len(uncertainties.columns) > 1):
+            for entry in uncertainties.columns:
+                name = str(entry + '_uncertainty_euclidean')
+                adata_query_raw.obs[name] = uncertainties[entry].to_numpy(dtype="float32")
+        else:
+            adata_query_raw.obs[cell_type_key + '_uncertainty_euclidean'] = uncertainties.to_numpy(dtype="float32")
     
     return trainer
 

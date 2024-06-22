@@ -4,21 +4,25 @@ from scarches.dataset.trvae.data_handling import remove_sparsity
 from classifiers import Classifiers
 
 
-def main(atlas, label):
+def main(atlas, label, is_scpoli=False):
 
     adata=sc.read(f"data/{atlas}.h5ad")
 
-    reference_latent=sc.AnnData(adata.obsm["X_latent_qzm"], adata.obs)
+    if is_scpoli:
+        reference_latent=sc.AnnData(adata.obsm["X_latent_qzm_scpoli"], adata.obs)
+
+    else:
+        reference_latent=sc.AnnData(adata.obsm["X_latent_qzm"], adata.obs)
 
     if isinstance(label, list):
         for l in label:
             #create knn classifier
             clf = Classifiers(False, True, None)
-            clf.create_classifier(reference_latent, True, "", label, f"models_new/{atlas}/{atlas}_{l}")
+            clf.create_classifier(reference_latent, True, "", l, f"models_new/{atlas}/{atlas}_{l}")
 
             #create xgb classifier
             clf = Classifiers(True, False, None)
-            clf.create_classifier(reference_latent, True, "", label, f"models_new/{atlas}/{atlas}_{l}")
+            clf.create_classifier(reference_latent, True, "", l, f"models_new/{atlas}/{atlas}_{l}")
 
 
     else:
@@ -35,7 +39,7 @@ if __name__ == "__main__":
 
     # atlas_dict = {"fetal_brain": "subregion_class"}
 
-    atlas_dict = {"hnoca":
+    atlas_dict = {"hnoca_new":
     ['annot_level_1',
     'annot_level_2',
     'annot_level_3_rev2',
@@ -65,7 +69,7 @@ if __name__ == "__main__":
     #               }
 
     for atlas, label in atlas_dict.items():
-        main(atlas, label)
+        main(atlas, label, is_scpoli=True)
         print(f"successfully created classifier for {atlas}")
     # for atlas, label in atlas_dict_scpoli.items():
     #     main(atlas, label, is_scpoli=True) 

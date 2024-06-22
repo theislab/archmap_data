@@ -51,7 +51,7 @@ class Classifiers:
     query: adata to save labels to
     query_latent: adata to read .X from for label prediction
     '''
-    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding"):
+    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding", cell_type_key=None):
         le = LabelEncoder()
 
         if self.__classifier_xgb:
@@ -61,8 +61,8 @@ class Classifiers:
             xgb_model = XGBClassifier()
             xgb_model.load_model(classifier_path)
             
-            query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
-            prediction_label = "prediction_xgb"
+            query.obs[f"{cell_type_key}_prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
+            prediction_label = f"{cell_type_key}_prediction_xgb"
 
         if self.__classifier_knn:
             with open(encoding_path, "rb") as file:
@@ -71,18 +71,18 @@ class Classifiers:
             with open(classifier_path, "rb") as file:
                 knn_model = pickle.load(file)
 
-            query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
-            prediction_label = "prediction_knn"
+            query.obs[f"{cell_type_key}_prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
+            prediction_label = f"{cell_type_key}_prediction_knn"
 
         if self.__classifier_native is not None:
             if "SCANVI" in str(self.__model_class):
-                query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
-                prediction_label = "prediction_scanvi"
+                query.obs[f"{cell_type_key}_prediction_scanvi"] = self.__classifier_native.predict(query)
+                prediction_label = f"{cell_type_key}_prediction_scanvi"
             else:
                 output=self.__classifier_native.classify(query, scale_uncertainties=True)
-                query.obs["prediction_scpoli"] = list(output.values())[0]["preds"]
-                query.obs["uncertainty_scpoli"] = list(output.values())[0]["uncert"]
-                prediction_label = "prediction_scpoli"
+                query.obs[f"{cell_type_key}_prediction_scpoli"] = list(output.values())[0]["preds"]
+                query.obs[f"{cell_type_key}_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
+                prediction_label = f"{cell_type_key}_prediction_scpoli"
 
         # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
         percent_unknown = percentage_unknown(query, prediction_label)
