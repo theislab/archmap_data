@@ -259,6 +259,7 @@ class ArchmapBaseModel():
         self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
         self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
         self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
+        self._reference_adata.obs['prediction_scanvi'] = pandas.Series(dtype="category")
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
