@@ -68,12 +68,20 @@ class ArchmapBaseModel():
         self._cell_type_key = None
         self._batch_key = None
         self._unlabeled_key = None
+        self.cell_type_key_input = "cell_type"
+        self.batch_key_input = "batch"
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
         if self._cell_type_key_list is None:
             self._cell_type_key_list = [self._cell_type_key]
+
+        # self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input]
+
+        # if self._cell_type_key_input in self._query_adata.obs.columns:
+        #     self._query_adata.obs[self._cell_type_key] = self._query_adata.obs[self.cell_type_key_input]
+        # self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
 
 
         self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
@@ -100,7 +108,7 @@ class ArchmapBaseModel():
         # threshold = 10000
         if self._atlas == "fetal_brain":
             lr=0.1
-            # self._max_epochs = 40
+            self._max_epochs = 40
         else:
             lr=0.001
 
@@ -149,7 +157,7 @@ class ArchmapBaseModel():
         ratio = inter_len / len(ref_vars)
         print(ratio)
 
-        utils.notify_backend(self._webhook, {"ratio":ratio})
+        # utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
@@ -385,7 +393,7 @@ class ArchmapBaseModel():
         self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
         print(f"query_with_anchor: {self.query_with_anchor}")
 
-        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
+        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
         
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -394,7 +402,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:
@@ -555,7 +563,7 @@ class ScVI(ArchmapBaseModel):
 
 class ScANVI(ArchmapBaseModel):
     def _map_query(self, supervised=False):
-        #Align genes and gene order to model
+        #Align genes and gene order to model 
         if self._cell_type_key in self._query_adata.obs.columns:
             self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
         self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
