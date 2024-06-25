@@ -39,6 +39,7 @@ class ArchmapBaseModel():
 
         self._atlas = get_from_config(configuration=configuration, key=parameters.ATLAS)
         self._model_type = get_from_config(configuration=configuration, key=parameters.MODEL)
+        self._model_id = get_from_config(configuration=configuration, key=parameters.MODEL_ID)
         self._model_path = get_from_config(configuration=configuration, key=parameters.PRETRAINED_MODEL_PATH)
         self._scpoli_attr = get_from_config(configuration=configuration, key=parameters.SCPOLI_ATTR)
         self._scpoli_model_params = get_from_config(configuration=configuration, key=parameters.SCPOLI_MODEL_PARAMS)
@@ -49,6 +50,7 @@ class ArchmapBaseModel():
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
+        print(f"model_id: {self._model_id}")
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
         self._temp_model_path = ""
         self._model = None
