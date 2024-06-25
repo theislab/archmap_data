@@ -83,8 +83,7 @@ def classification_uncert_mahalanobis(
         configuration, 
         adata_ref_latent, 
         adata_query_latent, 
-        adata_query_raw,
-        embedding_name, 
+        adata_query_raw, 
         cell_type_key_list,
         pretrained=True
     ):
@@ -93,18 +92,19 @@ def classification_uncert_mahalanobis(
 
         if pretrained:
             atlas = get_from_config(configuration, utils.parameters.ATLAS)
-            cloud_model_path = get_from_config(configuration, utils.parameters.PRETRAINED_MODEL_PATH)[:-len("model.pt")]
+            model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
+            cloud_model_path = "models/" + model_id + "/uncertainty/" + cell_type_key + "_mahalanobis_distance.pickle"
+            uncert_model_path = "./" +atlas + "_mahalanobis_distance.pickle"
 
-            uncert_model_path = "/models/" + atlas + "/uncertainty/" + cell_type_key + "_mahalanobis_distance.pickle"
             fetch_file_from_s3(cloud_model_path, uncert_model_path)
 
             with open(uncert_model_path, "rb") as file:
                 gmm = pickle.load(file)
         else:
-            gmm = train_mahalanobis(None, adata_ref_latent, cell_type_key, pretrained)
+            gmm = train_mahalanobis(None, adata_ref_latent, cell_type_key, pretrained=pretrained)
         
         centroids = gmm.means_
-        cluster_membership = gmm.predict_proba(adata_query_latent[embedding_name])
+        cluster_membership = gmm.predict_proba(adata_query_latent.X)
 
         uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
         for query_cell_index, query_cell in enumerate(adata_query_latent.X):
@@ -146,15 +146,16 @@ def classification_uncert_euclidean(
     #Load model
     if pretrained:
         atlas = get_from_config(configuration, utils.parameters.ATLAS)
-        cloud_model_path = get_from_config(configuration, utils.parameters.PRETRAINED_MODEL_PATH)[:-len("model.pt")]
 
-        uncert_model_path = "/models/" + atlas + "/euclidian_distance.pickle"
+        model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
+        cloud_model_path = "models/" + model_id + "/uncertainty/euclidian_distance.pickle"
+        uncert_model_path = "./" +atlas + "_euclidian_distance.pickle"
         fetch_file_from_s3(cloud_model_path, uncert_model_path)
 
         with open(uncert_model_path, "rb") as file:
             trainer = pickle.load(file)
     else:
-        trainer = train_euclidian(None, adata_ref_latent, embedding_name, pretrained)
+        trainer = train_euclidian(None, adata_ref_latent, embedding_name, pretrained=pretrained)
 
     #Make sure cell_type is all strings (comparison with NaN and string doesnt work)
     for cell_type_key in cell_type_key_list:
@@ -375,13 +376,10 @@ def train_euclidian(atlas, adata_ref_latent, embedding_name, pretrained, n_neigh
     else:
         return trainer
 
-def train_mahalanobis(atlas, adata_ref_latent, embedding_name, cell_type_key, pretrained):
+def train_mahalanobis(atlas, adata_ref_latent, cell_type_key, pretrained):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
-    if embedding_name == "X":
-        train_emb = adata_ref_latent.X
-    elif embedding_name in adata_ref_latent.obsm.keys():
-        train_emb = adata_ref_latent.obsm[embedding_name]
+    train_emb = adata_ref_latent.X
 
     #Required too much RAM
     # gmm = GaussianMixture(n_components=num_clusters)

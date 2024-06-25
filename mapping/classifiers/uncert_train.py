@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scarches as sca
 import pickle
+import os
 
 
 from sklearn.mixture import GaussianMixture
@@ -28,6 +29,7 @@ def train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key, pretraine
 
     #Save or return model
     if pretrained:
+        
         with open("models_uncert/" + atlas + "/" + cell_type_key + "_mahalanobis_distance.pickle", "wb") as file:
             pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
     else:
@@ -58,6 +60,9 @@ def main(atlas, adata_ref, cell_type_key_list=None, is_scpoli = False):
 
     train_euclidian(atlas, adata_ref, embedding_name)
 
+    if isinstance(cell_type_key_list,str):
+        cell_type_key_list = [cell_type_key_list]
+
     for cell_type_key in cell_type_key_list:
         print(cell_type_key)
         train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key)
@@ -66,13 +71,46 @@ def main(atlas, adata_ref, cell_type_key_list=None, is_scpoli = False):
 
 if __name__ == "__main__":
 
-    atlas = "hnoca_new"
-    adata_ref = sc.read(f"data/{atlas}.h5ad")
-    cell_type_key_list = ['annot_level_1',
-                        'annot_level_2',
-                        'annot_level_3_rev2',
-                        'annot_level_4_rev2',
-                        'annot_region_rev2',
-                        'annot_ntt_rev2',]
 
-    main(atlas, adata_ref, cell_type_key_list, is_scpoli = True)
+    
+    # cell_type_key_list = ['annot_level_1',
+    #                     'annot_level_2',
+    #                     'annot_level_3_rev2',
+    #                     'annot_level_4_rev2',
+    #                     'annot_region_rev2',
+    #                     'annot_ntt_rev2',]
+    
+    atlas_dict = {"hlca": "scanvi_label",
+                  #"gb": "CellID",
+                #   "fetal_immune":"celltype_annotation",
+                #   "nsclc": "cell_type",
+                #   "retina": "CellType",
+                #   "pancreas_scanvi":"cell_type",
+                #   "hypomap": "Author_CellType",
+                  }
+    atlas_dict_scpoli = {
+                #   "hlca_retrained": "ann_finest_level",           
+                #   "pancreas_scpoli":"cell_type",
+                #   "pbmc":"cell_type_for_integration",
+                #   "hnoca":"annot_level_2",
+                #   "heoca": "cell_type"
+     
+                }
+
+    for atlas, cell_type_key_list in atlas_dict_scpoli.items():
+
+        directory = "models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        adata_ref = sc.read(f"data/{atlas}.h5ad")
+        main(atlas, adata_ref, cell_type_key_list, is_scpoli = True)
+
+    for atlas, cell_type_key_list in atlas_dict.items():
+
+        directory = "models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        adata_ref = sc.read(f"data/{atlas}.h5ad")
+        main(atlas, adata_ref, cell_type_key_list, is_scpoli = False)

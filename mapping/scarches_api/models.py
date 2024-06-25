@@ -147,7 +147,7 @@ class ArchmapBaseModel():
         ratio = inter_len / len(ref_vars)
         print(ratio)
 
-        # utils.notify_backend(self._webhook, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
@@ -169,14 +169,13 @@ class ArchmapBaseModel():
         reference_latent.obs = self._reference_adata.obs
 
         #Calculate mapping uncertainty and write into .obs
-        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key_list, False)
-        classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key_list, False)
+        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key_list, True)
+        classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, self._cell_type_key_list, True)
 
         #stress score
         if self._atlas=="hnoca":
             print("calculating stress score")
             stress_score(self._query_adata)
-            print(self._query_adata.obs["Hallmark_Glycolysis_Score"])
 
     def _transfer_labels(self):
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
@@ -189,7 +188,7 @@ class ArchmapBaseModel():
         if self._clf_native:
             clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
 
-            for cell_type_key in self._cell_type_key:
+            for cell_type_key in self._cell_type_key_list:
                 self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
 
 
@@ -198,24 +197,37 @@ class ArchmapBaseModel():
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__)
             self._clf_path = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_PATH)
 
-            for cell_type_key in self._cell_type_key:
-
-                self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
+            for cell_type_key in self._cell_type_key_list:
+                
+                if len(self._cell_type_key_list) > 1:
+                    self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
+                else:
+                    self._clf_encoding_path = self._clf_path + "classifier_encoding.pickle"
 
                 #Download classifiers and encoding from GCP if kNN or XGBoost
                 if self._clf_xgb:
+
+                    if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
+                    else:
+                        self._clf_model_path = self._clf_path + "classifier_xgb.ubj"
+
                     self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
                     fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
 
                     self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
-                    self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
                     fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
                 elif self._clf_knn:
+
+                    if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
+                    else:
+                        self._clf_model_path = self._clf_path + "classifier_knn.pickle"
+
                     self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
                     fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
 
-                    self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
                     self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
                     fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
@@ -280,6 +292,8 @@ class ArchmapBaseModel():
             self._reference_adata.obs[cell_type_key + 'prediction_knn'] = pandas.Series(dtype="category")
             self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = pandas.Series(dtype="category")
 
+            self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
+
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
         temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -329,15 +343,10 @@ class ArchmapBaseModel():
     def _save_data(self):
         # add .X to self._combined_adata
 
-        print(self._combined_adata.obs.columns)
-
         print("adding X from cloud")
         self.add_X_from_cloud()
-        print(self._combined_adata.obs.columns)
-
 
         combined_downsample = self.downsample_adata()
-        print(self._combined_adata.obs.columns)
 
         # Calculate presence score
 
@@ -374,7 +383,7 @@ class ArchmapBaseModel():
         self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
         print(f"query_with_anchor: {self.query_with_anchor}")
 
-        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
         
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -383,7 +392,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:
@@ -462,7 +471,9 @@ class ArchmapBaseModel():
             total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
             # Get unique cell types
-            celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
+            print(celltypes)
 
             # Calculate the proportion of each cell type in the reference data
             celltype_proportions = {celltype: np.sum(ref_adata.obs[self._cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
@@ -481,7 +492,8 @@ class ArchmapBaseModel():
                 sampled_cell_index.extend(sampled_cells)
         else:
             # Old approach: Sample 10% from each cell type in the reference data
-            celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
+            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
             percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
         
             sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])

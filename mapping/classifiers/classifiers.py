@@ -85,7 +85,8 @@ class Classifiers:
                 prediction_label = f"{cell_type_key}_prediction_scpoli"
 
         # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
-        percent_unknown = percentage_unknown(query, prediction_label)
+        percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
+        percent_unknown = 0.0
         print(percent_unknown)
 
         return round(percent_unknown, 2)
