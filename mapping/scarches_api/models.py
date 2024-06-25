@@ -157,7 +157,7 @@ class ArchmapBaseModel():
         ratio = inter_len / len(ref_vars)
         print(ratio)
 
-        # utils.notify_backend(self._webhook, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
@@ -393,7 +393,7 @@ class ArchmapBaseModel():
         self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
         print(f"query_with_anchor: {self.query_with_anchor}")
 
-        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
         
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -402,7 +402,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:
