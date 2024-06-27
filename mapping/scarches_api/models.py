@@ -77,11 +77,8 @@ class ArchmapBaseModel():
         if self._cell_type_key_list is None:
             self._cell_type_key_list = [self._cell_type_key]
 
-        # self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input]
-
-        # if self._cell_type_key_input in self._query_adata.obs.columns:
-        #     self._query_adata.obs[self._cell_type_key] = self._query_adata.obs[self.cell_type_key_input]
-        # self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
+        self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
+        self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
 
 
         self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
@@ -356,6 +353,10 @@ class ArchmapBaseModel():
         print("adding X from cloud")
         self.add_X_from_cloud()
 
+        del self._combined_adata.obs[self.batch_key_input]
+
+        self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
+
         combined_downsample = self.downsample_adata()
 
         # Calculate presence score
@@ -394,9 +395,11 @@ class ArchmapBaseModel():
         print(f"query_with_anchor: {self.query_with_anchor}")
 
         utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
-        
+
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
+
+
 
     def add_X_from_cloud(self):
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
@@ -564,8 +567,8 @@ class ScVI(ArchmapBaseModel):
 class ScANVI(ArchmapBaseModel):
     def _map_query(self, supervised=False):
         #Align genes and gene order to model 
-        if self._cell_type_key in self._query_adata.obs.columns:
-            self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
+        # if self._cell_type_key in self._query_adata.obs.columns:
+        #     self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
         self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
 
         self._query_adata.var_names_make_unique()
