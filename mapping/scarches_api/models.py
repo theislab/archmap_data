@@ -77,10 +77,12 @@ class ArchmapBaseModel():
         if self._cell_type_key_list is None:
             self._cell_type_key_list = [self._cell_type_key]
 
-        self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
+        
         self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
 
-        del self._query_adata.obs[self.batch_key_input]
+        if self.batch_key_input != self._batch_key:
+            del self._query_adata.obs[self.batch_key_input]
+            self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
 
 
         self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
