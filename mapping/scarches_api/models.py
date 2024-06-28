@@ -39,6 +39,7 @@ class ArchmapBaseModel():
 
         self._atlas = get_from_config(configuration=configuration, key=parameters.ATLAS)
         self._model_type = get_from_config(configuration=configuration, key=parameters.MODEL)
+        self._model_id = get_from_config(configuration=configuration, key=parameters.MODEL_ID)
         self._model_path = get_from_config(configuration=configuration, key=parameters.PRETRAINED_MODEL_PATH)
         self._scpoli_attr = get_from_config(configuration=configuration, key=parameters.SCPOLI_ATTR)
         self._scpoli_model_params = get_from_config(configuration=configuration, key=parameters.SCPOLI_MODEL_PARAMS)
@@ -49,6 +50,7 @@ class ArchmapBaseModel():
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
+        print(f"model_id: {self._model_id}")
         #Has to be empty for the load_query_data function to work properly (looking for "model.pt")
         self._temp_model_path = ""
         self._model = None
@@ -66,20 +68,27 @@ class ArchmapBaseModel():
         self._cell_type_key = None
         self._batch_key = None
         self._unlabeled_key = None
+        self.cell_type_key_input = "cell_type"
+        self.batch_key_input = "batch"
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
-        # if self._cell_type_key_list is None:
-        #     self._cell_type_key_list = [self._cell_type_key]
+        if self._cell_type_key_list is None:
+            self._cell_type_key_list = [self._cell_type_key]
+
+        
+        self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
+
+        if self.batch_key_input != self._batch_key:
+            del self._query_adata.obs[self.batch_key_input]
+            self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
 
 
-        self._clf_native = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
-        self._clf_xgb = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
-        self._clf_knn = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
-        self._clf_model_path = get_from_config(configuration=configuration, key=parameters.CLASSIFIER_PATH)
-        self._clf_encoding_path = get_from_config(configuration=configuration, key=parameters.ENCODING_PATH)
-
+        self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
+        self._clf_xgb = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
+        self._clf_knn = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
+        
         end_time = time.time() 
         print(f"time {end_time-start_time}")
 
@@ -171,45 +180,77 @@ class ArchmapBaseModel():
         reference_latent.obs = self._reference_adata.obs
 
         #Calculate mapping uncertainty and write into .obs
-        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
-        classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key, False)
+        self.knn_ref_trainer= classification_uncert_euclidean(self._configuration, reference_latent, query_latent, self._query_adata, "X", self._cell_type_key_list, True)
+        classification_uncert_mahalanobis(self._configuration, reference_latent, query_latent, self._query_adata, self._cell_type_key_list, True)
 
         #stress score
         if self._atlas=="hnoca":
             print("calculating stress score")
             stress_score(self._query_adata)
-            print(self._query_adata.obs["Hallmark_Glycolysis_Score"])
 
     def _transfer_labels(self):
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
             return
+        
+        #Compute label transfer and save to respective .obs
+        query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
+
 
         if self._clf_native:
             clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
 
+            for cell_type_key in self._cell_type_key_list:
+                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
+
+
         #Instantiate xgb or knn classifier if selected
         if self._clf_xgb or self._clf_knn:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__)
+            self._clf_path = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_PATH)
 
-            #Download classifiers and encoding from GCP if kNN or XGBoost
-            if self._clf_xgb:
-                self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
-                fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+            for cell_type_key in self._cell_type_key_list:
+                
+                if len(self._cell_type_key_list) > 1:
+                    self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
+                else:
+                    self._clf_encoding_path = self._clf_path + "classifier_encoding.pickle"
 
-                self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
-                fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
-            elif self._clf_knn:
-                self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
-                fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+                #Download classifiers and encoding from GCP if kNN or XGBoost
+                if self._clf_xgb:
 
-                self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
-                fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
+                    if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
+                    else:
+                        self._clf_model_path = self._clf_path + "classifier_xgb.ubj"
 
-        #Compute label transfer and save to respective .obs
-        query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
-        
-        self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path)
+                    self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
+                    fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
 
+                    self._temp_clf_model_path = tempfile.mktemp(suffix=".ubj")
+                    fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
+
+                elif self._clf_knn:
+
+                    if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
+                    else:
+                        self._clf_model_path = self._clf_path + "classifier_knn.pickle"
+
+                    self._temp_clf_encoding_path = tempfile.mktemp(suffix=".pickle")
+                    fetch_file_from_s3(self._clf_encoding_path, self._temp_clf_encoding_path)
+
+                    self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
+                    fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
+
+                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
+
+                # remove temp files
+                if self._temp_clf_model_path is not None:
+                    if os.path.exists(self._temp_clf_model_path):
+                        os.remove(self._temp_clf_model_path)
+                if self._temp_clf_encoding_path is not None:
+                    if os.path.exists(self._temp_clf_encoding_path):
+                        os.remove(self._temp_clf_encoding_path)
 
     def _concat_data(self):
 
@@ -255,11 +296,14 @@ class ArchmapBaseModel():
         
         print("concatenating on disk")
         #Added because concat_on_disk only allows inner joins
-        self._reference_adata.obs[self._cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-        self._reference_adata.obs['prediction_xgb'] = pandas.Series(dtype="category")
-        self._reference_adata.obs['prediction_knn'] = pandas.Series(dtype="category")
-        self._reference_adata.obs['prediction_scanvi'] = pandas.Series(dtype="category")
+        for cell_type_key in self._cell_type_key_list:
+            self._reference_adata.obs[cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
+            self._reference_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
+            self._reference_adata.obs[cell_type_key + 'prediction_xgb'] = pandas.Series(dtype="category")
+            self._reference_adata.obs[cell_type_key + 'prediction_knn'] = pandas.Series(dtype="category")
+            self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = pandas.Series(dtype="category")
+
+            self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -310,9 +354,10 @@ class ArchmapBaseModel():
     def _save_data(self):
         # add .X to self._combined_adata
 
+        self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
+
         print("adding X from cloud")
         self.add_X_from_cloud()
-
 
         combined_downsample = self.downsample_adata()
 
@@ -352,9 +397,11 @@ class ArchmapBaseModel():
         print(f"query_with_anchor: {self.query_with_anchor}")
 
         utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
-        
+
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
+
+
 
     def add_X_from_cloud(self):
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
@@ -439,7 +486,9 @@ class ArchmapBaseModel():
             total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
             # Get unique cell types
-            celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
+            print(celltypes)
 
             # Calculate the proportion of each cell type in the reference data
             celltype_proportions = {celltype: np.sum(ref_adata.obs[self._cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
@@ -458,7 +507,8 @@ class ArchmapBaseModel():
                 sampled_cell_index.extend(sampled_cells)
         else:
             # Old approach: Sample 10% from each cell type in the reference data
-            celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
+            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
             percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
         
             sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
@@ -483,12 +533,6 @@ class ArchmapBaseModel():
         if os.path.exists(os.path.join(self._temp_model_path, "var_names.csv")):
             os.remove(os.path.join(self._temp_model_path, "var_names.csv"))
 
-        if self._temp_clf_model_path is not None:
-            if os.path.exists(self._temp_clf_model_path):
-                os.remove(self._temp_clf_model_path)
-        if self._temp_clf_encoding_path is not None:
-            if os.path.exists(self._temp_clf_encoding_path):
-                os.remove(self._temp_clf_encoding_path)
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
@@ -525,13 +569,12 @@ class ScVI(ArchmapBaseModel):
 
 class ScANVI(ArchmapBaseModel):
     def _map_query(self, supervised=False):
-        #Align genes and gene order to model
-        if self._cell_type_key in self._query_adata.obs.columns:
-            self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
+        #Align genes and gene order to model 
+        # if self._cell_type_key in self._query_adata.obs.columns:
+        #     self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
         self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
 
         self._query_adata.var_names_make_unique()
-        
         scarches.models.SCANVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
         #Setup adata internals for mapping

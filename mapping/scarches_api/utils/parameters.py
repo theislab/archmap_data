@@ -106,3 +106,4 @@ DEV_DEBUG = 'development-mode'
 # USE_GPU = 'use_gpu'
 # sets the used atlas
 ATLAS = 'atlas'
+MODEL_ID = "model_id"

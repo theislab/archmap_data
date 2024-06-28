@@ -338,15 +338,15 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
         stat = np.clip(stat, 0.00, 5.00)
         return stat
 
-def percentage_unknown(query, prediction_label, uncertainty_threshold=0.5):
+def percentage_unknown(query, cell_type_key, prediction_label, uncertainty_threshold=0.5):
     query.obs[f"{prediction_label}_filtered_by_uncert>0.5"] = query.obs[
     prediction_label
     ].mask(
-        query.obs["uncertainty_mahalanobis"] > uncertainty_threshold,
+        query.obs[f"{cell_type_key}_uncertainty_euclidean"] > uncertainty_threshold,
         "Unknown",
     )
 
-    number_unknown = (query.obs["uncertainty_mahalanobis"] > uncertainty_threshold).sum()
+    number_unknown = (query.obs[f"{cell_type_key}_uncertainty_euclidean"] > uncertainty_threshold).sum()
 
     return number_unknown/len(query)*100
 

@@ -398,7 +398,7 @@ class Preprocess:
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
         elif atlas == "hnoca":
-            cell_type_key = "snapseed_pca_rss_level_123"
+            cell_type_key ="annot_level_2" #"snapseed_pca_rss_level_123"
             cell_type_key_list = ['annot_level_1',
                                     'annot_level_2',
                                     'annot_level_3_rev2',
@@ -411,6 +411,9 @@ class Preprocess:
             batch_key = "sample_id"
         elif atlas == "fetal_brain":
             cell_type_key = "subregion_class"
+            batch_key = "batch"
+        elif atlas == "hnoca_extended":
+            cell_type_key = "cell_type"
             batch_key = "batch"
         
 
@@ -440,9 +443,12 @@ class Preprocess:
             # condition_key_model = attr_dict["condition_keys_"][-1]
             unlabeled_key_model = "unlabeled"
 
-        #Check if provided query contains respective labels
-        if cell_type_key not in target_adata.obs.columns or batch_key not in target_adata.obs.columns:
-            raise ValueError("Please double check if cell_type and batch keys in query match the requirements stated on the website")
+        batch_key_input = "batch"
+
+        # Check if provided query contains batch labels
+        if batch_key_input not in target_adata.obs.columns:
+            raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
+        
 
         return cell_type_key, cell_type_key_list, batch_key, unlabeled_key_model
 
