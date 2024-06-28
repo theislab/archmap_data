@@ -413,7 +413,7 @@ class Preprocess:
             cell_type_key = "subregion_class"
             batch_key = "batch"
         elif atlas == "hnoca_extended":
-            cell_type_key = "cell_type"
+            cell_type_key = "annot_level_2_extended"
             batch_key = "batch"
         
 
