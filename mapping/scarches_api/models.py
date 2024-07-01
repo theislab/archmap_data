@@ -363,7 +363,8 @@ class ArchmapBaseModel():
     def _save_data(self):
         # add .X to self._combined_adata
 
-        self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
+        if self.batch_key_input != self._batch_key:
+            self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
 
         print("adding X from cloud")
         self.add_X_from_cloud()
@@ -488,10 +489,10 @@ class ArchmapBaseModel():
         ref_adata = self._combined_adata[self._combined_adata.obs["query"] == "0"]
         query_adata_index = np.where(self._combined_adata.obs["query"] == "1")[0]
 
-        if isinstance(self._cell_type_key,list):
-                celltype_key = self._cell_type_key[0]
+        if isinstance(self._cell_type_key_classifier,list):
+                celltype_key = self._cell_type_key_classifier[0]
         else:
-            celltype_key = self._cell_type_key
+            celltype_key = self._cell_type_key_classifier
 
         # Check if 10% of reference is less than query size times the ratio
         if len(ref_adata) * 0.1 < len(query_adata_index) * query_ratio:
