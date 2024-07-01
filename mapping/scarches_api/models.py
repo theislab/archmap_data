@@ -488,6 +488,11 @@ class ArchmapBaseModel():
         ref_adata = self._combined_adata[self._combined_adata.obs["query"] == "0"]
         query_adata_index = np.where(self._combined_adata.obs["query"] == "1")[0]
 
+        if isinstance(self._cell_type_key,list):
+                celltype_key = self._cell_type_key[0]
+        else:
+            celltype_key = self._cell_type_key
+
         # Check if 10% of reference is less than query size times the ratio
         if len(ref_adata) * 0.1 < len(query_adata_index) * query_ratio:
             # New approach: Proportional sampling based on cell type proportions
@@ -496,16 +501,17 @@ class ArchmapBaseModel():
 
             # Get unique cell types
             # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
-            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
-            print(celltypes)
+
+
+            celltypes = self._combined_adata.obs[celltype_key].unique()
 
             # Calculate the proportion of each cell type in the reference data
-            celltype_proportions = {celltype: np.sum(ref_adata.obs[self._cell_type_key] == celltype) / len(ref_adata) for celltype in celltypes}
+            celltype_proportions = {celltype: np.sum(ref_adata.obs[celltype_key] == celltype) / len(ref_adata) for celltype in celltypes}
 
             # Sample cells from each cell type according to its proportion
             sampled_cell_index = []
             for celltype, proportion in celltype_proportions.items():
-                cell_indices = np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]
+                cell_indices = np.where(ref_adata.obs[celltype_key] == celltype)[0]
                 sample_size = int(total_ref_cells_to_sample * proportion)
                 
                 # Adjust sample size if it exceeds the number of available cells
@@ -516,11 +522,11 @@ class ArchmapBaseModel():
                 sampled_cell_index.extend(sampled_cells)
         else:
             # Old approach: Sample 10% from each cell type in the reference data
-            celltypes = self._combined_adata.obs[self._cell_type_key].unique()
+            celltypes = self._combined_adata.obs[celltype_key].unique()
             # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
             percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
         
-            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[self._cell_type_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
+            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[celltype_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[celltype_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
 
         # Combine sampled reference cells with query cells
         sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
