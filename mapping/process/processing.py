@@ -363,6 +363,7 @@ class Preprocess:
         condition_key_model = None
         unlabeled_key_model = None
         cell_type_key_list = None
+        cell_type_key_classifier = None
 
         if atlas == 'pbmc':
             cell_type_key = 'cell_type_for_integration'
@@ -398,8 +399,8 @@ class Preprocess:
             cell_type_key = "cell_type_scarches"
             batch_key = "batch_donor_asset"
         elif atlas == "hnoca":
-            cell_type_key ="annot_level_2" #"snapseed_pca_rss_level_123"
-            cell_type_key_list = ['annot_level_1',
+            cell_type_key =["snapseed_pca_rss_level_1","snapseed_pca_rss_level_12","snapseed_pca_rss_level_123"]
+            cell_type_key_classifier = ['annot_level_1',
                                     'annot_level_2',
                                     'annot_level_3_rev2',
                                     'annot_level_4_rev2',
@@ -413,10 +414,11 @@ class Preprocess:
             cell_type_key = "subregion_class"
             batch_key = "batch"
         elif atlas == "hnoca_extended":
-            cell_type_key = "annot_level_2_extended"
+            cell_type_key =["snapseed_pca_rss_level_1","snapseed_pca_rss_level_12","snapseed_pca_rss_level_123"]
+            cell_type_key_classifier = "annot_level_2_extended"
             batch_key = "batch"
-        
 
+        
         model_type = utils.get_from_config(configuration, parameters.MODEL)
 
         if model_type in ["scANVI","scVI"]:
@@ -450,7 +452,7 @@ class Preprocess:
             raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
         
 
-        return cell_type_key, cell_type_key_list, batch_key, unlabeled_key_model
+        return cell_type_key, cell_type_key_classifier, cell_type_key_list, batch_key, unlabeled_key_model
 
     def __get_keys_user(configuration):
         #Get parameters from user input

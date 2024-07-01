@@ -68,17 +68,26 @@ class ArchmapBaseModel():
         self._cell_type_key = None
         self._batch_key = None
         self._unlabeled_key = None
-        self.cell_type_key_input = "cell_type"
+        self.cell_type_key_input = "user_cell_type"
         self.batch_key_input = "batch"
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
-        self._cell_type_key, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
+        self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
+
+        if isinstance(self._cell_type_key,list):
+            for key in self._cell_type_key:
+                self._query_adata.obs[key] = [self._unlabeled_key]*len(self._query_adata) 
+        else:
+            self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
+
+        if self._cell_type_key_classifier is None:
+            self._cell_type_key_classifier = self._cell_type_key
 
         if self._cell_type_key_list is None:
-            self._cell_type_key_list = [self._cell_type_key]
-
-        
-        self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata)
+            if isinstance(self._cell_type_key_classifier,list):
+                self._cell_type_key_list = self._cell_type_key_classifier
+            else:
+                self._cell_type_key_list = [self._cell_type_key_classifier]
 
         if self.batch_key_input != self._batch_key:
             del self._query_adata.obs[self.batch_key_input]
@@ -569,11 +578,7 @@ class ScVI(ArchmapBaseModel):
 
 class ScANVI(ArchmapBaseModel):
     def _map_query(self, supervised=False):
-        #Align genes and gene order to model 
-        # if self._cell_type_key in self._query_adata.obs.columns:
-        #     self._query_adata.obs[f"{self._cell_type_key}_user_input"] = self._query_adata.obs[self._cell_type_key]
-        self._query_adata.obs[self._cell_type_key] = [self._unlabeled_key]*len(self._query_adata) 
-
+        
         self._query_adata.var_names_make_unique()
         scarches.models.SCANVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
 
