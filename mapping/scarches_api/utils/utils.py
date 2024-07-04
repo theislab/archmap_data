@@ -671,7 +671,7 @@ def fetch_file_to_temp_path_from_s3(key):
     return filename
 
 
-def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path):
+def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path, use_downsample=False):
     """
     Writes combined_adata to disk, fetches another .h5ad file specified by ref_count_matrix_path.
     Concatenates the .X of the fetched file with query_X_file.
@@ -685,11 +685,23 @@ def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix
     Returns: File path to saved adata with concatenated metadata and .X
     """
 
+    
+    temp_ref_count_matrix_path = fetch_file_to_temp_path_from_s3(ref_count_matrix_path)
+    # Fetch the new file and get its path
+    if use_downsample:
+        # get obs index
+        with h5py.File(temp_ref_count_matrix_path, "r") as f:
+            obs_df=read_elem(f["obs"])
+            obs_index = obs_df.index
+
+            # add query index
+            query_index = combined_adata.obs[combined_adata.obs["query"] == "1"].index
+            obs_index_combined =obs_index.append(query_index)
+            combined_adata = combined_adata[obs_index_combined]
+
     # Write combined_adata to disk
     combined_adata.write(temp_output)
     print(f"combined_adata written to {temp_output}")
-    # Fetch the new file and get its path
-    temp_ref_count_matrix_path = fetch_file_to_temp_path_from_s3(ref_count_matrix_path)
     if temp_ref_count_matrix_path is None:
         print("No file fetched. Exiting.")
         return

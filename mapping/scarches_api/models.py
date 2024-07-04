@@ -367,9 +367,12 @@ class ArchmapBaseModel():
             self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
 
         print("adding X from cloud")
-        self.add_X_from_cloud()
+        count_matrix_size_gb = self.add_X_from_cloud()
 
-        combined_downsample = self.downsample_adata()
+        if count_matrix_size_gb<40:
+            combined_downsample = self.downsample_adata()
+        else:
+            combined_downsample = self._combined_adata.copy() 
 
         # Calculate presence score
 
@@ -460,15 +463,27 @@ class ArchmapBaseModel():
                 combined_adata.X = combined_data_X.X
                 sc.write(self.temp_output_combined, combined_adata)
 
-            else:
+            elif count_matrix_size_gb>=10 and count_matrix_size_gb<40:
                 print("Count matrix size larger than 10 gb.")
                 temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
                 self.adata_query_X.write_h5ad(temp_query.name)
                 del self.adata_query_X
                 gc.collect()
                 self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
-
+                combined_adata = sc.read(self.temp_output_combined)
+            else:
+                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                self.adata_query_X.write_h5ad(temp_query.name)
+                del self.adata_query_X
+                gc.collect()
+                count_matrix_downsample_path = self._reference_adata_path[:-len("data.h5ad")] + "data_count_downsample.h5ad" 
+                # download downsampled counts from cloud and concat
+                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_downsample_path, use_downsample=True)
+                combined_adata = sc.read(self.temp_output_combined)
+                 
             self._combined_adata = combined_adata
+
+            return count_matrix_size_gb
 
 
     def downsample_adata(self, query_ratio=5):
