@@ -373,6 +373,7 @@ class Preprocess:
             batch_key = 'donor'
         elif atlas == 'hlca':
             cell_type_key = 'scanvi_label'
+            cell_type_key_classifier = ["ann_level_3","ann_level_4"]
             batch_key = 'dataset'
         elif atlas == 'hlca_retrained':
             cell_type_key = 'ann_finest_level'
