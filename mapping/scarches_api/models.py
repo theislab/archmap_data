@@ -207,10 +207,7 @@ class ArchmapBaseModel():
 
         if self._clf_native:
             clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
-
-            for cell_type_key in self._cell_type_key_list:
-                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
-
+            self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, self._cell_type_key)
 
         #Instantiate xgb or knn classifier if selected
         if self._clf_xgb or self._clf_knn:
@@ -304,7 +301,7 @@ class ArchmapBaseModel():
             return
         
         print("concatenating on disk")
-        #Added because concat_on_disk only allows inner joins
+        #Added because concat_on_disk only allows inner joins  
         for cell_type_key in self._cell_type_key_list:
             self._reference_adata.obs[cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
             self._reference_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = pandas.Series(dtype="float32")

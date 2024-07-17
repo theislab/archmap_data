@@ -76,31 +76,36 @@ class Classifiers:
 
         if self.__classifier_native is not None:
             if "SCANVI" in str(self.__model_class):
-                query.obs[f"{cell_type_key}_prediction_scanvi"] = self.__classifier_native.predict(query)
-                prediction_label = f"{cell_type_key}_prediction_scanvi"
+                query.obs[f"cell_type_prediction_scanvi"] = self.__classifier_native.predict(query)
+                prediction_label = f"cell_type_prediction_scanvi"
             else:
                 output=self.__classifier_native.classify(query, scale_uncertainties=True)
-                query.obs[f"{cell_type_key}_prediction_scpoli"] = list(output.values())[0]["preds"]
-                query.obs[f"{cell_type_key}_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
-                prediction_label = f"{cell_type_key}_prediction_scpoli"
+                query.obs[f"cell_type_prediction_scpoli"] = list(output.values())[0]["preds"]
+                query.obs[f"cell_type_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
+                prediction_label = f"cell_type_prediction_scpoli"
+
 
         # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
-        percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
-        percent_unknown = 0.0
-        print(percent_unknown)
+        if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
+            percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
+            percent_unknown=round(percent_unknown, 2)
+        else:
+            percent_unknown="Na"
 
-        return round(percent_unknown, 2)
+        return percent_unknown
 
 
     '''
     Parameters
     ----------
+    adata: adata with latent rep saved in .X
+    adata_X: adata_X with counts saved in .X
     latent_rep: False if latent representation should be computed from raw adata and model input
     model_path: Only needed if latent_rep is set to "False"
     label_key: Cell type label
     classifier_directory: Output directory for classifier and evaluation files
     '''
-    def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output", validate_on_query=False):
+    def create_classifier(self, adata, adata_X, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output", validate_on_query=False, hp_tuning=False):
         if not os.path.exists(classifier_directory):
             os.makedirs(classifier_directory, exist_ok=True)
 
@@ -113,7 +118,7 @@ class Classifiers:
             
         )
         
-        X_train, X_test, y_train, y_test = Classifiers.__split_train_data(
+        X_train, X_test, y_train, y_test, test_indices = Classifiers.__split_train_data(
             self,
             train_data=train_data,
             input_adata=adata,
@@ -129,16 +134,20 @@ class Classifiers:
             y_train=y_train,
             xgb=self.__classifier_xgb,
             kNN=self.__classifier_knn,
-            classifier_directory=classifier_directory
+            classifier_directory=classifier_directory,
+            hp_tuning=hp_tuning
         )
         
-        reports = Classifiers.eval_classifier(
+        reports, preds = Classifiers.eval_classifier(
             self,
             X_test=X_test,
             y_test=y_test,
+            test_indices = test_indices,
+            adata_X = adata_X,
             xgbc=xgbc,
             knnc=knnc,
-            classifier_directory=classifier_directory
+            classifier_directory=classifier_directory,
+            
         )
         
         Classifiers.__plot_eval_metrics(
@@ -146,6 +155,9 @@ class Classifiers:
             reports,
             classifier_directory=classifier_directory
         ) 
+
+        # Classifiers.__plot_confusion_matrix(y_true=y_test, predict_proba=preds, classifier_directory=classifier_directory)
+
 
         Classifiers.__save_eval_metrics_csv(
             self,
@@ -157,23 +169,18 @@ class Classifiers:
         if latent_rep:
             latent_rep = adata
         else:
-            # var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
-            # adata_subset = adata[:,var_names].copy()
-
-            # Preprocess.conform_vars(model_path=model_path, adata=adata)
-
-            # scvi.model.SCVI.setup_anndata(adata_subset)
-
-            if self.__model_class == sca.models.SCVI.__class__:
-                model = scvi.model.SCVI.load(model_path, adata)
-            elif self.__model_class == sca.models.SCANVI.__class__:
-                model = scvi.model.SCANVI.load(model_path, adata)
-            else:
-                raise Exception("Choose model type 'scVI' or 'scANVI'")
-
             if "latent_rep" in adata.obsm:
                 latent_rep = scanpy.AnnData(adata.obsm["latent_rep"], adata.obs)
             else:
+
+
+                if self.__model_class == sca.models.SCVI.__class__:
+                    model = scvi.model.SCVI.load(model_path, adata)
+                elif self.__model_class == sca.models.SCANVI.__class__:
+                    model = scvi.model.SCANVI.load(model_path, adata)
+                else:
+                    raise Exception("Choose model type 'scVI' or 'scANVI'")
+
                 latent_rep = scanpy.AnnData(model.get_latent_representation(), adata.obs)
 
         train_data = pd.DataFrame(
@@ -192,8 +199,6 @@ class Classifiers:
     '''
     def __split_train_data(self, train_data, input_adata, label_key, classifier_directory, validate_on_query=False):
         train_data['cell_type'] = input_adata.obs[label_key]
-        # train_data['type'] = input_adata.obs["type"]
-
 
         #Enable if at least one class has only 1 sample -> Error in stratification for validation set
         train_data = train_data.groupby('cell_type').filter(lambda x: len(x) > 1)
@@ -212,17 +217,25 @@ class Classifiers:
             X_test = X_test.drop(columns='cell_type') 
 
         else:
+            train_indices, test_indices = train_test_split(train_data.index, test_size=0.2, random_state=42, stratify=train_data['cell_type'])
+
+            X_train = train_data.loc[train_indices].drop(columns='cell_type')
+            y_train = train_data['cell_type'].loc[train_indices]
+
+            X_train = train_data.loc[test_indices].drop(columns='cell_type')
+            y_train = train_data['cell_type'].loc[test_indices]
+
             X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
         #Save label encoder
         with open(classifier_directory + "/classifier_encoding.pickle", "wb") as file:
                         pickle.dump(le, file, pickle.HIGHEST_PROTOCOL)
 
-        return X_train, X_test, y_train, y_test
+        return X_train, X_test, y_train, y_test, test_indices
     
-    def __train_classifier(self, X_train, y_train, xgb=True, kNN=True, classifier_directory="path/to/classifier"):
+    def __train_classifier(self, X_train, y_train, xgb=True, kNN=True, classifier_directory="path/to/classifier", hp_tuning=False):
         xgbc = None
-        knnc = None
+        knnc = None        
 
         if xgb:
             xgbc = XGBClassifier(tree_method = "hist", objective = 'multi:softprob', verbosity=3)
@@ -241,7 +254,7 @@ class Classifiers:
 
         return xgbc, knnc
     
-    def eval_classifier(self, X_test, y_test, xgbc=XGBClassifier, knnc=KNeighborsClassifier, classifier_directory="path/to/classifier"):
+    def eval_classifier(self, X_test, y_test, test_indices, adata_X, xgbc=XGBClassifier, knnc=KNeighborsClassifier, classifier_directory="path/to/classifier"):
         reports = {}
 
         #Load label encoder to get classes with real names in report
@@ -271,7 +284,16 @@ class Classifiers:
             print(knnc_report)
 
         if self.__classifier_native is not None:
-            preds = self.__classifier_native.predict(self.__classifier_native, X_test)
+
+            adata_test = adata_X[test_indices]
+
+            # forward pass through encoder and classify
+            if "SCANVI" in str(self.__model_class):
+                preds = self.__classifier_native.predict(adata_test)
+            else:
+                preds = self.__classifier_native.classify(adata_test, scale_uncertainties=True)
+                preds=preds[list(preds.keys())[0]]["preds"]
+                print(preds)
 
             scanvic_report = Classifiers.__eval_classification_report(le.inverse_transform(y_test), preds)
 
@@ -280,7 +302,7 @@ class Classifiers:
             print("scanVI classifier report:")
             print(scanvic_report)
 
-        return reports
+        return reports, preds
 
     def __eval_classification_report(y_true, y_pred):
         clf_report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True)
@@ -298,6 +320,26 @@ class Classifiers:
         #predict_proba = xgb.XGBClassifier.predict_proba()
 
         return roc_auc_score(y_true=y_true, y_score=predict_proba, multi_class="ovr")
+    
+    def __plot_confusion_matrix(y_true, predict_proba, classifier_directory):
+        import scanpy as sc; import seaborn as sns
+        import matplotlib.pyplot as plt
+
+        le = LabelEncoder()
+
+        with open(classifier_directory + "/classifier_encoding.pickle", "rb") as file:
+                le = pickle.load(file)
+
+        print(le.inverse_transform(y_true.values))
+        print(predict_proba)
+        df = pd.DataFrame({"ground truth": le.inverse_transform(y_true.values), "predicted": predict_proba})
+        cmtx = sc.metrics.confusion_matrix("predicted", "ground truth", df)
+        size_x = len(y_true.unique())
+        plt.figure(figsize=(size_x, size_x), layout="tight")
+        plt.grid(False)
+        sns.heatmap(cmtx)
+        plt.savefig(classifier_directory + "/confusion_matrix.png")
+    
 
     def __plot_eval_metrics(self, reports, classifier_directory):
         import seaborn

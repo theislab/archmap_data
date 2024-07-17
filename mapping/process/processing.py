@@ -392,6 +392,7 @@ class Preprocess:
             batch_key = 'author'
         elif atlas == "hypomap":
             cell_type_key = 'Author_CellType'
+            cell_type_key_classifier = ["Author_Class","Author_CellType"]
             batch_key = 'Batch_ID'
         elif atlas == "pancreas":
             cell_type_key = "cell_type"
@@ -413,6 +414,7 @@ class Preprocess:
             batch_key = "sample_id"
         elif atlas == "fetal_brain":
             cell_type_key = "subregion_class"
+            cell_type_key_classifier = ["Tissue","subregion_class"]
             batch_key = "batch"
         elif atlas == "hnoca_extended":
             cell_type_key =["snapseed_pca_rss_level_1","snapseed_pca_rss_level_12","snapseed_pca_rss_level_123"]
