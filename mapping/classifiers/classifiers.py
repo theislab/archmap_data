@@ -74,15 +74,35 @@ class Classifiers:
             query.obs[f"{cell_type_key}_prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
             prediction_label = f"{cell_type_key}_prediction_knn"
 
+        if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
+                    percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
+                    percent_unknown=round(percent_unknown, 2)
+        else:
+            percent_unknown="Na"
+
         if self.__classifier_native is not None:
             if "SCANVI" in str(self.__model_class):
                 query.obs[f"cell_type_prediction_scanvi"] = self.__classifier_native.predict(query)
                 prediction_label = f"cell_type_prediction_scanvi"
+
+                if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
+                    percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
+                    percent_unknown=round(percent_unknown, 2)
+                else:
+                    percent_unknown="Na"
             else:
                 output=self.__classifier_native.classify(query, scale_uncertainties=True)
-                query.obs[f"cell_type_prediction_scpoli"] = list(output.values())[0]["preds"]
-                query.obs[f"cell_type_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
-                prediction_label = f"cell_type_prediction_scpoli"
+                ct_keys = list(output.keys())
+                for ct_key in ct_keys:
+                    query.obs[f"{ct_key}_prediction_scpoli"] = list(output.values())[0]["preds"]
+                    query.obs[f"{ct_key}_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
+                    prediction_label = f"{ct_key}_prediction_scpoli"
+
+                    if f"{ct_key}_uncertainty_euclidean" in query.obs:
+                        percent_unknown = percentage_unknown(query, ct_key, prediction_label)
+                        percent_unknown=round(percent_unknown, 2)
+                    else:
+                        percent_unknown="Na"
 
 
         # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
@@ -292,14 +312,13 @@ class Classifiers:
                 preds = self.__classifier_native.predict(adata_test)
             else:
                 preds = self.__classifier_native.classify(adata_test, scale_uncertainties=True)
-                preds=preds[list(preds.keys())[0]]["preds"]
-                print(preds)
+                preds=preds[list(preds.keys())[1]]["preds"]
 
             scanvic_report = Classifiers.__eval_classification_report(le.inverse_transform(y_test), preds)
 
             reports["scanvi"] = scanvic_report
             
-            print("scanVI classifier report:")
+            print("native classifier report:")
             print(scanvic_report)
 
         return reports, preds

@@ -321,3 +321,8 @@ po/*~
 /.vscode
 
 /mapping/scarches_api/config.py
+/mapping/classifiers/data
+/mapping/classifiers/models
+/mapping/classifiers/models*
+/mapping/integration*
+/mapping/process/convert_legacy*

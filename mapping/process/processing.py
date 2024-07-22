@@ -411,6 +411,7 @@ class Preprocess:
             batch_key = "batch"
         elif atlas == "heoca":
             cell_type_key = "cell_type"
+            cell_type_key_classifier = ['level_2']
             batch_key = "sample_id"
         elif atlas == "fetal_brain":
             cell_type_key = "subregion_class"
