@@ -2,7 +2,7 @@ import scarches
 
 import scarches_api.utils.utils as utils
 import scarches_api.utils.parameters as parameters
-from huggingface_hub import hf_hub_download, HfApi, ModelFilter, snapshot_download, login
+from huggingface_hub import snapshot_download
 from anndata import experimental
 from pathlib import Path
 import json
