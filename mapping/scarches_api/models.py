@@ -164,7 +164,7 @@ class ArchmapBaseModel():
 
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
-        ratio = inter_len / len(ref_vars)
+        ratio = (inter_len / len(ref_vars))*100
         print(ratio)
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
@@ -214,6 +214,7 @@ class ArchmapBaseModel():
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, self._model.__class__)
             self._clf_path = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_PATH)
 
+            # self.percent_unknown = []
             for cell_type_key in self._cell_type_key_list:
                 
                 if len(self._cell_type_key_list) > 1:
@@ -249,6 +250,7 @@ class ArchmapBaseModel():
                     fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
                 self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
+                # self.percent_unknown.append(percent_unknown)
 
                 # remove temp files
                 if self._temp_clf_model_path is not None:
