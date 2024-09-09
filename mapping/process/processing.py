@@ -370,7 +370,7 @@ class Preprocess:
             batch_key = 'sample_ID_lataq'
         elif atlas == 'heart':
             cell_type_key = 'cell_type'
-            batch_key = 'donor'
+            batch_key = 'batch_key'
         elif atlas == 'hlca':
             cell_type_key = 'scanvi_label'
             cell_type_key_classifier = ["ann_level_3","ann_level_4","ann_level_5"]
@@ -421,6 +421,13 @@ class Preprocess:
             cell_type_key =["snapseed_pca_rss_level_1","snapseed_pca_rss_level_12","snapseed_pca_rss_level_123"]
             cell_type_key_classifier = "annot_level_2_extended"
             batch_key = "batch"
+        elif atlas == "plaque":
+            batch_key = "sample"
+            cell_type_key = "cell_type_level2"
+        elif atlas == "breast":
+            batch_key = "batch"
+            cell_type_key = "cell_type"
+
 
         
         model_type = utils.get_from_config(configuration, parameters.MODEL)
