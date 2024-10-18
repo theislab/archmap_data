@@ -3,7 +3,7 @@ from scarches_api.utils import parameters
 import scarches_api.utils.utils as utils
 import scanpy as sc
 import scarches as sca
-from scvi.model.base._save_load import _utils
+from scvi.model.base._save_load import _load_saved_files
 import pynndescent
 import logging
 import pandas as pd
@@ -136,7 +136,7 @@ class Preprocess:
             var_names = gene_ids
         else:
             #Get relative model path
-            var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+            var_names = _load_saved_files(model_path, False, None,  "cpu")[1]
 
         # test if adata.var.index has gene names or ensembl names:
         n_gene_ids = sum(adata.var.index.isin(var_names))
@@ -436,7 +436,7 @@ class Preprocess:
 
             model_path = "."
             import scvi
-            attr_dict =scvi._utils._load_saved_files(model_path, False, None,  "cpu")[0]
+            attr_dict =_load_saved_files(model_path, False, None,  "cpu")[0]
 
             # data_registry = attr_dict["registry_"]
 
@@ -479,7 +479,7 @@ class Preprocess:
         # model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.translate_atlas_to_directory(configuration) + "/"
 
         # #Get label names the model was set up with
-        # attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+        # attr_dict = _load_saved_files(model_path, False, None,  "cpu")[0]
 
         # #Get model data registry and labels
         # #Data management can be different among models, no clear indication in docs
@@ -671,7 +671,7 @@ class Preprocess:
         model_path = "assets/" + utils.get_from_config(configuration, parameters.MODEL) + "/" + utils.get_from_config(configuration, parameters.ATLAS) + "/"
 
         #Get model configuration
-        attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+        attr_dict = _load_saved_files(model_path, False, None,  "cpu")[0]
 
         #Get cell type labels that are unique to target_adata
         cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
