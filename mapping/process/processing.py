@@ -770,6 +770,15 @@ class Postprocess:
         #4. Unique obs index identifier
         combined_downsample.obs_names_make_unique()
 
+        #5. change pandas types to np types
+        for col in combined_downsample.obs.columns:
+            if combined_downsample.obs[col].dtype.kind in ["f"]:
+                combined_downsample.obs[col].fillna(0, inplace=True)
+                combined_downsample.obs[col]=combined_downsample.obs[col].astype(np.float32)
+            elif combined_downsample.obs[col].dtype.kind in ["i","u"]:
+                combined_downsample.obs[col].fillna(0, inplace=True)
+                combined_downsample.obs[col]=combined_downsample.obs[col].astype(np.int32)
+
         #Save as .h5ad
         output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
 
