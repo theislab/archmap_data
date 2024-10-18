@@ -17,7 +17,7 @@ from mapping.scarches_api.utils.utils import read_h5ad_file_from_s3
 from xgboost import XGBClassifier
 
 import scarches as sca
-from scvi.model.base import _utils
+from scvi.model.base._save_load import _load_saved_files
 import pickle
 import scib.preprocessing as pp
 import scib.integration as ig
@@ -56,7 +56,7 @@ class Classifiers:
         if latent_rep:
             latent_rep = adata
         else:
-            var_names = _utils._load_saved_files(model_path, False, None,  "cpu")[1]
+            var_names = _load_saved_files(model_path, False, None,  "cpu")[1]
             adata_subset = adata[:,var_names].copy()
 
             scvi.model.SCVI.setup_anndata(adata_subset)

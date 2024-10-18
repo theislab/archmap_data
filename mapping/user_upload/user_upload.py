@@ -3,7 +3,7 @@ import scarches
 import scarches_api.utils.utils as utils
 import scarches_api.utils.parameters as parameters
 
-from scvi.model.base import _utils
+from scvi.model.base import _save_load
 
 from process.processing import Preprocess
 
@@ -98,7 +98,7 @@ class UserUpload:
 
     def __check_atlas_genes(self, local_model_path, local_reference_data_path):
         tuple = os.path.split(local_model_path)
-        var_names = _utils._load_saved_files(tuple[0], False, None,  "cpu")[1]
+        var_names = _load_saved_files(tuple[0], False, None,  "cpu")[1]
         self.reference_data = scanpy.read_h5ad(local_reference_data_path, backed="r")
 
         try:

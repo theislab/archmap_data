@@ -18,7 +18,6 @@ import scvi
 from xgboost import XGBClassifier
 
 import scarches as sca
-from scvi.model.base import _utils
 import pickle
 import gzip
 # import scib.preprocessing as pp
@@ -310,8 +309,10 @@ class Classifiers:
             # forward pass through encoder and classify
             if "SCANVI" in str(self.__model_class):
                 preds = self.__classifier_native.predict(adata_test)
+                print(preds)
             else:
                 preds = self.__classifier_native.classify(adata_test, scale_uncertainties=True)
+                print(preds)
                 preds=preds[list(preds.keys())[1]]["preds"]
 
             scanvic_report = Classifiers.__eval_classification_report(le.inverse_transform(y_test), preds)
@@ -334,6 +335,37 @@ class Classifiers:
 
     def __eval_precision(y_true, y_pred):
         return precision_score(y_true=y_true, y_pred=y_pred)
+    
+    def __plot_roc_curve(y_true, y_pred):
+
+        import numpy as np
+        from sklearn.metrics import roc_curve, auc
+        import matplotlib.pyplot as plt
+
+        encoded_y_true = np.zeros((y_true.size, y_true.max()+1), dtype=int)
+        encoded_y_true[np.arange(y_true.size),y_true] = 1
+
+        encoded_y_pred = np.zeros((y_pred.size, y_pred.max()+1), dtype=int)
+        encoded_y_pred[np.arange(y_pred.size),y_pred] = 1
+
+        n_classes = encoded_y_true.shape[1]
+
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = roc_curve(encoded_y_true[:, i], encoded_y_pred[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+
+        # Micro-averaged ROC curve and AUC
+        fpr["micro"], tpr["micro"], _ = roc_curve(encoded_y_true.ravel(), encoded_y_pred.ravel())
+        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+        plt.figure()
+        plt.plot(fpr["micro"], tpr["micro"],
+                label='Micro-averaged ROC curve (area = {0:0.2f})'.format(roc_auc["micro"]),
+                color='deeppink', linestyle=':', linewidth=4)
+
 
     def __eval_roc_auc(y_true, predict_proba):
         #predict_proba = xgb.XGBClassifier.predict_proba()
