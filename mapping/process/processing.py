@@ -3,7 +3,7 @@ from scarches_api.utils import parameters
 import scarches_api.utils.utils as utils
 import scanpy as sc
 import scarches as sca
-from scvi.model.base import _utils
+from scvi.model.base._save_load import _utils
 import pynndescent
 import logging
 import pandas as pd
@@ -435,7 +435,8 @@ class Preprocess:
         if model_type in ["scANVI","scVI"]:
 
             model_path = "."
-            attr_dict = _utils._load_saved_files(model_path, False, None,  "cpu")[0]
+            import scvi
+            attr_dict =scvi._utils._load_saved_files(model_path, False, None,  "cpu")[0]
 
             # data_registry = attr_dict["registry_"]
 
