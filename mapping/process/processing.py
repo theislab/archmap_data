@@ -350,7 +350,7 @@ class Preprocess:
 
     #     return cell_type_key, batch_key, unlabeled_key
 
-        
+          
 
     def get_keys(atlas, target_adata, configuration):
 
@@ -364,6 +364,8 @@ class Preprocess:
         unlabeled_key_model = None
         cell_type_key_list = None
         cell_type_key_classifier = None
+        batch_key = None
+        cell_type_key = None
 
         if atlas == 'pbmc':
             cell_type_key = 'cell_type_for_integration'

@@ -601,6 +601,30 @@ def translate_atlas_to_directory(configuration):
         return "plaque"
 
 
+def rename_duplicate_columns(df):
+    # Check if the index has a name and if that name exists as a column in the DataFrame
+    if df.index.name in df.columns:
+        # Compare the index values with the corresponding column values
+        index_values = df.index.to_series()  # Convert index to series
+        column_values = df[df.index.name]
+        
+        # If index values and column values are not the same, rename the column
+        if not index_values.equals(column_values):
+            new_column_name = df.index.name + '_duplicate'
+            
+            # Ensure the new column name is unique
+            i = 1
+            while new_column_name in df.columns:
+                new_column_name = df.index.name + f'_duplicate_{i}'
+                i += 1
+            
+            # Rename the column
+            df = df.rename(columns={df.index.name: new_column_name})
+            
+            print(f"Column '{df.index.name}' renamed to '{new_column_name}' to avoid conflict with the index name.")
+
+    return df
+
 def set_keys(configuration):
     """
     Sets the batch(condition) and cell_type keys, according to the atlas chosen.

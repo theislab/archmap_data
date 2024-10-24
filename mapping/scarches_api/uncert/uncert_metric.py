@@ -127,7 +127,7 @@ def classification_uncert_euclidean(
         adata_query_raw,
         embedding_name,
         cell_type_key_list=None,
-        pretrained=True
+        pretrained=True,
     ):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
@@ -379,19 +379,19 @@ def train_euclidian(atlas, adata_ref_latent, embedding_name, pretrained, n_neigh
 def train_mahalanobis(atlas, adata_ref_latent, cell_type_key, pretrained):
     num_clusters = adata_ref_latent.obs[cell_type_key].nunique()
 
-    train_emb = adata_ref_latent.X
+    # train_emb = adata_ref_latent.X
 
     #Required too much RAM
-    # gmm = GaussianMixture(n_components=num_clusters)
-    # gmm.fit(adata_ref_latent.X.toarray())
+    gmm = GaussianMixture(n_components=num_clusters)
+    gmm.fit(adata_ref_latent.X)
 
     #Less RAM alternative
-    kmeans = KMeans(n_clusters=num_clusters)
-    kmeans.fit(train_emb)
+    # kmeans = KMeans(n_clusters=num_clusters)
+    # kmeans.fit(train_emb)
 
     #Save or return model
     if pretrained:
         with open("/models/" + atlas + "/" + "mahalanobis_distance.pickle", "wb") as file:
-            pickle.dump(kmeans, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
     else:
-        return kmeans
+        return gmm
