@@ -37,6 +37,9 @@ class ScviHub:
         self._clf_xgb = None
         self._clf_knn = None
 
+        self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
+        self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
+
         self.__download_data()
 
         
