@@ -158,7 +158,7 @@ class ScviHub:
         print("save")
         self._save_data()
 
-        utils.notify_backend(utils.get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+        utils.notify_backend(utils.get_from_config(self.__configuration, parameters.WEBHOOK), self.__configuration)
     
 
 
