@@ -125,6 +125,9 @@ def query(user_config):
         sh = ScviHub(configuration=configuration)
 
         sh.map_query()
+
+        return configuration
+    
     else:
         model = utils.get_from_config(configuration, parameters.MODEL)
         configuration['atlas'] = utils.translate_atlas_to_directory(configuration)
