@@ -122,9 +122,9 @@ def query(user_config):
     scvi_hub_id = utils.get_from_config(configuration, parameters.SCVI_HUB_ID)
 
     if scvi_hub_id:
-        sh = ScviHub(configuration=configuration)
+        mapping = ScviHub(configuration=configuration)
 
-        sh.map_query()
+        mapping.map_query()
     
     else:
         model = utils.get_from_config(configuration, parameters.MODEL)
