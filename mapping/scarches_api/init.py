@@ -125,8 +125,6 @@ def query(user_config):
         sh = ScviHub(configuration=configuration)
 
         sh.map_query()
-
-        return configuration
     
     else:
         model = utils.get_from_config(configuration, parameters.MODEL)
@@ -154,17 +152,17 @@ def query(user_config):
         
         # sc.AnnData(mapping._combined_adata.obsm["latent_rep"], mapping._combined_adata.obs).write(f"results/{atlas_name}.h5ad")
 
-        if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
-                get_from_config(configuration, parameters.WEBHOOK)) > 0:
-            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+    if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+            get_from_config(configuration, parameters.WEBHOOK)) > 0:
+        utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
-            cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
-            print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
-            utils.store_file_in_s3(mapping.temp_output_combined, cxg_with_count_path)
-            print("Stored adata with counts on cloud")
-            utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+        print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
+        utils.store_file_in_s3(mapping.temp_output_combined, cxg_with_count_path)
+        print("Stored adata with counts on cloud")
+        utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
-        return configuration
+    return configuration
 
 
 
