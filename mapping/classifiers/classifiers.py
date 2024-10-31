@@ -90,6 +90,7 @@ class Classifiers:
                 else:
                     percent_unknown="Na"
             else:
+                query.X = query.X.astype('float32')
                 output=self.__classifier_native.classify(query, scale_uncertainties=True)
                 ct_keys = list(output.keys())
                 for ct_key in ct_keys:
