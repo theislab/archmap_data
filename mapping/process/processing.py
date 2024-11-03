@@ -2,12 +2,11 @@ import tempfile
 from scarches_api.utils import parameters
 import scarches_api.utils.utils as utils
 import scanpy as sc
-import scarches as sca
 from scvi.model.base._save_load import _load_saved_files
-import pynndescent
 import logging
 import pandas as pd
 import numpy as np
+from scvi.data._constants import _SETUP_METHOD_NAME
 
 class Preprocess:
     def __init__(self):
@@ -436,9 +435,20 @@ class Preprocess:
 
         if model_type in ["scANVI","scVI"]:
 
-            model_path = "."
-            import scvi
-            attr_dict =_load_saved_files(model_path, False, None,  "cpu")[0]
+            model_path = "./model.pt"
+
+            import torch
+            model = torch.load(model_path, map_location="cpu")
+            attr_dict = model["attr_dict"]
+
+            registry = attr_dict.pop("registry_")
+            if _SETUP_METHOD_NAME not in registry.keys():
+                registry[_SETUP_METHOD_NAME]="setup_anndata"
+
+            attr_dict["registry_"]=registry
+            model["attr_dict"]=attr_dict
+
+            torch.save(model,model_path)
 
             # data_registry = attr_dict["registry_"]
 
