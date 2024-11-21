@@ -31,6 +31,7 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import roc_auc_score
 
 from sklearn.preprocessing import LabelEncoder
+from scarches_api.utils.metrics import percentage_unknown
 
 from sklearn.model_selection import train_test_split
 
@@ -50,7 +51,7 @@ class Classifiers:
     query: adata to save labels to
     query_latent: adata to read .X from for label prediction
     '''
-    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding"):
+    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding", cell_type_key=None):
         le = LabelEncoder()
 
         if self.__classifier_xgb:
@@ -60,7 +61,8 @@ class Classifiers:
             xgb_model = XGBClassifier()
             xgb_model.load_model(classifier_path)
             
-            query.obs["prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
+            query.obs[f"{cell_type_key}_prediction_xgb"] = le.inverse_transform(xgb_model.predict(query_latent.X))
+            prediction_label = f"{cell_type_key}_prediction_xgb"
 
         if self.__classifier_knn:
             with open(encoding_path, "rb") as file:
@@ -69,13 +71,26 @@ class Classifiers:
             with open(classifier_path, "rb") as file:
                 knn_model = pickle.load(file)
 
-            query.obs["prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
+            query.obs[f"{cell_type_key}_prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
+            prediction_label = f"{cell_type_key}_prediction_knn"
 
         if self.__classifier_native is not None:
-            if self.__model_class == sca.models.SCANVI.__class__:
-                query.obs["prediction_scanvi"] = self.__classifier_native.predict(query)
-            if self.__model_class == sca.models.scPoli.__class__:
-                query.obs["prediction_scpoli"] = self.__classifier_native.classify(query, scale_uncertainties=True)
+            if "SCANVI" in str(self.__model_class):
+                query.obs[f"{cell_type_key}_prediction_scanvi"] = self.__classifier_native.predict(query)
+                prediction_label = f"{cell_type_key}_prediction_scanvi"
+            else:
+                output=self.__classifier_native.classify(query, scale_uncertainties=True)
+                query.obs[f"{cell_type_key}_prediction_scpoli"] = list(output.values())[0]["preds"]
+                query.obs[f"{cell_type_key}_uncertainty_scpoli"] = list(output.values())[0]["uncert"]
+                prediction_label = f"{cell_type_key}_prediction_scpoli"
+
+        # calculate the percentage of unknown cell types (cell types with uncertainty higher than 0.5)
+        percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
+        percent_unknown = 0.0
+        print(percent_unknown)
+
+        return round(percent_unknown, 2)
+
 
     '''
     Parameters
@@ -85,15 +100,17 @@ class Classifiers:
     label_key: Cell type label
     classifier_directory: Output directory for classifier and evaluation files
     '''
-    def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output"):
+    def create_classifier(self, adata, latent_rep=False, model_path="", label_key="CellType", classifier_directory="path/to/classifier_output", validate_on_query=False):
         if not os.path.exists(classifier_directory):
             os.makedirs(classifier_directory, exist_ok=True)
+
         
         train_data = Classifiers.__get_train_data(
             self,
             adata=adata,
             latent_rep=latent_rep,
             model_path=model_path
+            
         )
         
         X_train, X_test, y_train, y_test = Classifiers.__split_train_data(
@@ -101,8 +118,10 @@ class Classifiers:
             train_data=train_data,
             input_adata=adata,
             label_key=label_key,
-            classifier_directory=classifier_directory
+            classifier_directory=classifier_directory,
+            validate_on_query=validate_on_query
         )
+
         
         xgbc, knnc = Classifiers.__train_classifier(
             self,
@@ -126,7 +145,7 @@ class Classifiers:
             self,
             reports,
             classifier_directory=classifier_directory
-        )
+        ) 
 
         Classifiers.__save_eval_metrics_csv(
             self,
@@ -152,7 +171,10 @@ class Classifiers:
             else:
                 raise Exception("Choose model type 'scVI' or 'scANVI'")
 
-            latent_rep = scanpy.AnnData(model.get_latent_representation(), adata.obs)
+            if "latent_rep" in adata.obsm:
+                latent_rep = scanpy.AnnData(adata.obsm["latent_rep"], adata.obs)
+            else:
+                latent_rep = scanpy.AnnData(model.get_latent_representation(), adata.obs)
 
         train_data = pd.DataFrame(
             data = latent_rep.X,
@@ -161,22 +183,36 @@ class Classifiers:
 
         return train_data
 
+
+
     '''
     Parameters
     ----------
     input_adata: adata to read the labels from
     '''
-    def __split_train_data(self, train_data, input_adata, label_key, classifier_directory):
+    def __split_train_data(self, train_data, input_adata, label_key, classifier_directory, validate_on_query=False):
         train_data['cell_type'] = input_adata.obs[label_key]
+        # train_data['type'] = input_adata.obs["type"]
+
 
         #Enable if at least one class has only 1 sample -> Error in stratification for validation set
         train_data = train_data.groupby('cell_type').filter(lambda x: len(x) > 1)
 
         le = LabelEncoder()
         le.fit(train_data["cell_type"])
-        train_data['cell_type'] = le.transform(train_data["cell_type"])        
+        train_data['cell_type'] = le.transform(train_data["cell_type"])  
 
-        X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
+        if validate_on_query:
+            X_train = train_data.drop(columns='cell_type') 
+            X_test = train_data[train_data["type"]=="query"]
+            X_train = train_data[train_data["type"]=="reference"]
+            y_train = X_train['cell_type']
+            y_test =  X_test['cell_type']
+            X_train = X_train.drop(columns='cell_type')
+            X_test = X_test.drop(columns='cell_type') 
+
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(train_data.drop(columns='cell_type'), train_data['cell_type'], test_size=0.2, random_state=42, stratify=train_data['cell_type'])
 
         #Save label encoder
         with open(classifier_directory + "/classifier_encoding.pickle", "wb") as file:

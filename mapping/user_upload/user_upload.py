@@ -51,6 +51,8 @@ class UserUpload:
         local_model_path = self.__load_file_tmp(self.__model_path, "model.pt")
         local_reference_data_path = self.__load_file_tmp(self.__reference_data, "reference.h5ad")
 
+        self.__minify_adata()
+
         self.__check_model_version()
         self.__check_model_registry()
 
@@ -58,6 +60,10 @@ class UserUpload:
         self.__check_atlas_genes(local_model_path, local_reference_data_path)
 
         self.__check_classifier()
+
+        self.__train_weighted_knn()
+
+        self.__train_gaussian_mixture()
 
         self.__share_results()
 
@@ -69,7 +75,7 @@ class UserUpload:
 
     def __check_atlas_labels(self, local_model_path):
         tuple = os.path.split(local_model_path)
-        cell_type_key, batch_key, unlabeled_key = Preprocess.get_keys_model(tuple[0])
+        cell_type_key, batch_key, unlabeled_key = Preprocess.get_keys(tuple[0])
 
         #Cell type keys only relevant to scANVI models
         if self.__model_type == "scANVI":
@@ -93,10 +99,10 @@ class UserUpload:
     def __check_atlas_genes(self, local_model_path, local_reference_data_path):
         tuple = os.path.split(local_model_path)
         var_names = _utils._load_saved_files(tuple[0], False, None,  "cpu")[1]
-        reference_data = scanpy.read_h5ad(local_reference_data_path, backed="r")
+        self.reference_data = scanpy.read_h5ad(local_reference_data_path, backed="r")
 
         try:
-            reference_data_sub = reference_data[:,var_names]
+            reference_data_sub = self.reference_data[:,var_names]
         except:
             #raise ValueError("var_names from reference are different to the model")
             self.__result["errors"]["atlas"].append("var_names from reference are different to the model")
@@ -104,6 +110,16 @@ class UserUpload:
         
     def __check_classifier(self):
         pass 
+
+    def __minify_adata(self):
+        pass
+
+    def __train_weighted_knn(self):
+        pass
+
+    def __train_gaussian_mixture(self):
+        pass
+
 
     def __share_results(self):
         webhook = utils.get_from_config(self.__configuration, parameters.WEBHOOK)

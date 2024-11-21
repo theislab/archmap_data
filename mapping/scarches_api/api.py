@@ -21,8 +21,9 @@ def query():
         run_async = get_from_config(config, parameters.RUN_ASYNCHRONOUSLY)
         if run_async is not None and run_async:
             actual_config = scarches.merge_configs(config)
-            thread = Thread(target=scarches.query, args=(config,))
-            thread.start()
+            # thread = Thread(target=scarches.query, args=(config,))
+            # thread.start()
+            actual_config = scarches.query(config)
             return actual_config, 200
         else:
             actual_configuration = scarches.query(config)

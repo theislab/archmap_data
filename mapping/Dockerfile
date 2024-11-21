@@ -19,7 +19,8 @@ RUN apt-get update && \
     #pip install git+https://github.com/theislab/pertpy
 
 RUN apt-get install -y git && \
-    pip install git+https://github.com/theislab/scarches.git
+    # pip install git+https://github.com/theislab/scarches.git
+    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge
 
 ENV APP_HOME /app
 WORKDIR $APP_HOME
