@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # Set the working directory
-WORKDIR /.
+WORKDIR /benchmark_atlas/.
 
 # Copy the Python script
 COPY test.py .
