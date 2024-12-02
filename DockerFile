@@ -2,10 +2,10 @@
 FROM python:3.10-slim
 
 # Set the working directory
-WORKDIR /.
+WORKDIR /benchmark_atlas/.
 
 # Copy the Python script
-COPY /benchmark_atlas/test.py .
+COPY test.py .
 
 # Set environment variables (optional, can also be set dynamically)
 ENV UPLOAD_ID=""
