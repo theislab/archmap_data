@@ -1,0 +1,18 @@
+# Use a base Python image
+FROM python:3.9-slim
+
+# Set the working directory
+WORKDIR /.
+
+# Copy the Python script
+COPY test.py .
+
+# Set environment variables (optional, can also be set dynamically)
+ENV UPLOAD_ID=""
+ENV PATH=""
+ENV FILETYPE=""
+
+# Run the Python script when the container starts
+CMD ["python", "test.py"]
+
+
