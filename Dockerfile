@@ -12,7 +12,7 @@ ENV UPLOAD_ID=""
 ENV PATH=""
 ENV FILETYPE=""
 
-RUN pip install --no-cache-dir -r requirements.txt
+# RUN pip install --no-cache-dir -r requirements.txt
 
 # Run the Python script when the container starts
 CMD ["python", "test.py"]
