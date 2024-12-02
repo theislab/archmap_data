@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # Set the working directory
-WORKDIR /benchmark_atlas/.
+WORKDIR /.
 
 # Copy the Python script
 COPY test.py .
@@ -16,3 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Run the Python script when the container starts
 CMD ["python", "test.py"]
+
+
