@@ -5,7 +5,7 @@ FROM python:3.10-slim
 WORKDIR /benchmark_atlas/.
 
 # Copy the Python script
-COPY test.py .
+COPY benchmark_atlas/test.py .
 
 # Set environment variables (optional, can also be set dynamically)
 ENV UPLOAD_ID=""
