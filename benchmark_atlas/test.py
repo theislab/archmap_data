@@ -51,12 +51,8 @@ def main():
     plt.savefig(local_file)
 
     # Upload to Google Cloud Storage
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(file_path)
-    blob.upload_from_filename(local_file)
+    store_file_in_s3(local_file, key_path)
 
-    return jsonify({'message': f'Plot saved to gs://{bucket_name}/{file_path}'})
 
 if __name__ == "__main__":
     main()
