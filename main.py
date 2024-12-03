@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from aiohttp import ClientError
 import requests
+import threading
+import time
 
 def store_file_in_s3(path, key):
     """
@@ -61,10 +63,18 @@ app = Flask(__name__)
 
 
 def send_request():
+    """
+    Sends a request to the /benchmark route of the Flask app.
+    This function will be run in a separate thread to ensure that it runs after Flask has started.
+    """
     url = 'http://0.0.0.0:9090/benchmark'
-    response = requests.post(url)
-    print(response.status_code)
-    print(response.json())
+    time.sleep(2)  # Wait a bit for the Flask app to start and be ready
+    try:
+        response = requests.post(url)
+        print("Response status code:", response.status_code)
+        print("Response body:", response.json())
+    except requests.exceptions.RequestException as e:
+        print("Error while sending request:", e)
 
 @app.route("/benchmark")
 def benchmark():
@@ -100,7 +110,7 @@ def benchmark():
 
 if __name__ == "__main__":
 
-    print("Sending request")
-    send_request()
+    # Start a background thread to send the request after Flask starts
+    threading.Thread(target=send_request).start()
     
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
