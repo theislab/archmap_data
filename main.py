@@ -56,8 +56,12 @@ app = Flask(__name__)
 
 # db = MongoClient(database_uri).get_default_database()
 
+
+
+
+
 def send_request():
-    url = 'http://0.0.0.0:9090'
+    url = 'http://0.0.0.0:9090/benchmark'
     response = requests.post(url)
     print(response.status_code)
     print(response.json())
