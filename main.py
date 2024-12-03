@@ -68,7 +68,7 @@ def send_request():
     This function will be run in a separate thread to ensure that it runs after Flask has started.
     """
     url = 'http://0.0.0.0:9090/benchmark'
-    time.sleep(2)  # Wait a bit for the Flask app to start and be ready
+    time.sleep(20)  # Wait a bit for the Flask app to start and be ready
     try:
         response = requests.post(url)
         print("Response status code:", response.status_code)
