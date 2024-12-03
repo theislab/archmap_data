@@ -4,3 +4,5 @@ joblib==1.0.1
 pandas==1.5.3
 pymongo[srv]
 gunicorn==20.1.0
+matplotlib==3.9.3
+aiohttp==3.11.9
