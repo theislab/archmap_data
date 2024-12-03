@@ -113,4 +113,4 @@ if __name__ == "__main__":
     
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
     # Start a background thread to send the request after Flask starts
-    threading.Thread(target=send_request).start()
+    send_request()
