@@ -1,17 +1,12 @@
 from __future__ import annotations
 import os
 from os import environ
-from flask import Flask, request
-import scanpy
-import joblib
-import pandas as pd
-from pymongo import MongoClient
+from flask import Flask
 import boto3
 
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import boto3
 from aiohttp import ClientError
 
 def store_file_in_s3(path, key):
