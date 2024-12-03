@@ -8,27 +8,45 @@ import pandas as pd
 from pymongo import MongoClient
 import boto3
 
-requiredKeysDefault = {
-    'nCount_ADT': 0, 'nFeature_ADT': 0, 'nCount_RNA': 0, 'nFeature_RNA': 0,
-    'nCount_SCT': 0, 'nFeature_SCT': 0, 'Phase_G1': 0, 'Phase_G2M': 0, 'Phase_S': 1}
-outputLabels = ['B', 'CD4 T', 'CD8', 'DC',
-                'Mono', 'NK', 'other', 'other T']
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import boto3
+from aiohttp import ClientError
+
+def store_file_in_s3(path, key):
+    """
+    stores a file in the given path in an s3 bucket
+    :param path: path in our filesystem
+    :param key: key to where to store the file in s3
+    :return: returns ContentLength if successfully uploaded, 0 otherwise
+    """
+    try:
+        bucket = os.getenv('AWS_BUCKET')
+        client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
+                              aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+                              aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
+        print("Uploading file:: Bucket. key. path ", bucket, key, path)
+        client.upload_file(path, bucket, key)
+        response = client.head_object(Bucket=bucket, Key=key)
+        print("Response from the upload: ", response)
+        return response['ContentLength']
+    except ClientError as e:
+        print(e)
+    return 0
 
 app = Flask(__name__)
-endpoint = os.getenv('ENDPOINT')
-access_key = os.getenv('ACCESS_KEY')
-secret_key = os.getenv(
-    'SECRET_KEY')
-modelname = os.getenv('MODEL_NAME')
-database_uri = os.getenv(
-    'DATABASE_URI')
-bucket = os.getenv('BUCKET')
+# endpoint = os.getenv('ENDPOINT')
+# access_key = os.getenv('ACCESS_KEY')
+# secret_key = os.getenv(
+#     'SECRET_KEY')
+# modelname = os.getenv('MODEL_NAME')
+# database_uri = os.getenv(
+#     'DATABASE_URI')
+# bucket = os.getenv('BUCKET')
 
 
-def dispose(filename):
-    if os.path.isfile(filename):
-        print(filename + " found, will be disposed")
-        os.remove(filename)
+
 
 
 # s3 = boto3.client('s3', endpoint_url=endpoint,
@@ -43,100 +61,36 @@ def dispose(filename):
 # db = MongoClient(database_uri).get_default_database()
 
 
-@app.route("/")
-@app.route("/<path:path>")
-def catch_all(path):
-    return 'You want path: %s, which is not yet implemented or does not exist' % path
+@app.route("/benchmark")
+def benchmark():
+    upload_id = os.getenv('UPLOAD_ID')
+    key_path = os.getenv('PATH')
+    file_type = os.getenv('FILETYPE')
+
+    print(f"Upload ID: {upload_id}")
+    print(f"Key Path: {key_path}")
+    print(f"File Type: {file_type}")
+
+    x = np.linspace(0, 2 * np.pi, 100)  # Generate 100 points between 0 and 2*pi
+    y = np.sin(x)
+
+    # Create the plot
+    plt.figure(figsize=(8, 6))  # Set the figure size
+    plt.plot(x, y, label='Sine Wave', color='blue')
+    plt.title('Sine Wave')
+    plt.xlabel('x')
+    plt.ylabel('sin(x)')
+    plt.legend()
+
+    
+    # Save the plot locally
+    local_file = '/tmp/plot.png'
+    plt.savefig(local_file)
+
+    # Upload to Google Cloud Storage
+    store_file_in_s3(local_file, key_path)
 
 
-@app.route("/run_classifier")
-def classify():
-    data = request.args
-    for key in ["uploadId"]:
-        if key not in data.keys():
-            return "Key \"{}\" missing in request json data!\nPlease check again if the request is correct!".format(
-                key), 400
-    uploadId = data['uploadId']
-    project = db.projects.find_one({"uploadId": uploadId})
-
-    if project is None:
-        message = f"There exists no project with upload_id {uploadId}"
-        print(message)
-        return message, 400
-    if (project['status']) == "ABORTED":
-        print("Project has been aborted. Terminating.")
-        return
-    print("Project found and not aborted")
-    fileName = str(project['_id'])
-    print("Starting download h5ad")
-    s3.download_file(bucket, fileName, fileName + '.h5ad')
-    print("Ready for prediction")
-    result = predict(fileName + '.h5ad')
-    uploadSize = upload(result)
-    dispose(result)
-    dispose(fileName + '.h5ad')
-
-    db.projects.update_one({'uploadId': uploadId}, {
-        "$set": {"status": "DONE", "resultSize": uploadSize, "resultName": result}})
-    print("Classification has been computed")
-    return "Classification has been computed", 200
-
-
-def upload(filename):
-    s3.upload_file(filename, bucket, filename)
-    response = s3.head_object(Bucket=bucket, Key=filename)
-    return response['ContentLength']
-
-
-def predict(filename):
-    input = scanpy.read_h5ad(filename, backed='r+')
-    cleanedDataset = input.obs
-    if not cleanedDataset.empty:
-        cleanedDataset = pd.get_dummies(cleanedDataset)
-    for key in cleanedDataset:
-        if key not in requiredKeysDefault.keys():
-            cleanedDataset.drop(key, inplace=True, axis=1)
-    for key, default in requiredKeysDefault.items():
-        if key not in cleanedDataset.keys():
-            cleanedDataset[key] = default
-    cleanedDataset = cleanedDataset[requiredKeysDefault.keys()]
-    y_predict = clf.predict(cleanedDataset)
-    output = pd.DataFrame(
-        data=y_predict, index=cleanedDataset.index, columns=outputLabels)
-    output = output.idxmax(axis=1)
-    if "X_umap" not in input.obsm.keys():
-        scanpy.pp.normalize_total(input)
-        scanpy.pp.log1p(input)
-        scanpy.pp.pca(input)
-        scanpy.pp.neighbors(input)
-        scanpy.tl.umap(input)
-
-    cleanedDataset['celltype'] = output
-    cleanedDataset['x'] = list(
-        map(lambda pair: pair[0], input.obsm['X_umap']))
-
-    cleanedDataset['y'] = list(
-        map(lambda pair: pair[1], input.obsm['X_umap']))
-    resultname = 'result_' + filename.rsplit(".", 1)[0] + '.tsv'
-    cleanedDataset.index.name = 'id'
-    cleanedDataset.to_csv(resultname, columns=['x', 'y', 'celltype'], sep='\t')
-
-    return resultname
-
-
-def download_file(url):
-    print("Begin Download")
-    local_filename = url.split('/')[-1]
-    # NOTE the stream=True parameter below
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                # If you have chunk encoded response uncomment if
-                # and set chunk_size parameter to None.
-                # if chunk:
-                f.write(chunk)
-    return local_filename
 
 
 if __name__ == "__main__":
