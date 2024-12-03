@@ -8,6 +8,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from aiohttp import ClientError
+import requests
 
 def store_file_in_s3(path, key):
     """
@@ -55,6 +56,11 @@ app = Flask(__name__)
 
 # db = MongoClient(database_uri).get_default_database()
 
+def send_request():
+    url = 'http://0.0.0.0:9090'
+    response = requests.post(url)
+    print(response.status_code)
+    print(response.json())
 
 @app.route("/benchmark")
 def benchmark():
@@ -89,5 +95,8 @@ def benchmark():
 
 
 if __name__ == "__main__":
-    #print("Debug")
+
+    print("Sending request")
+    send_request()
+    
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
