@@ -26,13 +26,11 @@ def store_file_in_s3(path, key):
     return 0
 
 def main():
-    upload_id = os.getenv('UPLOAD_ID')
-    key_path = os.getenv('PATH')
-    file_type = os.getenv('FILETYPE')
+    modelPath = os.getenv('modelPath')
+    atlasPath = os.getenv('atlasPath')
 
-    print(f"Upload ID: {upload_id}")
-    print(f"Key Path: {key_path}")
-    print(f"File Type: {file_type}")
+    print(f"modelPath: {modelPath}")
+    print(f"atlasPath: {atlasPath}")
 
     x = np.linspace(0, 2 * np.pi, 100)  # Generate 100 points between 0 and 2*pi
     y = np.sin(x)
@@ -51,7 +49,7 @@ def main():
     plt.savefig(local_file)
 
     # Upload to Google Cloud Storage
-    store_file_in_s3(local_file, key_path)
+    store_file_in_s3(local_file, modelPath)
 
 
 if __name__ == "__main__":
