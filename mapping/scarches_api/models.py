@@ -71,6 +71,8 @@ class ArchmapBaseModel():
         self.cell_type_key_input = "user_cell_type"
         self.batch_key_input = "batch"
 
+        self._query_adata.X=self._query_adata.X.tocsr()
+
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
@@ -122,15 +124,21 @@ class ArchmapBaseModel():
         else:
             lr=0.001
 
-        self._model.train(
-            max_epochs=self._max_epochs,
-            plan_kwargs=dict(weight_decay=0.0,lr=lr),
-            check_val_every_n_epoch=10,
-            # datasplitter_kwargs = dict(distributed_sampler = True),
-            # strategy='ddp_find_unused_parameters_true',
-            # accelerator="cpu", 
-            # devices=4
-        )
+        try: 
+            self._model.train(
+                max_epochs=self._max_epochs,
+                plan_kwargs=dict(weight_decay=0.0,lr=lr),
+                check_val_every_n_epoch=10,
+                # datasplitter_kwargs = dict(distributed_sampler = True),
+                # strategy='ddp_find_unused_parameters_true',
+                # accelerator="cpu", 
+                # devices=4
+            )
+        except ValueError as e:
+            if "Expected parameter loc" in str(e):
+                raise ValueError("Please check that your anndata object has raw counts (not normalized) saved in adata.X. Mapping can only occur with raw count data.") from e
+            else:
+                raise
 
         if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
@@ -150,7 +158,23 @@ class ArchmapBaseModel():
         self._reference_adata = read_h5ad_file_from_s3(self._reference_adata_path)
         self._reference_adata.obs["type"] = "reference"
 
-        self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
+        try:
+            self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
+            print("Data successfully loaded.")
+        except Exception as e:
+            print(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap with a screenshot of this error and we can help resolve this.")
+
+        try:
+
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self._query_adata.write_h5ad(temp_query.name)
+        except ValueError as e:
+            if "is also used by a column whose values are different" in str(e):
+                raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
+            else:
+                raise
+
+
         self._query_adata_raw.obs["type"] = "query"
 
         self._query_adata_raw.obs_names_make_unique()
@@ -166,8 +190,11 @@ class ArchmapBaseModel():
         inter_len = len(intersection)
         ratio = (inter_len / len(ref_vars))*100
         print(ratio)
+        if int(ratio)<50:
+            raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
 
-        utils.notify_backend(self._webhook, {"ratio":ratio})
+
+        # utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
@@ -180,7 +207,6 @@ class ArchmapBaseModel():
         del self._query_adata.varp
 
         self._query_adata.layers['counts'] = self._query_adata.X
-
 
     def _eval_mapping(self):
         #Create AnnData objects off the latent representation
@@ -249,9 +275,8 @@ class ArchmapBaseModel():
                     self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
                     fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
-                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
+                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key, self.uncert, self._atlas, self._model_type)
                 # self.percent_unknown.append(percent_unknown)
-
                 # remove temp files
                 if self._temp_clf_model_path is not None:
                     if os.path.exists(self._temp_clf_model_path):
@@ -261,46 +286,20 @@ class ArchmapBaseModel():
                         os.remove(self._temp_clf_encoding_path)
 
     def _concat_data(self):
-
         #save .X and var_names of query in new adata for later concatenation after cellxgene
         self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
         self.adata_query_X.var_names = self._query_adata.var_names
-
         #we can then zero out .X in original query
-        if self._query_adata.X.format == "csc":
-            all_zeros = csc_matrix(self._query_adata.X.shape)
-        else:
-            all_zeros = csr_matrix(self._query_adata.X.shape)
+        all_zeros = csr_matrix(self._query_adata.X.shape)
 
         self._query_adata.X = all_zeros.copy()
+
         
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
 
         self._query_adata.obs["query"]=["1"]*self._query_adata.n_obs
         self._reference_adata.obs["query"]=["0"]*self._reference_adata.n_obs
 
-        #Added because concat_on_disk only allows csr concat
-        if scipy.sparse.issparse(self._query_adata.X) and (self._query_adata.X.format == "csc" or self._reference_adata.X.format == "csc"):
-
-            print("concatenating in memory")
-            #self._query_adata.X = csr_matrix(self._query_adata.X.copy())
-
-            self._combined_adata = self._reference_adata.concatenate(self._query_adata, batch_key='bkey',join="outer")
-
-            query_obs=set(self._query_adata.obs.columns)
-            ref_obs=set(self._reference_adata.obs.columns)
-            inter = ref_obs.intersection(query_obs)
-            new_columns = query_obs.union(inter)
-            self._combined_adata.obs=self._combined_adata.obs[list(new_columns)]
-
-            self._combined_adata.obsm["latent_rep"] = self.latent_full_from_mean_var
-            del self._query_adata
-            del self._reference_adata
-            gc.collect()
-
-            
-
-            return
         
         print("concatenating on disk")
         #Added because concat_on_disk only allows inner joins  
@@ -401,12 +400,15 @@ class ArchmapBaseModel():
         self.presence_score = np.concatenate((presence_score["max"],[np.nan]*len(query_downsample)))
 
         combined_downsample.obs["presence_score"] = self.presence_score
+        print(f"presence_score: {self.presence_score}")
 
         self.clust_pres_score=cluster_preservation_score(query_downsample)
         print(f"clust_pres_score: {self.clust_pres_score}")
         
         self.query_with_anchor=percent_query_with_anchor(adjs["r2q"], adjs["q2r"])
         print(f"query_with_anchor: {self.query_with_anchor}")
+
+        print(f"percent_unknown: {self.percent_unknown}" )
 
         utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
 
@@ -591,6 +593,22 @@ class ScVI(ArchmapBaseModel):
         #Download model from GCP
         fetch_file_from_s3(self._model_path, "./model.pt")
 
+        # #load model
+        # model = scarches.models.SCVI.load(".",adata=self._reference_adata)
+
+        # # handle cts covariates
+        # cts_cov = model.registry_["setup_args"]["continuous_covariate_keys"]
+        # if cts_cov is not None:
+        #     if not isinstance(cts_cov, list):
+        #         cts_cov = [cts_cov]
+        #     for cov in cts_cov:
+        #         if not cov in self._query_adata.obs.columns:
+        #             self._query_adata.obs[cov] = [cov]*len(self._query_adata)
+
+        # del model
+        # gc.collect()
+
+
     def _compute_latent_representation(self, explicit_representation):
         #Setup adata before quering model for latent representation
         scarches.models.SCVI.setup_anndata(explicit_representation, batch_key=self._batch_key)
@@ -633,6 +651,21 @@ class ScANVI(ArchmapBaseModel):
         #Download model from GCP
         fetch_file_from_s3(self._model_path, "./model.pt")
 
+        # #load model
+        # model = scarches.models.SCANVI.load(".",adata=self._reference_adata)
+
+        # # handle cts covariates
+        # cts_cov = model.registry_["setup_args"]["continuous_covariate_keys"]
+        # if cts_cov is not None:
+        #     if not isinstance(cts_cov, list):
+        #         cts_cov = [cts_cov]
+        #     for cov in cts_cov:
+        #         if not cov in self._query_adata.obs.columns:
+        #             self._query_adata.obs[cov] = [cov]*len(self._query_adata)
+
+        # del model
+        # gc.collect()
+
     def _compute_latent_representation(self, explicit_representation):
         #Setup adata before quering model for latent representation
         scarches.models.SCANVI.setup_anndata(explicit_representation, labels_key=self._cell_type_key, unlabeled_category="unlabeled", batch_key=self._batch_key)
@@ -655,11 +688,18 @@ class ScPoli(ArchmapBaseModel):
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
         
-        self._model.train(
-            n_epochs=self._max_epochs,
-            pretraining_epochs=40,
-            eta=10
-        )
+        try:
+            self._model.train(
+                n_epochs=self._max_epochs,
+                pretraining_epochs=40,
+                eta=10
+            )
+        except ValueError as e:
+            if "Expected parameter loc" in str(e):
+                raise ValueError("Please check that your anndata object has raw counts (not normalized) saved in adata.X. Mapping can only occur with raw count data.") from e
+            else:
+                raise
+        
 
         #Compute sample embeddings on query
         self._sample_embeddings()
