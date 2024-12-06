@@ -167,7 +167,7 @@ class ArchmapBaseModel():
         try:
 
             temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-            self._query_adata.write_h5ad(temp_query.name)
+            self._query_adata_raw.write_h5ad(temp_query.name)
         except ValueError as e:
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
