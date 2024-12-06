@@ -275,7 +275,7 @@ class ArchmapBaseModel():
                     self._temp_clf_model_path = tempfile.mktemp(suffix=".pickle")
                     fetch_file_from_s3(self._clf_model_path, self._temp_clf_model_path)
 
-                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key, self.uncert, self._atlas, self._model_type)
+                self.percent_unknown = clf.predict_labels(self._query_adata, query_latent, self._temp_clf_model_path, self._temp_clf_encoding_path, cell_type_key)
                 # self.percent_unknown.append(percent_unknown)
                 # remove temp files
                 if self._temp_clf_model_path is not None:
