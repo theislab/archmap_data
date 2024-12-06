@@ -194,7 +194,7 @@ class ArchmapBaseModel():
             raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
 
 
-        # utils.notify_backend(self._webhook, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
         
         # save only necessary data for mapping to new adata
