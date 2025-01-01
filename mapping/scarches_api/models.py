@@ -11,22 +11,22 @@ import time
 import scipy
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
-from utils import utils
+from scarches_api.utils import utils
 import scanpy as sc
 from scvi.dataloaders import BatchDistributedSampler
 
-from utils import parameters
-from utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from utils.utils import get_from_config
-from utils.utils import fetch_file_from_s3
-from utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
+from scarches_api.utils import parameters
+from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
+from scarches_api.utils.utils import get_from_config
+from scarches_api.utils.utils import fetch_file_from_s3
+from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
 import pandas as pd
 
 from process.processing import Preprocess
 from process.processing import Postprocess
 
-from uncert.uncert_metric import classification_uncert_euclidean
-from uncert.uncert_metric import classification_uncert_mahalanobis
+from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
+from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
 
 from classifiers.classifiers import Classifiers
 
@@ -140,7 +140,7 @@ class ArchmapBaseModel():
             else:
                 raise
 
-        if "X_latent_qzm" in self._reference_adata.obsm and "X_latent_qzv" in self._reference_adata.obsm:
+        if "X_latent_qzm" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm from minified atlas for scvi-tools models___________")
             qzm = self._reference_adata.obsm["X_latent_qzm"]
             self._reference_adata.obsm["latent_rep"] = qzm
@@ -177,24 +177,82 @@ class ArchmapBaseModel():
 
         self._query_adata_raw.obs["type"] = "query"
 
-        self._query_adata_raw.obs_names_make_unique()
 
-        #Convert bool to categorical to avoid write error during concatenation
-        Preprocess.bool_to_categorical(self._reference_adata)
-        Preprocess.bool_to_categorical(self._query_adata_raw)
+        ensembl_ref = True
+        for var_name in self._reference_adata.var_names[:5]:
+            if "ENS" in var_name: 
+                continue
+            else:
+                ensembl_ref = False
+                break
+
+        ensembl_query = True
+        for var_name in self._query_adata_raw.var_names[:5]:
+            if "ENS" in var_name: 
+                continue
+            else:
+                ensembl_query = False
+                break
+
+
+        if ensembl_query != ensembl_ref: 
+            import pickle
+            # convert query var_names to match ref
+
+            if ensembl_ref == True:
+                if "ENSMUS" in self._reference_adata.var_names[0]:
+
+                    #fetch mouse conversions
+                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_mouse.pkl", f"genesymbol_to_ensembl_mouse.pkl")
+
+                    with open(f"genesymbol_to_ensembl_mouse.pkl", "rb") as file:
+                        dict_conversions = pickle.load(file)
+
+                else:
+                    #fetch human conversions
+                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_human.pkl", f"genesymbol_to_ensembl_human.pkl")
+
+                    with open(f"genesymbol_to_ensembl_human.pkl", "rb") as file:
+                        dict_conversions = pickle.load(file)
+                    
+        
+            else:
+                if "ENSMUS" in self._query_adata_raw.var_names[0]:
+                    #fetch mouse conversions
+                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_mouse.pkl", f"ensembl_to_genesymbol_mouse.pkl")
+
+                    with open(f"ensembl_to_genesymbol_mouse.pkl", "rb") as file:
+                        dict_conversions = pickle.load(file)
+
+                else:
+                    #fetch human conversions
+                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_human.pkl", f"ensembl_to_genesymbol_human.pkl")
+
+                    with open(f"ensembl_to_genesymbol_human.pkl", "rb") as file:
+                        dict_conversions = pickle.load(file)
+
+            self._query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in self._query_adata_raw.var_names])
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata_raw.var_names
-
+        
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
         ratio = (inter_len / len(ref_vars))*100
+
         print(ratio)
         if int(ratio)<50:
             raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
 
 
-        utils.notify_backend(self._webhook, {"ratio":ratio})
+        # utils.notify_backend(self._webhook, {"ratio":ratio})
+
+        self._query_adata_raw.obs_names_make_unique()
+        self._query_adata_raw.var_names_make_unique()
+
+        #Convert bool to categorical to avoid write error during concatenation
+        Preprocess.bool_to_categorical(self._reference_adata)
+        Preprocess.bool_to_categorical(self._query_adata_raw)
 
         
         # save only necessary data for mapping to new adata
@@ -306,9 +364,10 @@ class ArchmapBaseModel():
         for cell_type_key in self._cell_type_key_list:
             self._reference_adata.obs[cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
             self._reference_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-            self._reference_adata.obs[cell_type_key + 'prediction_xgb'] = pandas.Series(dtype="category")
-            self._reference_adata.obs[cell_type_key + 'prediction_knn'] = pandas.Series(dtype="category")
-            self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = pandas.Series(dtype="category")
+            self._reference_adata.obs[cell_type_key + '_prediction_xgb'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + '_prediction_knn'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scpoli"] = self._reference_adata.obs[cell_type_key]
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
 
@@ -410,7 +469,12 @@ class ArchmapBaseModel():
 
         print(f"percent_unknown: {self.percent_unknown}" )
 
-        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
+        import pickle
+        metric_dict = {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown}
+        with open(f"{self._atlas}_metric.pickle", "wb") as file:
+            pickle.dump(metric_dict, file)
+
+        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
 
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -421,7 +485,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:

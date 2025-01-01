@@ -50,7 +50,7 @@ class Classifiers:
     query: adata to save labels to
     query_latent: adata to read .X from for label prediction
     '''
-    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding", cell_type_key=None):
+    def predict_labels(self, query=scanpy.AnnData(), query_latent=scanpy.AnnData(), classifier_path="/path/to/classifier", encoding_path="/path/to/encoding", cell_type_key=None, atlas=None, model_type=None):
         le = LabelEncoder()
 
         if self.__classifier_xgb:
@@ -73,6 +73,14 @@ class Classifiers:
             query.obs[f"{cell_type_key}_prediction_knn"] = le.inverse_transform(knn_model.predict(query_latent.X))
             prediction_label = f"{cell_type_key}_prediction_knn"
 
+  
+
+            # plot ROC curve
+            # Classifiers.plot_roc_curve(le,query.obs[cell_type_key], uncert[uncert.columns[0]], f"{atlas}_{model_type}")
+            # Classifiers.calculate_accuracy_by_uncertainty_threshold(uncert[uncert.columns[0]], query.obs[cell_type_key], query.obs[f"{cell_type_key}_prediction_knn"], atlas, model_type )
+
+             
+
         if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
                     percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
                     percent_unknown=round(percent_unknown, 2)
@@ -81,8 +89,8 @@ class Classifiers:
 
         if self.__classifier_native is not None:
             if "SCANVI" in str(self.__model_class):
-                query.obs[f"cell_type_prediction_scanvi"] = self.__classifier_native.predict(query)
-                prediction_label = f"cell_type_prediction_scanvi"
+                query.obs[f"{cell_type_key}_prediction_scanvi"] = self.__classifier_native.predict(query)
+                prediction_label = f"{cell_type_key}_prediction_scanvi"
 
                 if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
                     percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
@@ -337,35 +345,119 @@ class Classifiers:
     def __eval_precision(y_true, y_pred):
         return precision_score(y_true=y_true, y_pred=y_pred)
     
-    def __plot_roc_curve(y_true, y_pred):
+    # def plot_roc_curve(le,labels, y_uncert, save_as):
 
-        import numpy as np
-        from sklearn.metrics import roc_curve, auc
+    #     import numpy as np
+    #     from sklearn.metrics import roc_curve, auc
+    #     import matplotlib.pyplot as plt
+
+    #     y_true = le.transform(labels)
+
+    #     encoded_y_true = np.zeros((y_true.size, y_true.max()+1), dtype=int)
+    #     encoded_y_true[np.arange(y_true.size),y_true] = 1
+
+    #     print(y_uncert.size)
+    #     print(encoded_y_true.ravel().shape)
+
+    #     # encoded_y_pred = np.zeros((y_uncert.size, y_true.max()+1), dtype=int)
+    #     # encoded_y_pred[np.arange(y_uncert.size),y_uncert] = 1
+
+    #     n_classes = encoded_y_true.shape[1]
+
+    #     fpr = dict()
+    #     tpr = dict()
+    #     roc_auc = dict()
+    #     # for i in range(n_classes):
+    #     #     fpr[i], tpr[i], thresholds = roc_curve(encoded_y_true[:, i], encoded_y_pred[:, i])
+    #     #     roc_auc[i] = auc(fpr[i], tpr[i])
+
+    #     # Micro-averaged ROC curve and AUC
+    #     fpr["micro"], tpr["micro"], _ = roc_curve(encoded_y_true.ravel(), y_uncert.to_numpy())
+    #     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+    #     from kneed import KneeLocator
+
+    #     # Find the knee point (elbow) in the ROC curve
+    #     knee = KneeLocator(fpr, tpr, curve='concave', direction='increasing')
+
+        # # Plot ROC curve with the elbow point
+        # plt.figure()
+        # plt.plot(fpr, tpr, label='ROC Curve')
+        # plt.plot([0, 1], [0, 1], 'k--')  # Diagonal line for random performance
+        # plt.scatter(knee.knee, knee.knee_y, color='red', label=f'Elbow point (FPR={knee.knee:.2f}, TPR={knee.knee_y:.2f})')
+        # plt.xlabel('False Positive Rate')
+        # plt.ylabel('True Positive Rate')
+        # plt.title('ROC Curve with Elbow Point')
+        # plt.legend(loc="lower right")
+        # plt.show()
+
+        # # Display the threshold at the knee point
+        # elbow_threshold = thresholds[np.where((fpr == knee.knee) & (tpr == knee.knee_y))[0][0]]
+        # print(f"Elbow threshold: {elbow_threshold}")
+
+    
+        # plt.figure()
+        # plt.plot(fpr["micro"], tpr["micro"],
+        #         label='Micro-averaged ROC curve (area = {0:0.2f})'.format(roc_auc["micro"]),
+        #         color='deeppink', linestyle=':', linewidth=4)
+        # plt.scatter(knee.knee, knee.knee_y, color='red', label=f'Elbow point (FPR={knee.knee:.2f}, TPR={knee.knee_y:.2f})')
+        # plt.savefig("ROC_"+save_as+".png")
+
+        # return elbow_threshold
+
+    import numpy as np
+
+    def calculate_accuracy_by_uncertainty_threshold(uncertainty_scores, ground_truth, predictions, atlas, model_type):
+        """
+        Calculates the percentage of predictions matching the ground truth for each uncertainty threshold.
+        
+        Parameters:
+            uncertainty_scores (array-like): Uncertainty scores for each observation (0 to 1).
+            ground_truth (array-like): Ground truth binary labels (0 or 1).
+            predictions (array-like): Predicted binary labels (0 or 1).
+
+        Returns:
+            results (dict): A dictionary where keys are thresholds and values are accuracy percentages.
+        """
+
+        print(uncertainty_scores)
+        print(ground_truth)
+        thresholds = numpy.arange(0, 1.1, 0.1)  # Threshold values from 0 to 1 with spacing of 0.1
+        results = {}
+
+        for threshold in thresholds:
+            # Filter observations where uncertainty is <= threshold
+            mask = list(uncertainty_scores <= threshold)
+            filtered_ground_truth = ground_truth[mask]
+            filtered_predictions = predictions[mask]
+            
+            if len(filtered_ground_truth) == 0:
+                # If no observations pass the filter, set accuracy as None or 0
+                results[threshold] = None
+            else:
+                # Calculate the accuracy for the remaining observations
+                accuracy = numpy.mean(filtered_ground_truth == filtered_predictions) * 100
+                results[threshold] = accuracy
+
+        thresholds = list(results.keys())
+        accuracies = [accuracy if accuracy is not None else 0 for accuracy in results.values()]  
+
+        # Plot the results
         import matplotlib.pyplot as plt
+        plt.figure(figsize=(8, 6))
+        plt.plot(thresholds, accuracies, marker='o', label="Accuracy")
+        plt.title("Accuracy vs. Uncertainty Threshold")
+        plt.xlabel("Uncertainty Threshold")
+        plt.ylabel("Accuracy (%)")
+        plt.ylim(0, 100)  # Accuracy is always between 0 and 100%
+        plt.xticks(numpy.arange(0, 1.1, 0.1))
+        plt.grid(True)
+        plt.legend()
+        plt.savefig(f"acc_thresh_{atlas}_{model_type}", dpi=300, bbox_inches='tight')
+        plt.show()
 
-        encoded_y_true = np.zeros((y_true.size, y_true.max()+1), dtype=int)
-        encoded_y_true[np.arange(y_true.size),y_true] = 1
+        return results
 
-        encoded_y_pred = np.zeros((y_pred.size, y_pred.max()+1), dtype=int)
-        encoded_y_pred[np.arange(y_pred.size),y_pred] = 1
-
-        n_classes = encoded_y_true.shape[1]
-
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
-        for i in range(n_classes):
-            fpr[i], tpr[i], _ = roc_curve(encoded_y_true[:, i], encoded_y_pred[:, i])
-            roc_auc[i] = auc(fpr[i], tpr[i])
-
-        # Micro-averaged ROC curve and AUC
-        fpr["micro"], tpr["micro"], _ = roc_curve(encoded_y_true.ravel(), encoded_y_pred.ravel())
-        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-
-        plt.figure()
-        plt.plot(fpr["micro"], tpr["micro"],
-                label='Micro-averaged ROC curve (area = {0:0.2f})'.format(roc_auc["micro"]),
-                color='deeppink', linestyle=':', linewidth=4)
 
 
     def __eval_roc_auc(y_true, predict_proba):

@@ -351,7 +351,7 @@ class Preprocess:
 
           
 
-    def get_keys(atlas, target_adata, configuration):
+    def get_keys(atlas, target_adata, configuration, model_path = None):
 
         
 
@@ -434,8 +434,9 @@ class Preprocess:
         model_type = utils.get_from_config(configuration, parameters.MODEL)
 
         if model_type in ["scANVI","scVI"]:
-
-            model_path = "./model.pt"
+            
+            if model_path is None:
+                model_path = "./model.pt"
 
             import torch
             model = torch.load(model_path, map_location="cpu")
@@ -473,7 +474,11 @@ class Preprocess:
 
         # Check if provided query contains batch labels
         if batch_key_input not in target_adata.obs.columns:
-            raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
+            if batch_key in target_adata.obs.columns:
+                target_adata.obs["batch"]=target_adata.obs[batch_key]
+            else:
+                target_adata.obs["batch"]="mapped_batch"*len(target_adata)
+            # raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
         
 
         return cell_type_key, cell_type_key_classifier, cell_type_key_list, batch_key, unlabeled_key_model
@@ -763,7 +768,7 @@ class Postprocess:
         final.to_csv(filename)
         utils.store_file_in_s3(filename, output_path)
 
-    def __output_cxg(latent_adata: sc.AnnData, combined_downsample: sc.AnnData, config):
+    def __output_cxg(latent_adata: sc.AnnData, combined_downsample: sc.AnnData, config, store_file_in_cloud):
         Postprocess.__prepare_output(latent_adata, combined_downsample, config)
         print("Preparing output")
 
@@ -795,14 +800,15 @@ class Postprocess:
         #Save as .h5ad
         output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
 
-        filename = tempfile.mktemp( suffix=".h5ad")
-        
-        sc.write(filename, combined_downsample)
-        print("file written to: " + filename)
-        print("Now storing to gcp with output path: " + output_path)
-        utils.store_file_in_s3(filename, output_path)
+        if store_file_in_cloud:
+            filename = tempfile.mktemp( suffix=".h5ad")
+            
+            sc.write(filename, combined_downsample)
+            print("file written to: " + filename)
+            print("Now storing to gcp with output path: " + output_path)
+            utils.store_file_in_s3(filename, output_path)
 
-    def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration):
+    def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, store_file_in_cloud=True):
         output_type = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
 
         if(output_type.get("csv")):
@@ -813,4 +819,4 @@ class Postprocess:
 
         if(output_type.get("cxg")):
 
-            Postprocess.__output_cxg(latent_adata, combined_adata, configuration)
+            Postprocess.__output_cxg(latent_adata, combined_adata, configuration, store_file_in_cloud)

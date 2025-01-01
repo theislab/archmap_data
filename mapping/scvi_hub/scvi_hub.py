@@ -20,7 +20,6 @@ from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 
-from scvi.model.base._save_load import _load_saved_files
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:

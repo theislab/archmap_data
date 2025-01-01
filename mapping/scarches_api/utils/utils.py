@@ -5,7 +5,7 @@ import pynndescent
 import numpy
 import numba
 
-from utils import parameters
+from scarches_api.utils import parameters
 import requests
 import boto3
 from aiohttp import ClientError
@@ -699,7 +699,7 @@ def fetch_file_to_temp_path_from_s3(key):
     return filename
 
 
-def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path, use_downsample=False):
+def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path, use_downsample=False, local_path=True):
     """
     Writes combined_adata to disk, fetches another .h5ad file specified by ref_count_matrix_path.
     Concatenates the .X of the fetched file with query_X_file.
@@ -713,8 +713,11 @@ def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix
     Returns: File path to saved adata with concatenated metadata and .X
     """
 
-    
-    temp_ref_count_matrix_path = fetch_file_to_temp_path_from_s3(ref_count_matrix_path)
+    if local_path:
+        temp_ref_count_matrix_path = ref_count_matrix_path
+    else:
+        temp_ref_count_matrix_path = fetch_file_to_temp_path_from_s3(ref_count_matrix_path)
+
     # Fetch the new file and get its path
     if use_downsample:
         # get obs index

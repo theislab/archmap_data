@@ -10,12 +10,12 @@ import anndata as ad
 #import milopy
 # import pertpy as pt
 from matplotlib.lines import Line2D
-from utils.utils import fetch_file_from_s3
+from scarches_api.utils.utils import fetch_file_from_s3
 
 import pickle
 
-from utils.utils import get_from_config
-import utils.parameters
+from scarches_api.utils.utils import get_from_config
+import scarches_api.utils.parameters
 
 from sklearn.mixture import GaussianMixture
 
@@ -85,7 +85,7 @@ def classification_uncert_mahalanobis(
         adata_query_latent, 
         adata_query_raw, 
         cell_type_key_list,
-        pretrained=True
+        pretrained=True,
     ):
     #Load model
     for cell_type_key in cell_type_key_list:
@@ -95,7 +95,6 @@ def classification_uncert_mahalanobis(
             model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
             cloud_model_path = "models/" + model_id + "/uncertainty/" + cell_type_key + "_mahalanobis_distance.pickle"
             uncert_model_path = "./" +atlas + "_mahalanobis_distance.pickle"
-
             fetch_file_from_s3(cloud_model_path, uncert_model_path)
 
             with open(uncert_model_path, "rb") as file:
@@ -127,7 +126,7 @@ def classification_uncert_euclidean(
         adata_query_raw,
         embedding_name,
         cell_type_key_list=None,
-        pretrained=True,
+        pretrained=True
     ):
     """Computes classification uncertainty, based on the Euclidean distance of each cell
     to its k-nearest neighbors. Additional adjustment by a Gaussian kernel is made
@@ -150,6 +149,7 @@ def classification_uncert_euclidean(
         model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
         cloud_model_path = "models/" + model_id + "/uncertainty/euclidian_distance.pickle"
         uncert_model_path = "./" +atlas + "_euclidian_distance.pickle"
+
         fetch_file_from_s3(cloud_model_path, uncert_model_path)
 
         with open(uncert_model_path, "rb") as file:

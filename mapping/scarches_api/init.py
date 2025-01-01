@@ -3,23 +3,15 @@ import time
 
 
 
-from utils import utils, parameters
+from scarches_api.utils import utils, parameters
 
 from scvi_hub.scvi_hub import ScviHub
 from models import ScANVI
 from models import ScVI
 from models import ScPoli
-import gc
 
-from utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, fetch_file_to_temp_path_from_s3
-
-from anndata import experimental
 
 # from process.processing import Preprocess
-import scanpy as sc
-import tempfile
-import h5py
-from anndata.experimental import write_elem, read_elem
 
 
 def default_config():
@@ -152,14 +144,29 @@ def query(user_config):
         
         # sc.AnnData(mapping._combined_adata.obsm["latent_rep"], mapping._combined_adata.obs).write(f"results/{atlas_name}.h5ad")
 
-    if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+    if True or get_from_config(configuration, parameters.WEBHOOK) is not None and len(
             get_from_config(configuration, parameters.WEBHOOK)) > 0:
         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
         cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
-        print("storing cxg_with_count_path to gcp with output path: " + cxg_with_count_path)
-        utils.store_file_in_s3(mapping.temp_output_combined, cxg_with_count_path)
-        print("Stored adata with counts on cloud")
+        output_model_path = get_from_config(configuration, parameters.OUTPUT_PATH)
+        
+        #save model and adata as tar file
+        import tarfile
+        mapping._model.save("finetuned_model/", save_anndata=False, overwrite=True)
+        output_filename="query_model.tar.gz"
+        source_dir="finetuned_model/"
+        with tarfile.open(output_filename, "w:gz") as tar:
+            tar.add(source_dir, arcname=os.path.basename(source_dir))
+        print(f"Created tar archive: {output_filename}")
+
+        #store model to gcp
+        print("storing model to gcp with output path: " + output_model_path)
+        utils.store_file_in_s3("query_model.tar.gz", output_model_path)
+        # print("Stored adata with counts on cloud")
+        # print("storing fine-tuned model to gcp with output path: " + output_model_path)
+        # utils.store_file_in_s3(mapping._model, output_model_path)
+        print("Stored finetuned model on cloud")
         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
     return configuration

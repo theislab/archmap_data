@@ -3,7 +3,7 @@ import tempfile
 import numpy
 import scanpy as sc
 
-from utils import utils 
+from scarches_api.utils import utils 
 
 
 def download_test_file(directory):
