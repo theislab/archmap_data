@@ -91,8 +91,8 @@ def classification_uncert_mahalanobis(
     for cell_type_key in cell_type_key_list:
 
         if pretrained:
-            atlas = get_from_config(configuration, utils.parameters.ATLAS)
-            model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
+            atlas = get_from_config(configuration, scarches_api.utils.parameters.ATLAS)
+            model_id = get_from_config(configuration, scarches_api.utils.parameters.MODEL_ID)
             cloud_model_path = "models/" + model_id + "/uncertainty/" + cell_type_key + "_mahalanobis_distance.pickle"
             uncert_model_path = "./" +atlas + "_mahalanobis_distance.pickle"
             fetch_file_from_s3(cloud_model_path, uncert_model_path)
@@ -144,9 +144,9 @@ def classification_uncert_euclidean(
 
     #Load model
     if pretrained:
-        atlas = get_from_config(configuration, utils.parameters.ATLAS)
+        atlas = get_from_config(configuration, scarches_api.utils.parameters.ATLAS)
 
-        model_id = get_from_config(configuration, utils.parameters.MODEL_ID)
+        model_id = get_from_config(configuration, scarches_api.utils.parameters.MODEL_ID)
         cloud_model_path = "models/" + model_id + "/uncertainty/euclidian_distance.pickle"
         uncert_model_path = "./" +atlas + "_euclidian_distance.pickle"
 
