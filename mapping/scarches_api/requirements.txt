@@ -10,10 +10,10 @@ gdown~=4.4.0
 torch~=2.2.1
 #jaxlib==0.3.7
 #leidenalg==0.8.9
-scikit-misc==0.1.4
+scikit-misc==0.5.1
 protobuf==3.19.4
 pymde==0.1.15
-scikit-learn
+scikit-learn==1.5.2
 scvi-tools==1.2.0
 scipy>=1.13.1
 

@@ -699,7 +699,7 @@ def fetch_file_to_temp_path_from_s3(key):
     return filename
 
 
-def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path, use_downsample=False, local_path=True):
+def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix_path, use_downsample=False, local_path=False):
     """
     Writes combined_adata to disk, fetches another .h5ad file specified by ref_count_matrix_path.
     Concatenates the .X of the fetched file with query_X_file.

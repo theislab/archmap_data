@@ -174,6 +174,9 @@ class ArchmapBaseModel():
             else:
                 raise
 
+        # #convert batch values to string if not
+        # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
+        # self._query_adata_raw.obs["batch"] = self._query_adata_raw.obs["batch"].astype('category')
 
         self._query_adata_raw.obs["type"] = "query"
 
@@ -245,7 +248,7 @@ class ArchmapBaseModel():
             raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
 
 
-        # utils.notify_backend(self._webhook, {"ratio":ratio})
+        utils.notify_backend(self._webhook, {"ratio":ratio})
 
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
@@ -474,7 +477,7 @@ class ArchmapBaseModel():
         with open(f"{self._atlas}_metric.pickle", "wb") as file:
             pickle.dump(metric_dict, file)
 
-        # utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
+        utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
 
         #Save output
         Postprocess.output(None, combined_downsample, self._configuration)
@@ -485,7 +488,7 @@ class ArchmapBaseModel():
         if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
-            # utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
+            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
             if not self._reference_adata_path.endswith("data.h5ad"):
                 raise ValueError("The reference data should be named data.h5ad")
             else:
@@ -493,7 +496,8 @@ class ArchmapBaseModel():
 
             combined_adata = self._combined_adata
             count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
-            self.temp_output_combined = tempfile.mktemp( suffix=".h5ad")
+            self.temp_output_combined = "finetuned_model/adata.h5ad"
+            os.makedirs("finetuned_model/", exist_ok=True)
 
             if count_matrix_size_gb < 10:
                 print("Count matrix size less than 10 gb.")

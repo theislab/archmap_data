@@ -2,7 +2,7 @@ from flask import Flask, request
 import os
 import init as scarches
 from threading import Thread
-from utils import utils, parameters
+from scarches_api.utils import utils, parameters
 import traceback
 
 app = Flask(__name__)
