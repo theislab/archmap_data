@@ -4,6 +4,19 @@ import matplotlib.pyplot as plt
 import boto3
 from aiohttp import ClientError
 
+def fetch_file_from_s3(key, path):
+    """
+    downloads a file identified by a given key to a given path
+    :param key: key in s3
+    :param path: desired path
+    :return:
+    """
+    client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
+                          aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+                          aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
+    print("fetching file from s3 with Bucket. key. path ", os.getenv('AWS_BUCKET'), key, path)
+    client.download_file(os.getenv('AWS_BUCKET'), key, path)
+
 def store_file_in_s3(path, key):
     """
     stores a file in the given path in an s3 bucket
@@ -26,11 +39,20 @@ def store_file_in_s3(path, key):
     return 0
 
 def main():
-    modelPath = os.getenv('modelPath')
-    atlasPath = os.getenv('atlasPath')
 
-    print(f"modelPath: {modelPath}")
-    print(f"atlasPath: {atlasPath}")
+    print(os.environ) # show all environment variables and their values.
+
+    modelPath = os.getenv('modelpath')
+    atlasPath = os.getenv('atlaspath')
+
+    print(f"modelpath: {modelPath}")
+    print(f"atlaspath: {atlasPath}")
+
+    #Get model and data
+    # fetch_file_from_s3(key, path)
+
+    # adata = sc.read(f"benchmark_atlas_upload/adata_{atlas}_{cell_type_key}_integrated.h5ad")
+
 
     x = np.linspace(0, 2 * np.pi, 100)  # Generate 100 points between 0 and 2*pi
     y = np.sin(x)
