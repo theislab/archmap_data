@@ -2,14 +2,14 @@
 # https://hub.docker.com/_/python
 FROM python:3.10-slim
 
+RUN apt-get update && \
+    apt-get install -y git && \
+    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge \
+
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
 
 ENV DATABASE_URI=
-
-RUN apt-get install -y git && \
-    # pip install git+https://github.com/theislab/scarches.git
-    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge
 
 # Copy local code to the container image.
 ENV APP_HOME /app
