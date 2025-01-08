@@ -2,6 +2,20 @@
 # https://hub.docker.com/_/python
 FROM python:3.10-slim
 
+# Install system dependencies
+RUN set -e; \
+    apt-get update -y && apt-get install -y \
+    tini \
+    lsb-release curl gnupg2; \
+    GCSFUSE_REPO=gcsfuse-$(lsb_release -c -s); \
+    echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | tee /etc/apt/sources.list.d/gcsfuse.list; \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -; \
+    apt-get update; \
+    apt-get install -y gcsfuse
+
+RUN apt-get update && \
+    apt-get install -y git && \
+    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge \
 
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED True
@@ -13,11 +27,7 @@ ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY benchmark_atlas/ ./
 
-RUN apt-get update && \
-    apt-get install -y git && \
-    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge \
 
-    
 # Install production dependencies.
 RUN pip install --no-cache-dir -r requirements.txt
 
