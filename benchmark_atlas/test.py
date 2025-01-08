@@ -1,8 +1,7 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 import boto3
-from aiohttp import ClientError
+from benchmark_atlas_upload import benchmark, benchmark_plot, minify
+
 
 def fetch_file_from_s3(key, path):
     """
@@ -17,26 +16,7 @@ def fetch_file_from_s3(key, path):
     print("fetching file from s3 with Bucket. key. path ", os.getenv('AWS_BUCKET'), key, path)
     client.download_file(os.getenv('AWS_BUCKET'), key, path)
 
-def store_file_in_s3(path, key):
-    """
-    stores a file in the given path in an s3 bucket
-    :param path: path in our filesystem
-    :param key: key to where to store the file in s3
-    :return: returns ContentLength if successfully uploaded, 0 otherwise
-    """
-    try:
-        bucket = os.getenv('AWS_BUCKET')
-        client = boto3.client('s3', endpoint_url=os.getenv('AWS_ENDPOINT'),
-                              aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
-                              aws_secret_access_key=os.getenv('AWS_SECRET_KEY'))
-        print("Uploading file:: Bucket. key. path ", bucket, key, path)
-        client.upload_file(path, bucket, key)
-        response = client.head_object(Bucket=bucket, Key=key)
-        print("Response from the upload: ", response)
-        return response['ContentLength']
-    except ClientError as e:
-        print(e)
-    return 0
+
 
 def main():
 
@@ -44,35 +24,42 @@ def main():
 
     modelPath = os.getenv('modelpath')
     atlasPath = os.getenv('atlaspath')
+    modelName = os.getenv('modelname')
+    batchkey = os.getenv('batchkey')
+    celltypekey = os.getenv('celltypekey')
+    atlasName = os.getenv('atlasname')
 
     print(f"modelpath: {modelPath}")
     print(f"atlaspath: {atlasPath}")
 
     #Get model and data
-    # fetch_file_from_s3(key, path)
+    modelfile_gcp = "models/{modelPath}/model.pt"
+    adatafile_gcp = "atlas/{atlasPath}/data.h5ad"
 
-    # adata = sc.read(f"benchmark_atlas_upload/adata_{atlas}_{cell_type_key}_integrated.h5ad")
+    modelfile_local = "model/model.pt"
+    adatafile_local = "model/adata.h5ad"
 
+    fetch_file_from_s3(modelfile_gcp, modelfile_local)
+    fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
-    x = np.linspace(0, 2 * np.pi, 100)  # Generate 100 points between 0 and 2*pi
-    y = np.sin(x)
+    modelpath_local = "model/"
 
-    # Create the plot
-    plt.figure(figsize=(8, 6))  # Set the figure size
-    plt.plot(x, y, label='Sine Wave', color='blue')
-    plt.title('Sine Wave')
-    plt.xlabel('x')
-    plt.ylabel('sin(x)')
-    plt.legend()
+    # TODO: 
+    # Check that data is not minified
 
-    
-    # Save the plot locally
-    local_file = '/tmp/plot.png'
-    plt.savefig(local_file)
+    # benchmark integration
+    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
+    benchmark_plot(atlasName, batchkey, celltypekey)
 
-    # Upload to Google Cloud Storage
-    store_file_in_s3(local_file, modelPath)
+    # minify
+    minify(modelName, atlasName, modelpath_local)
+
+    # get classifiers and uncert
 
 
 if __name__ == "__main__":
+    os.environ["AWS_BUCKET"] = "jst-2021-bucket-2022-dev"    
+    os.environ['AWS_ENDPOINT'] = 'https://storage.googleapis.com'    
+    os.environ['AWS_ACCESS_KEY'] = 'GOOG1EILWP3VDCDQAZ2A2YSSW3T2N6FZXONGNSVXN6GWOLWQHIWCEOS6WTAIS'    
+    os.environ['AWS_SECRET_KEY'] = 'G/vFPyejHpT3aZKsD/bVNikUpk7SIz3snS1kl9f1'
     main()

@@ -7,10 +7,15 @@ ENV PYTHONUNBUFFERED True
 
 ENV DATABASE_URI=
 
+RUN apt-get install -y git && \
+    # pip install git+https://github.com/theislab/scarches.git
+    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge
+
 # Copy local code to the container image.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY benchmark_atlas/ ./
+
 
 # Install production dependencies.
 RUN pip install --no-cache-dir -r requirements.txt
