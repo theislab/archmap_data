@@ -1,6 +1,4 @@
 
-
-import numpy as np
 import scanpy as sc
 from scarches.models.scpoli import scPoli
 import scvi
@@ -8,7 +6,6 @@ import pickle
 import scarches as sca
 from scib_metrics.benchmark import Benchmarker
 import pickle
-import pandas as pd
 import torch 
 import os
 import boto3
