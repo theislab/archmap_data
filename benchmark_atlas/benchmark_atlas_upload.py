@@ -13,7 +13,9 @@ from aiohttp import ClientError
 import h5py
 from anndata.experimental import write_elem, read_elem
 from scipy import sparse
-from classifiers import Classifiers
+from mapping.classifiers.classifiers import Classifiers
+import pandas as pd
+import numpy as np
 
 
 def store_file_in_s3(path, key):

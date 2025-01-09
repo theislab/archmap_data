@@ -7,6 +7,7 @@ requests==2.32.3
 
 # for scarches
 xgboost==1.7.4
+scib-metrics==0.5.1
 numpy~=1.22
 torch~=2.2.1
 scikit-misc==0.5.1
@@ -15,6 +16,7 @@ pymde==0.1.15
 scikit-learn==1.5.2
 scvi-tools==1.2.0
 scipy>=1.13.1
+
 
 #concatenation on disk
 dask
