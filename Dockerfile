@@ -13,6 +13,13 @@ RUN set -e; \
     apt-get update; \
     apt-get install -y gcsfuse
 
+# Install required packages
+RUN apt-get update && \
+    apt-get install -y gcc && \
+    apt-get clean
+    #pip install git+https://github.com/theislab/pertpy
+
+
 RUN apt-get update && \
     apt-get install -y git && \
     pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge 

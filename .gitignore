@@ -320,9 +320,15 @@ po/*~
 /mapping/.vscode
 /.vscode
 
+/mapping/hlca_tutorial
 /mapping/scarches_api/config.py
+/mapping/scarches_api/map_all.py
+/mapping/scarches_api/requirements_local.txt
 /mapping/classifiers/data
+/mapping/classifiers/local_scripts
+/mapping/classifiers/integration_comparison
 /mapping/classifiers/models
 /mapping/classifiers/models*
 /mapping/integration*
 /mapping/process/convert_legacy*
+/benchmark_atlas/models
