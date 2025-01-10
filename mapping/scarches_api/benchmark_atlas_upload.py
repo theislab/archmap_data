@@ -5,7 +5,6 @@ import scvi
 import pickle
 import scarches as sca
 from scib_metrics.benchmark import Benchmarker
-import pickle
 import torch 
 import os
 import boto3
@@ -15,6 +14,8 @@ from anndata.experimental import write_elem, read_elem
 from scipy import sparse
 from classifiers import Classifiers
 import pandas as pd
+
+from sklearn.mixture import GaussianMixture
 
 
 def store_file_in_s3(path, key):
@@ -52,7 +53,7 @@ def convert_scpoli(input_path, output_path):
 #minify
 def minify(modelName, atlasName, modelpath_local):
      
-    model_type = modelName
+    model_type = modelName.lower()
     model_name = modelpath_local
     model_minified_path = "model_minified"
     atlas = atlasName.replace(" ", "_").lower()
@@ -69,7 +70,8 @@ def minify(modelName, atlasName, modelpath_local):
 
      # minify
     if model_type=="scpoli":
-            tm = sca.models.scPoli.load(model_name)
+            tm = sca.models.scPoli.load(model_name, map_location="cpu")
+            tm.get_latent(tm.adata)
             tm.minify_adata()
     elif model_type=="scanvi":
         tm = scvi.model.SCANVI.load(model_name)
@@ -277,14 +279,85 @@ def classify(atlas, modelName, label):
     for l in label:
         #create knn classifier
         clf = Classifiers(False, True, None)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
 
         #create xgb classifier
         clf = Classifiers(True, False, None)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
 
-        #create native
-        clf = Classifiers(False, False, model, model.__class__)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        # #create native
+        # clf = Classifiers(False, False, model, model.__class__)
+        # clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
+
+    return adata
 
 
+
+
+
+def train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key, pretrained=True):
+
+
+    num_clusters = adata_ref.obs[cell_type_key].nunique()
+    print(num_clusters)
+
+    train_emb = adata_ref.obsm[embedding_name]
+
+    #Required too much RAM
+    gmm = GaussianMixture(n_components=num_clusters)
+    gmm.fit(train_emb)
+
+    #Less RAM alternative
+    # kmeans = KMeans(n_clusters=num_clusters)
+    # kmeans.fit(train_emb)
+
+    #Save or return model
+    if pretrained:
+
+        directory="models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        
+        with open(directory + cell_type_key + "_mahalanobis_distance.pickle", "wb") as file:
+            pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return gmm
+    
+def train_euclidian(atlas, adata_ref, embedding_name, pretrained =True, n_neighbors = 15):
+
+    trainer = sca.utils.weighted_knn_trainer(
+    adata_ref,
+    embedding_name,
+    n_neighbors = n_neighbors
+    )
+
+    #Save model
+    if pretrained:
+
+        directory="models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+
+        with open(directory + "euclidian_distance.pickle", "wb") as file:
+            pickle.dump(trainer, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return trainer
+
+
+def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list):
+
+    modelName=modelName.lower()
+
+    if modelName=="scpoli":
+        embedding_name = "X_latent_qzm_scpoli"
+    else:
+        embedding_name = "X_latent_qzm"
+
+
+    if isinstance(cell_type_key_list,str):
+        cell_type_key_list = [cell_type_key_list]
+
+    for cell_type_key in cell_type_key_list:
+        print(cell_type_key)
+        train_euclidian(atlas, adata_ref, embedding_name)
+        train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key)

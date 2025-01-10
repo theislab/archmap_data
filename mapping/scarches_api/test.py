@@ -1,7 +1,7 @@
 import os
 import boto3
-from benchmark_atlas_upload import benchmark, benchmark_plot, minify
-
+from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train
+import scanpy as sc
 
 def fetch_file_from_s3(key, path):
     """
@@ -26,7 +26,8 @@ def main():
     atlasPath = os.getenv('atlaspath')
     modelName = os.getenv('modelname')
     batchkey = os.getenv('batchkey')
-    celltypekey = os.getenv('celltypekey')
+    # celltypekey = os.getenv('celltypekey')
+    celltypekey =["cell_type_level1", "cell_type_level2"]
     atlasName = os.getenv('atlasname')
 
     print(f"modelpath: {modelPath}")
@@ -42,7 +43,7 @@ def main():
     fetch_file_from_s3(modelfile_gcp, modelfile_local)
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
-    modelpath_local = "model/"
+    modelpath_local = "model"
 
     # TODO: 
     # Check that data is not minified
@@ -55,6 +56,9 @@ def main():
     minify(modelName, atlasName, modelpath_local)
 
     # get classifiers and uncert
+    adata = classify(atlasName, modelName, celltypekey)
+
+    uncertainty_train(atlasName, adata, modelName, celltypekey)
 
 
 if __name__ == "__main__":
@@ -62,4 +66,10 @@ if __name__ == "__main__":
     os.environ['AWS_ENDPOINT'] = 'https://storage.googleapis.com'    
     os.environ['AWS_ACCESS_KEY'] = 'GOOG1EILWP3VDCDQAZ2A2YSSW3T2N6FZXONGNSVXN6GWOLWQHIWCEOS6WTAIS'    
     os.environ['AWS_SECRET_KEY'] = 'G/vFPyejHpT3aZKsD/bVNikUpk7SIz3snS1kl9f1'
+    os.environ['atlaspath'] ="677f8cb16fe84df91ed6586e"
+    os.environ['modelpath'] ="677f8cb16fe84df91ed65874"
+    os.environ['modelname'] ="scPoli"
+    os.environ['batchkey'] ="sample"
+    os.environ['celltypekey'] =["cell_type_level2"]
+    os.environ['atlasname'] ="Plaque"
     main()
