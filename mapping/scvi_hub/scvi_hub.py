@@ -14,7 +14,7 @@ import numpy as np
 import os
 import tempfile
 from process.processing import Postprocess
-from classifiers.classifiers import Classifiers
+from mapping.scarches_api.classifiers import Classifiers
 from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
 from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
 

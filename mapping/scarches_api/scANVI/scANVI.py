@@ -16,7 +16,7 @@ import scvi
 
 import process.processing as processing
 
-from classifiers.classifiers import Classifiers
+from mapping.scarches_api.classifiers import Classifiers
 
 import psutil
 

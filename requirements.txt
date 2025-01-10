@@ -1,25 +1,25 @@
-scanpy~=1.9.1
-boto3==1.20.29
-matplotlib==3.9.3
-aiohttp==3.11.9
-requests==2.32.3
+# scanpy~=1.9.1
+# boto3==1.20.29
+# matplotlib==3.9.3
+# aiohttp==3.11.9
+# requests==2.32.3
 
 
-# for scarches
-xgboost==1.7.4
-scib-metrics==0.5.1
-numpy~=1.22
-torch~=2.2.1
-scikit-misc==0.5.1
-protobuf==3.19.4
-pymde==0.1.15
-scikit-learn==1.5.2
-scvi-tools==1.2.0
-scipy>=1.13.1
+# # for scarches
+# xgboost==1.7.4
+# scib-metrics==0.5.1
+# numpy~=1.22
+# torch~=2.2.1
+# scikit-misc==0.5.1
+# protobuf==3.19.4
+# pymde==0.1.15
+# scikit-learn==1.5.2
+# scvi-tools==1.2.0
+# scipy>=1.13.1
 
 
-#concatenation on disk
-dask
+# #concatenation on disk
+# dask
 
 
 

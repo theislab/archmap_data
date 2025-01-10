@@ -33,11 +33,12 @@ ENV DATABASE_URI=
 # Copy local code to the container image.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
-COPY benchmark_atlas/ ./
+COPY mapping/ ./
 
 
 # Install production dependencies.
-RUN pip install --no-cache-dir -r requirements.txt
+#RUN pip install --no-cache-dir -r benchmark_atlas/requirements.txt
+RUN pip install -r benchmark_atlas/requirements.txt
 
 ENV PORT 9090
 
@@ -48,4 +49,4 @@ ENV PORT 9090
 # Timeout is set to 0 to disable the timeouts of the workers to allow Cloud Run to handle instance scaling.
 # CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
 
-CMD ["python", "test.py"]
+CMD ["python", "scarches_api/test.py"]

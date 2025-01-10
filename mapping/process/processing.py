@@ -478,7 +478,7 @@ class Preprocess:
                 target_adata.obs["batch"]=target_adata.obs[batch_key]
             else:
                 target_adata.obs["batch"]="mapped_batch"*len(target_adata)
-            # raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
+            # raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data")
         
 
         return cell_type_key, cell_type_key_classifier, cell_type_key_list, batch_key, unlabeled_key_model

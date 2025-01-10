@@ -13,7 +13,7 @@ import tempfile
 import scvi
 
 import uncert.uncert_metric as uncert
-from classifiers.classifiers import Classifiers
+from mapping.scarches_api.classifiers import Classifiers
 
 import process.processing as processing
 

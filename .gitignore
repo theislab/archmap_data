@@ -332,3 +332,5 @@ po/*~
 /mapping/integration*
 /mapping/process/convert_legacy*
 /benchmark_atlas/models
+/classifier_data/
+/integration/
