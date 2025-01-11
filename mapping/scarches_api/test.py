@@ -40,8 +40,8 @@ def main():
     modelfile_local = "model/model.pt"
     adatafile_local = "model/adata.h5ad"
 
-    fetch_file_from_s3(modelfile_gcp, modelfile_local)
-    fetch_file_from_s3(adatafile_gcp, adatafile_local)
+    # fetch_file_from_s3(modelfile_gcp, modelfile_local)
+    # fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
 
@@ -49,8 +49,8 @@ def main():
     # Check that data is not minified
 
     # benchmark integration
-    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
-    benchmark_plot(atlasName, batchkey, celltypekey)
+    # benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
+    # benchmark_plot(atlasName, batchkey, celltypekey)
 
     # minify
     minify(modelName, atlasName, modelpath_local)
@@ -70,6 +70,6 @@ if __name__ == "__main__":
     os.environ['modelpath'] ="677f8cb16fe84df91ed65874"
     os.environ['modelname'] ="scPoli"
     os.environ['batchkey'] ="sample"
-    os.environ['celltypekey'] =["cell_type_level2"]
-    os.environ['atlasname'] ="Plaque"
+    os.environ['celltypekey'] ="cell_type_level2"
+    os.environ['atlasname'] ="Plaque2"
     main()

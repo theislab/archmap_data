@@ -22,7 +22,7 @@ RUN apt-get update && \
 
 RUN apt-get update && \
     apt-get install -y git && \
-    pip install git+https://github.com/theislab/scarches.git
+    pip install git+https://github.com/theislab/scarches.git@speed_improvement_merge 
 
 
 # Allow statements and log messages to immediately appear in the Knative logs
