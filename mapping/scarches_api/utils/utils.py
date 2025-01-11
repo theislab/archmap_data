@@ -597,8 +597,10 @@ def translate_atlas_to_directory(configuration):
         return "hnoca_extended"
     elif atlas == "Breast":
         return "breast"
-    elif atlas == "Plaque":
-        return "plaque"
+    elif atlas == "Plaque1":
+        return "plaque1"
+    elif atlas == "Plaque2":
+        return "plaque2"
 
 
 def rename_duplicate_columns(df):
