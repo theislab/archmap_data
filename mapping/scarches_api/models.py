@@ -480,7 +480,9 @@ class ArchmapBaseModel():
         utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
 
         #Save output
-        Postprocess.output(None, combined_downsample, self._configuration)
+        data_cxg = Postprocess.output(None, combined_downsample, self._configuration)
+
+        self.data_cxg = data_cxg
 
 
 

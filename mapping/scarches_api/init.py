@@ -1,7 +1,7 @@
 import os
 import time
-
-
+import tempfile
+import scanpy as sc
 
 from scarches_api.utils import utils, parameters
 
@@ -148,11 +148,24 @@ def query(user_config):
             get_from_config(configuration, parameters.WEBHOOK)) > 0:
         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
-        cxg_with_count_path = get_from_config(configuration, parameters.OUTPUT_PATH)[:-len("cxg.h5ad")] + "cxg_with_count.h5ad"
+     
         output_model_path = get_from_config(configuration, parameters.OUTPUT_PATH)
+
+        #Save as .h5ad
+        data_cxg = mapping.data_cxg
+        output_path = get_from_config(configuration, parameters.OUTPUT_CXG_PATH)
+
+        # store file for cxg
+        filename = tempfile.mktemp( suffix=".h5ad")
+        sc.write(filename, data_cxg)
+        print("file written to: " + filename)
+        print("Now storing cxg data to gcp with output path: " + output_path)
+        utils.store_file_in_s3(filename, output_path)
         
         #save model and adata as tar file
         import tarfile
+
+        mapping._combined_adata.write("finetuned_model/adata.h5ad")
         mapping._model.save("finetuned_model/", save_anndata=False, overwrite=True)
         output_filename="query_model.tar.gz"
         source_dir="finetuned_model/"

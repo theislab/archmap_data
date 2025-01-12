@@ -10,6 +10,8 @@ MODEL_SOURCE = "model_source"
 SCVI_HUB_ID = "scviHubId"
 # sets scvi hub setup args
 SCVI_HUB_ARGS = "model_setup_anndata_args"
+#where to store result for cxg launch
+OUTPUT_CXG_PATH = "output_cxg_path"
 # sets the model
 MODEL = 'model'
 # sets if minified version

@@ -800,16 +800,9 @@ class Postprocess:
                 combined_downsample.obs[col].fillna(0, inplace=True)
                 combined_downsample.obs[col]=combined_downsample.obs[col].astype(np.int32)
 
-        #Save as .h5ad
-        output_path = config[parameters.OUTPUT_PATH] # + "_cxg.h5ad"
+        
 
-        if store_file_in_cloud:
-            filename = tempfile.mktemp( suffix=".h5ad")
-            
-            sc.write(filename, combined_downsample)
-            print("file written to: " + filename)
-            print("Now storing to gcp with output path: " + output_path)
-            utils.store_file_in_s3(filename, output_path)
+        return combined_downsample
 
     def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, store_file_in_cloud=True):
         output_type = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
@@ -822,4 +815,6 @@ class Postprocess:
 
         if(output_type.get("cxg")):
 
-            Postprocess.__output_cxg(latent_adata, combined_adata, configuration, store_file_in_cloud)
+            data_cxg = Postprocess.__output_cxg(latent_adata, combined_adata, configuration, store_file_in_cloud)
+
+            return data_cxg
