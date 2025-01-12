@@ -144,7 +144,7 @@ def query(user_config):
         
         # sc.AnnData(mapping._combined_adata.obsm["latent_rep"], mapping._combined_adata.obs).write(f"results/{atlas_name}.h5ad")
 
-    if True or get_from_config(configuration, parameters.WEBHOOK) is not None and len(
+    if get_from_config(configuration, parameters.WEBHOOK) is not None and len(
             get_from_config(configuration, parameters.WEBHOOK)) > 0:
         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
 
