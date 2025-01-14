@@ -38,7 +38,7 @@ def main():
     adatafile_gcp = f"atlas/{atlasPath}/data.h5ad"
 
     modelfile_local = "model/model.pt"
-    adatafile_local = "model/adata.h5ad"
+    adatafile_local = "model/data.h5ad"
 
     fetch_file_from_s3(modelfile_gcp, modelfile_local)
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
