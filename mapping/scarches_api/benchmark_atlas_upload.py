@@ -48,7 +48,7 @@ def convert_scpoli(input_path, output_path):
     with open(f"{output_path}/attr.pkl","wb") as f:
             pickle.dump(model["attr_dict"], f, pickle.HIGHEST_PROTOCOL)
 
-    pd.Series(model["var_names"]).to_csv(f"{output_path}/var_names.csv")
+    pd.Series(model["var_names"]).to_csv(f"{output_path}/var_names.csv", header=False, index=False)
 
 #minify
 def minify(modelName, atlasName, modelpath_local):
@@ -99,7 +99,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
     if modelName == "scpoli":
         convert_scpoli(modelpath_local,modelpath_local)
         model = sca.models.scPoli.load(modelpath_local)
-        model.adata.obsm["X_user_integrated"] = scpoli_model.get_latent(model.adata, mean=True)
+        model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
     elif modelName == "scvi":
         model = scvi.model.SCVI.load(modelpath_local)

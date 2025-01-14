@@ -27,7 +27,7 @@ def main():
     modelName = os.getenv('modelname')
     batchkey = os.getenv('batchkey')
     # celltypekey = os.getenv('celltypekey')
-    celltypekey =["cell_type_level1", "cell_type_level2"]
+    celltypekey ="cell_type_level1"
     atlasName = os.getenv('atlasname')
 
     print(f"modelpath: {modelPath}")
@@ -49,16 +49,16 @@ def main():
     # Check that data is not minified
 
     # benchmark integration
-    # benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
-    # benchmark_plot(atlasName, batchkey, celltypekey)
+    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
+    benchmark_plot(atlasName, batchkey, celltypekey)
 
-    # minify
-    minify(modelName, atlasName, modelpath_local)
+    # # minify
+    # minify(modelName, atlasName, modelpath_local)
 
-    # get classifiers and uncert
-    adata = classify(atlasName, modelName, celltypekey)
+    # # get classifiers and uncert
+    # adata = classify(atlasName, modelName, celltypekey)
 
-    uncertainty_train(atlasName, adata, modelName, celltypekey)
+    # uncertainty_train(atlasName, adata, modelName, celltypekey)
 
 
 if __name__ == "__main__":
@@ -70,6 +70,6 @@ if __name__ == "__main__":
     os.environ['modelpath'] ="677f8cb16fe84df91ed65874"
     os.environ['modelname'] ="scPoli"
     os.environ['batchkey'] ="sample"
-    os.environ['celltypekey'] ="cell_type_level2"
-    os.environ['atlasname'] ="Plaque2"
+    os.environ['celltypekey'] ="cell_type_level1"
+    os.environ['atlasname'] ="Plaque1"
     main()

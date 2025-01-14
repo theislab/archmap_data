@@ -30,9 +30,16 @@ ENV PYTHONUNBUFFERED True
 
 ENV DATABASE_URI=
 
+
+
 # Copy local code to the container image.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
+
+ENV MNT_DIR /mnt/gcs
+
+# ENV GOOGLE_APPLICATION_CREDENTIALS ${APP_HOME}/benchmark_atlas/application_default_credentials.json
+
 COPY mapping/ ./
 
 
@@ -40,7 +47,13 @@ COPY mapping/ ./
 #RUN pip install --no-cache-dir -r benchmark_atlas/requirements.txt
 RUN pip install -r benchmark_atlas/requirements.txt
 
+RUN chmod +x ${APP_HOME}/benchmark_atlas/gcsfuse_benchmark.sh
+
 ENV PORT 9090
+
+# Use tini to manage zombie processes and signal forwarding
+# https://github.com/krallin/tini
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 8 threads.
@@ -48,5 +61,7 @@ ENV PORT 9090
 # to be equal to the cores available.
 # Timeout is set to 0 to disable the timeouts of the workers to allow Cloud Run to handle instance scaling.
 # CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
+
+# CMD ["benchmark_atlas/gcsfuse_benchmark.sh"]
 
 CMD ["python", "scarches_api/test.py"]
