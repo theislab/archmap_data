@@ -40,8 +40,8 @@ def main():
     modelfile_local = "model/model.pt"
     adatafile_local = "model/adata.h5ad"
 
-    # fetch_file_from_s3(modelfile_gcp, modelfile_local)
-    # fetch_file_from_s3(adatafile_gcp, adatafile_local)
+    fetch_file_from_s3(modelfile_gcp, modelfile_local)
+    fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
 
@@ -52,24 +52,14 @@ def main():
     benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
     benchmark_plot(atlasName, batchkey, celltypekey)
 
-    # # minify
-    # minify(modelName, atlasName, modelpath_local)
+    # minify
+    minify(modelName, atlasName, modelpath_local)
 
-    # # get classifiers and uncert
-    # adata = classify(atlasName, modelName, celltypekey)
+    # get classifiers and uncert
+    adata = classify(atlasName, modelName, celltypekey)
 
-    # uncertainty_train(atlasName, adata, modelName, celltypekey)
+    uncertainty_train(atlasName, adata, modelName, celltypekey)
 
 
 if __name__ == "__main__":
-    os.environ["AWS_BUCKET"] = "jst-2021-bucket-2022-dev"    
-    os.environ['AWS_ENDPOINT'] = 'https://storage.googleapis.com'    
-    os.environ['AWS_ACCESS_KEY'] = 'GOOG1EILWP3VDCDQAZ2A2YSSW3T2N6FZXONGNSVXN6GWOLWQHIWCEOS6WTAIS'    
-    os.environ['AWS_SECRET_KEY'] = 'G/vFPyejHpT3aZKsD/bVNikUpk7SIz3snS1kl9f1'
-    os.environ['atlaspath'] ="677f8cb16fe84df91ed6586e"
-    os.environ['modelpath'] ="677f8cb16fe84df91ed65874"
-    os.environ['modelname'] ="scPoli"
-    os.environ['batchkey'] ="sample"
-    os.environ['celltypekey'] ="cell_type_level1"
-    os.environ['atlasname'] ="Plaque1"
     main()
