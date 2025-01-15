@@ -37,28 +37,35 @@ def main():
     modelfile_gcp = f"models/{modelPath}/model.pt"
     adatafile_gcp = f"atlas/{atlasPath}/data.h5ad"
 
+    directory="model/"
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
     modelfile_local = "model/model.pt"
-    adatafile_local = "model/data.h5ad"
+    adatafile_local = "model/adata.h5ad"
 
     fetch_file_from_s3(modelfile_gcp, modelfile_local)
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
 
+
     # TODO: 
     # Check that data is not minified
 
     # benchmark integration
     benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey)
-    benchmark_plot(atlasName, batchkey, celltypekey)
+    benchmark_plot(atlasName, batchkey, celltypekey, modelPath)
 
     # minify
-    minify(modelName, atlasName, modelpath_local)
+    minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)
 
     # get classifiers and uncert
-    adata = classify(atlasName, modelName, celltypekey)
+    adata = classify(atlasName, modelName, celltypekey, modelPath, atlasPath)
 
-    uncertainty_train(atlasName, adata, modelName, celltypekey)
+    uncertainty_train(atlasName, adata, modelName, celltypekey, modelPath, atlasPath)
+
+    # TODO: Store classifiers, uncert in GCP
 
 
 if __name__ == "__main__":

@@ -40,7 +40,7 @@ def store_file_in_s3(path, key):
     return 0
 
 
-def convert_scpoli(input_path, output_path):
+def convert_scpoli(input_path, output_path, modelPath):
     model = torch.load(f"{input_path}/model.pt")
 
     torch.save(model["model_state_dict"],f"{output_path}/model_params.pt")
@@ -50,8 +50,9 @@ def convert_scpoli(input_path, output_path):
 
     pd.Series(model["var_names"]).to_csv(f"{output_path}/var_names.csv", header=False, index=False)
 
+
 #minify
-def minify(modelName, atlasName, modelpath_local):
+def minify(modelName, atlasName, modelpath_local, atlasPath):
      
     model_type = modelName.lower()
     model_name = modelpath_local
@@ -67,6 +68,9 @@ def minify(modelName, atlasName, modelpath_local):
         adata_count.var_names =var_names
         adata_count.write(f"data_only_count_{atlas}.h5ad")
         print(adata_count.X)
+
+    print("storing count data to GCP")
+    store_file_in_s3(f"data_only_count_{atlas}.h5ad",f"atlas/{atlasPath}/data_only_count.h5ad")
 
      # minify
     if model_type=="scpoli":
@@ -89,15 +93,28 @@ def minify(modelName, atlasName, modelpath_local):
         all_zeros = sparse.csr_matrix(X.shape)
         write_elem(store1, "X", all_zeros)
 
+    if modelName=="scpoli":
+        print("storing minified scPoli model to GCP storage")
+        store_file_in_s3(f"{model_minified_path}/model_params.pt", f"models/{modelPath}/model_params.pt")
+        store_file_in_s3(f"{model_minified_path}/attr.pkl", f"models/{modelPath}/attr.pkl")
+        store_file_in_s3(f"{model_minified_path}/var_names.csv", f"models/{modelPath}/var_names.csv")
+
+    else:
+        print("storing minified model to GCP storage")
+        store_file_in_s3(f"{model_minified_path}/model.pt",f"model/{modelPath}/model.pt")
+
+    print("storing minified data to GCP storage")
+    store_file_in_s3(f"{model_minified_path}/adata.h5ad",f"atlas/{atlasPath}/data.h5ad")
+
 
 # benchmark atlas integration
-def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
+def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath):
 
     modelName = modelName.lower()
     
     # read model and get embedding
     if modelName == "scpoli":
-        convert_scpoli(modelpath_local,modelpath_local)
+        convert_scpoli(modelpath_local,modelpath_local, modelPath)
         model = sca.models.scPoli.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
@@ -197,7 +214,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
 
 
 # plot benchmarking results
-def benchmark_plot(adata, atlasName, modelName, batchkey, celltypekey):
+def benchmark_plot(adata, atlasName, modelName, batchkey, celltypekey, modelPath):
 
     cell_type_key = celltypekey
     modelName = modelName.lower()
@@ -242,18 +259,20 @@ def benchmark_plot(adata, atlasName, modelName, batchkey, celltypekey):
     df = bm.get_results(min_max_scale=False)
     df_t = df.transpose()
     df_t.to_csv("benchmark_results/integration_comparison.csv")
-    store_file_in_s3("benchmark_results/integration_comparison.csv", "benchmark_results/integration_comparison.csv")
+
+    results_path = f"models/{modelPath}/"
+    store_file_in_s3("benchmark_results/integration_comparison.csv", results_path + "benchmark_results/integration_comparison.csv")
 
     bm.plot_results_table(save_dir=f"benchmark_results/results_min_max_scale.png")
-    store_file_in_s3("benchmark_results/results_min_max_scale.png", "benchmark_results/results_min_max_scale.png")
+    store_file_in_s3("benchmark_results/results_min_max_scale.png", results_path + "benchmark_results/results_min_max_scale.png")
 
     bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/results.png")
-    store_file_in_s3("benchmark_results/results.png", "benchmark_results/results.png")
+    store_file_in_s3("benchmark_results/results.png", results_path + "benchmark_results/results.png")
         
 
 
 
-def classify(atlas, modelName, label):
+def classify(atlas, modelName, label, modelPath):
 
     model_minified_path = "model_minified"
     modelName = modelName.lower()
