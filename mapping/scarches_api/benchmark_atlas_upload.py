@@ -396,8 +396,8 @@ def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list, modelPath
         "euclidian_distance.pickle"]
 
 
-        for file in files:
-            for label in cell_type_key_list:
-                store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{label}_{file}")
+    for file in files:
+        for label in cell_type_key_list:
+            store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{label}_{file}")
 
-            store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{file}")
+        store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{file}")
