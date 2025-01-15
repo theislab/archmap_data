@@ -52,7 +52,7 @@ def convert_scpoli(input_path, output_path, modelPath):
 
 
 #minify
-def minify(modelName, atlasName, modelpath_local, atlasPath):
+def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
      
     model_type = modelName.lower()
     model_name = modelpath_local
@@ -214,7 +214,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
 
 
 # plot benchmarking results
-def benchmark_plot(adata, atlasName, modelName, batchkey, celltypekey, modelPath):
+def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
 
     cell_type_key = celltypekey
     modelName = modelName.lower()
@@ -308,6 +308,18 @@ def classify(atlas, modelName, label, modelPath):
         # clf = Classifiers(False, False, model, model.__class__)
         # clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
 
+        files = ["classifier_encoding.pickle",
+        "classifier_knn.pickle",
+        "classifier_knn_report.csv",
+        "classifier_knn_report.png",
+        "classifier_xgb.ubj",
+        "classifier_xgb_report.csv",
+        "classifier_xgb_report.png"]
+
+
+        for file in files:
+            store_file_in_s3(f"classifier_models/{atlas}_{l}/{file}", f"models/{modelPath}/{label}/{file}")
+
     return adata
 
 
@@ -362,8 +374,7 @@ def train_euclidian(atlas, adata_ref, embedding_name, pretrained =True, n_neighb
     else:
         return trainer
 
-
-def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list):
+def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list, modelPath):
 
     modelName=modelName.lower()
 
@@ -380,3 +391,13 @@ def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list):
         print(cell_type_key)
         train_euclidian(atlas, adata_ref, embedding_name)
         train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key)
+
+    files = ["mahalanobis_distance.pickle",
+        "euclidian_distance.pickle"]
+
+
+        for file in files:
+            for label in cell_type_key_list:
+                store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{label}_{file}")
+
+            store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{file}")
