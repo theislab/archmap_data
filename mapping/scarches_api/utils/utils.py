@@ -597,9 +597,9 @@ def translate_atlas_to_directory(configuration):
         return "hnoca_extended"
     elif atlas == "Breast":
         return "breast"
-    elif atlas == "Plaque1":
+    elif atlas == "Plaque":
         return "plaque1"
-    elif atlas == "Plaque2":
+    elif atlas == "Plaque (refined cell type level)":
         return "plaque2"
 
 
