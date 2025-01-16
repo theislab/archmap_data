@@ -146,14 +146,21 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
     if modelName!="scvi":
         scvi.model.SCVI.setup_anndata(adata, batch_key=condition_key)
         vae = scvi.model.SCVI(adata, gene_likelihood="nb")
-        vae.train(max_epochs=500)
+        vae.train(max_epochs=1)
         adata.obsm["X_scvi"] = vae.get_latent_representation()
 
     # run scanvi
     if modelName!="scanvi":
-        scvi.model.SCANVI.setup_anndata(adata, batch_key=condition_key)
+        for key in ["unlabeled", "unknown"]:
+            if key in adata.obs[cell_type_key].str.lower().values:
+                unlabeled_key = key
+                break
+            else:
+                unlabeled_key = "unknown"
+            
+        scvi.model.SCANVI.setup_anndata(adata, batch_key=condition_key, labels_key=cell_type_key, unlabeled_category=unlabeled_key)
         vae = scvi.model.SCANVI(adata, gene_likelihood="nb")
-        vae.train(max_epochs=500)
+        vae.train(max_epochs=1)
         adata.obsm["X_scanvi"] = vae.get_latent_representation()
 
     # run scpoli
@@ -176,8 +183,8 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
             recon_loss='nb',
         )
         scpoli_model.train(
-            n_epochs=200,
-            pretraining_epochs=40,
+            n_epochs=1,
+            pretraining_epochs=1,
             early_stopping_kwargs=early_stopping_kwargs,
             eta=0, #prototype loss weight -> higher means more clustering of each ct towards its avg latent score.
         )
@@ -194,8 +201,8 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
             recon_loss='nb',
         )
         scpoli_model.train(
-            n_epochs=200,
-            pretraining_epochs=40,
+            n_epochs=1,
+            pretraining_epochs=1,
             early_stopping_kwargs=early_stopping_kwargs,
             eta=5, #prototype loss weight -> higher means more clustering of each ct towards its avg latent score.
         )
