@@ -239,7 +239,7 @@ def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
             adata,
             batch_key=condition_key,
             label_key=cell_type_key,
-            embedding_obsm_keys=["X_pca", "X_scvi", "X_scpoli_no_prototype","X_scpoli_with_prototype", "X_user_integrated"],
+            embedding_obsm_keys=["X_pca", "X_scvi","X_scpoli_with_prototype", "X_user_integrated"],
             n_jobs=4,
         )
     else:
