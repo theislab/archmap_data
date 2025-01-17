@@ -26,6 +26,8 @@ ENCODING_PATH = "encoder_path"
 CONDITION_KEY = 'condition_key'
 # set the cell type key
 CELL_TYPE_KEY = 'cell_type_key'
+# set batch key
+BATCH_KEY = 'batch_key'
 # sets the number of layers used
 NUMBER_OF_LAYERS = 'n_layers'
 # encode_covariates
