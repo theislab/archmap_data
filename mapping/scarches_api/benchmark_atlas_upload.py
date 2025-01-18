@@ -276,7 +276,12 @@ def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
     df_t = df.transpose()
     df_t.to_csv("benchmark_results/integration_comparison.csv")
 
-    bm.plot_results_table(save_dir=f"benchmark_results/scib_min_max_scale/")
+    from pathlib import Path
+    benchmark_results_min_max ="benchmark_results/scib_min_max_scale/"
+    path = Path(benchmark_results_min_max)
+    path.mkdir(parents=True, exist_ok=True)
+
+    bm.plot_results_table(save_dir=benchmark_results_min_max)
 
     bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/")
     
