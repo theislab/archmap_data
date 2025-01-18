@@ -14,6 +14,7 @@ from anndata.experimental import write_elem, read_elem
 from scipy import sparse
 from classifiers import Classifiers
 import pandas as pd
+import shutil
 
 from sklearn.mixture import GaussianMixture
 
@@ -275,14 +276,10 @@ def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
     df_t = df.transpose()
     df_t.to_csv("benchmark_results/integration_comparison.csv")
 
-    results_path = f"models/{modelPath}/"
-    store_file_in_s3("benchmark_results/integration_comparison.csv", results_path + "benchmark_results/integration_comparison.csv")
+    bm.plot_results_table(save_dir=f"benchmark_results/scib_min_max_scale/")
 
-    bm.plot_results_table(save_dir=f"benchmark_results/results_min_max_scale.png")
-    store_file_in_s3("benchmark_results/results_min_max_scale.png", results_path + "benchmark_results/results_min_max_scale.png")
-
-    bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/results.png")
-    store_file_in_s3("benchmark_results/results.png", results_path + "benchmark_results/results.png")
+    bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/")
+    
         
 
 
@@ -333,9 +330,42 @@ def classify(atlas, modelName, label, modelPath):
 
 
         for file in files:
-            store_file_in_s3(f"classifier_models/{atlas}_{l}/{file}", f"models/{modelPath}/{label}/{file}")
+            store_file_in_s3(f"classifier_models/{atlas}_{l}/{file}", f"models/{modelPath}/{l}/{file}")
+
+        #store scores 
 
     return adata
+
+def store_results(atlas, label, modelPath):
+    results_path = f"models/{modelPath}/"
+
+
+    files = [
+        "classifier_knn_report.csv",
+        "classifier_knn_report.png",
+        "classifier_xgb_report.csv",
+        "classifier_xgb_report.png"]
+    
+    if not isinstance(label, list):
+        label = [label]
+
+    results_dir = "benchmark_results"
+    for l in label:
+        for file in files:
+            shutil.copy(f"classifier_models/{atlas}_{l}/{file}", results_dir)
+
+    
+    # create tar.gz from results_dir
+    import tarfile
+    output_filename=f"{results_dir}.tar.gz"
+    source_dir=f"{results_dir}/"
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+    print(f"Created tar archive: {output_filename}")
+
+    store_file_in_s3(output_filename, results_path + f"{results_dir}.tar.gz")
+
+
 
 
 
