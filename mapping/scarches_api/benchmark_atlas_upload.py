@@ -90,7 +90,7 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
     tm.save(model_minified_path, save_anndata=True, overwrite=True)
 
     # zero out counts for minified version
-    with h5py.File(f"{model_minified_path}/adata.h5ad", mode="r") as store1:
+    with h5py.File(f"{model_minified_path}/adata.h5ad", mode="r+") as store1:
         all_zeros = sparse.csr_matrix(X.shape)
         write_elem(store1, "X", all_zeros)
 

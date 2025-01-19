@@ -1,6 +1,6 @@
 import os
 import boto3
-from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train
+from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results
 import scanpy as sc
 
 def fetch_file_from_s3(key, path):
@@ -56,6 +56,7 @@ def main():
     # benchmark integration
     benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
     benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath)
+    store_results(atlasName, celltypekey, modelPath)
 
     # minify
     minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)
