@@ -56,13 +56,14 @@ def main():
     # benchmark integration
     benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
     benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath)
-    store_results(atlasName, celltypekey, modelPath)
-
+    
     # minify
     minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)
 
     # get classifiers and uncert
     adata = classify(atlasName, modelName, celltypekey, modelPath)
+    store_results(atlasName, celltypekey, modelPath)
+
 
     uncertainty_train(atlasName, adata, modelName, celltypekey, modelPath)
 
