@@ -2,6 +2,7 @@ import os
 import boto3
 from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results
 import scanpy as sc
+from scarches_api.utils import utils
 
 def fetch_file_from_s3(key, path):
     """
@@ -26,9 +27,9 @@ def main():
     atlasPath = os.getenv('atlaspath')
     modelName = os.getenv('modelname')
     batchkey = os.getenv('batchkey')
-    # celltypekey = os.getenv('celltypekey')
-    celltypekey ="cell_type_level1"
+    celltypekey = os.getenv('celltypekey')
     atlasName = os.getenv('atlasname')
+    webhook = os.getenv('webhook')
 
     print(f"modelpath: {modelPath}")
     print(f"atlaspath: {atlasPath}")
@@ -66,6 +67,9 @@ def main():
 
 
     uncertainty_train(atlasName, adata, modelName, celltypekey, modelPath)
+
+    # notify backend that benchmarking completed
+    utils.notify_backend(webhook, {})
 
     # TODO: Store classifiers, uncert in GCP
 
