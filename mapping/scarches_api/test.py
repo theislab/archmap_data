@@ -3,6 +3,7 @@ import boto3
 from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results
 import scanpy as sc
 from scarches_api.utils import utils
+import requests
 
 def fetch_file_from_s3(key, path):
     """
@@ -17,6 +18,16 @@ def fetch_file_from_s3(key, path):
     print("fetching file from s3 with Bucket. key. path ", os.getenv('AWS_BUCKET'), key, path)
     client.download_file(os.getenv('AWS_BUCKET'), key, path)
 
+def notify_backend(endpoint, payload):
+    """
+    makes a post request to an endpoint specified by backend to notify them about the computed results
+    :param endpoint: url
+    :param payload: configuration initially specified from backend, allows them to identify which result is ready
+    :return:
+    """
+    print("notifying backend with endpoint and payload ", endpoint, payload)
+    print("\n")
+    requests.post(endpoint, data=payload)
 
 
 def main():
