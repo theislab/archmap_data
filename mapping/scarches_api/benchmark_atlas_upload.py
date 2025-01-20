@@ -94,7 +94,7 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
         all_zeros = sparse.csr_matrix(X.shape)
         write_elem(store1, "X", all_zeros)
 
-    if modelName=="scpoli":
+    if model_type=="scpoli":
         print("storing minified scPoli model to GCP storage")
         store_file_in_s3(f"{model_minified_path}/model_params.pt", f"models/{modelPath}/model_params.pt")
         store_file_in_s3(f"{model_minified_path}/attr.pkl", f"models/{modelPath}/attr.pkl")
