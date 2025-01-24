@@ -437,13 +437,17 @@ def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list, modelPath
     if isinstance(cell_type_key_list,str):
         cell_type_key_list = [cell_type_key_list]
 
+    files = ["euclidian_distance.pickle"]
+
     for cell_type_key in cell_type_key_list:
         print(cell_type_key)
         train_euclidian(atlas, adata_ref, embedding_name)
         train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key)
 
-    files = ["mahalanobis_distance.pickle",
-        "euclidian_distance.pickle"]
+        files.append(cell_type_key + "_mahalanobis_distance.pickle")
+
+   
+    
 
 
     for file in files:
