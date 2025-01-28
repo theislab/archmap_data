@@ -4,6 +4,7 @@ import init as scarches
 from threading import Thread
 from scarches_api.utils import utils, parameters
 import traceback
+import json
 
 # app = Flask(__name__)
 
@@ -17,6 +18,22 @@ def main():
     try:
         config = os.environ
         print(config)
+
+        # convert listed vars
+        vars_to_convert = config["vars_to_convert"]
+        for key, values in vars_to_convert.keys():
+            if key=="dictionary":
+                for v in values:
+                    config[v] = json.loads(config[v])
+
+            if key=="integer":
+                for v in values:
+                    config[v] = int(v)
+            
+            if key=="boolean":
+                for v in values:
+                    config[v] = {"true": True, "false": False}.get(config[v].lower(), False)
+
         run_async = get_from_config(config, parameters.RUN_ASYNCHRONOUSLY)
         if run_async is not None and run_async:
             actual_config = scarches.merge_configs(config)
