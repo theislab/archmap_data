@@ -20,7 +20,7 @@ def main():
         print(config)
 
         # convert listed vars
-        vars_to_convert = config["vars_to_convert"]
+        vars_to_convert = json.loads(config["vars_to_convert"])
         for key, values in vars_to_convert.keys():
             if key=="dictionary":
                 for v in values:
