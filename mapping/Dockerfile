@@ -46,4 +46,6 @@ ENV PYTHONPATH $APP_HOME
 # https://github.com/krallin/tini
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["./gcsfuse_run.sh"]
+# CMD ["./gcsfuse_run.sh"]
+
+CMD ["python", "scarches_api/api.py"]
