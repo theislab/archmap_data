@@ -20,23 +20,23 @@ def main():
         print(config) 
 
         # convert listed vars
-        vars_to_convert = config["vars_to_convert"]
-        vars_to_convert = ast.literal_eval(vars_to_convert)
-        for key, values in vars_to_convert.items():
-            # if key=="dictionary":
-            #     for v in values:
-            #         value = config[v]
-            #         value = value.replace("'", '"')
-            #         config[v] = ast.literal_eval(value)
+        # vars_to_convert = config["vars_to_convert"]
+        # vars_to_convert = ast.literal_eval(vars_to_convert)
+        # for key, values in vars_to_convert.items():
+        #     if key=="dictionary":
+        #         for v in values:
+        #             value = config[v]
+        #             value = value.replace("'", '"')
+        #             config[v] = value
 
-            if key=="integer":
-                for v in values:
-                    value = config[v]
-                    config[v] = int(value)
+        #     if key=="integer":
+        #         for v in values:
+        #             value = config[v]
+        #             config[v] = value
             
-            if key=="boolean":
-                for v in values:
-                    config[v] = {"true": True, "false": False}.get(config[v].lower(), False)
+        #     if key=="boolean":
+        #         for v in values:
+        #             config[v] = {"true": True, "false": False}.get(config[v].lower(), False)
 
         run_async = get_from_config(config, parameters.RUN_ASYNCHRONOUSLY)
         if run_async is not None and run_async:
