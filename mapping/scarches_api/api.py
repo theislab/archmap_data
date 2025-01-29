@@ -16,11 +16,11 @@ def get_from_config(configuration, key):
 
 def main():
     try:
-        raw_config = os.environ
-        print(raw_config) 
+        config = os.environ
+        print(config) 
 
         # convert listed vars
-        config = raw_config.replace("'", '"')
+        config = config.replace("'", '"')
         vars_to_convert = json.loads(config["vars_to_convert"])
         for key, values in vars_to_convert.keys():
             if key=="dictionary":

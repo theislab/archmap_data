@@ -48,6 +48,7 @@ class ArchmapBaseModel():
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
+        self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
@@ -60,6 +61,8 @@ class ArchmapBaseModel():
         self._reference_adata = None
         self._combined_adata = None
         self.percent_unknown = "n/a"
+
+        utils.notify_backend(self._webhook_progress, {"logs":"fetching and preprocessing data"})
 
         #Load and process required data
         self._acquire_data()
@@ -116,6 +119,8 @@ class ArchmapBaseModel():
 
     def _map_query(self):
         #Map the query onto reference
+        utils.notify_backend(self._webhook_progress, {"logs":"mapping query"})
+        
 
         # threshold = 10000
         if self._atlas == "fetal_brain":
@@ -270,6 +275,7 @@ class ArchmapBaseModel():
         self._query_adata.layers['counts'] = self._query_adata.X
 
     def _eval_mapping(self):
+        utils.notify_backend(self._webhook_progress, {"logs":"calculating mapping uncertainty scores"})
         #Create AnnData objects off the latent representation
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         reference_latent = scanpy.AnnData(self._reference_adata.obsm["latent_rep"])
@@ -285,6 +291,7 @@ class ArchmapBaseModel():
             stress_score(self._query_adata)
 
     def _transfer_labels(self):
+        utils.notify_backend(self._webhook_progress, {"logs":"transferring labels from reference to query"})
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
             return
         
@@ -347,6 +354,7 @@ class ArchmapBaseModel():
                         os.remove(self._temp_clf_encoding_path)
 
     def _concat_data(self):
+        utils.notify_backend(self._webhook_progress, {"logs":"concatenating reference and query results"})
         #save .X and var_names of query in new adata for later concatenation after cellxgene
         self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
         self.adata_query_X.var_names = self._query_adata.var_names
@@ -421,6 +429,7 @@ class ArchmapBaseModel():
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
+        utils.notify_backend(self._webhook_progress, {"logs":"calculating mapping evaluation metrics and saving results"})
         # add .X to self._combined_adata
 
         if self.batch_key_input != self._batch_key:
