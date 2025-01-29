@@ -23,12 +23,11 @@ def main():
         vars_to_convert = config["vars_to_convert"]
         vars_to_convert = ast.literal_eval(vars_to_convert)
         for key, values in vars_to_convert.items():
-            if key=="dictionary":
-                for v in values:
-                    value = config[v]
-                    value = value.replace("'", '"')
-                    print(value)
-                    config[v] = ast.literal_eval(value)
+            # if key=="dictionary":
+            #     for v in values:
+            #         value = config[v]
+            #         value = value.replace("'", '"')
+            #         config[v] = ast.literal_eval(value)
 
             if key=="integer":
                 for v in values:
