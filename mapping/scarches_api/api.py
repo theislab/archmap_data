@@ -4,7 +4,7 @@ import init as scarches
 from threading import Thread
 from scarches_api.utils import utils, parameters
 import traceback
-import json
+import ast
 
 # app = Flask(__name__)
 
@@ -21,18 +21,19 @@ def main():
 
         # convert listed vars
         vars_to_convert = config["vars_to_convert"]
-        vars_to_convert = vars_to_convert.replace("'", '"')
-        vars_to_convert = json.loads(vars_to_convert)
+        vars_to_convert = ast.literal_eval(vars_to_convert)
         for key, values in vars_to_convert.items():
             if key=="dictionary":
                 for v in values:
                     value = config[v]
                     value = value.replace("'", '"')
-                    config[v] = json.loads(value)
+                    print(value)
+                    config[v] = ast.literal_eval(value)
 
             if key=="integer":
                 for v in values:
-                    config[v] = int(v)
+                    value = config[v]
+                    config[v] = int(value)
             
             if key=="boolean":
                 for v in values:
