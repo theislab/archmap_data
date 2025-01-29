@@ -23,7 +23,7 @@ def main():
         vars_to_convert = config["vars_to_convert"]
         vars_to_convert = vars_to_convert.replace("'", '"')
         vars_to_convert = json.loads(vars_to_convert)
-        for key, values in vars_to_convert.keys():
+        for key, values in vars_to_convert.items():
             if key=="dictionary":
                 for v in values:
                     value = config[v]
