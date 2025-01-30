@@ -214,7 +214,9 @@ class ScviHub:
         self._combined_adata.write(self.temp_output_combined)
         
         #Save output
-        Postprocess.output(None, self._combined_adata, self.__configuration)
+        data_cxg = Postprocess.output(None, self._combined_adata, self.__configuration)
+
+        self.data_cxg = data_cxg
 
     def _concat_data(self):
         self.latent_full_from_mean_var = np.concatenate((self._reference_adata.obsm["latent_rep"], self._query_adata.obsm["latent_rep"]))
