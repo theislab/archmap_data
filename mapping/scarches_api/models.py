@@ -98,6 +98,11 @@ class ArchmapBaseModel():
             self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
             del self._query_adata.obs[self.batch_key_input]
 
+        classifier_type=get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE)
+        print(classifier_type)
+        import ast
+        classifier_type = ast.literal_eval(classifier_type)
+
 
         self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
         self._clf_xgb = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
