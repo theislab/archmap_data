@@ -131,12 +131,12 @@ class ScviHub:
 
         print("train")
         self.__model.train(
-            max_epochs=10,
+            max_epochs=50,
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
         )
 
-        latent_name = f"X_{self.__model_cls_name.lower()}_qzm"
+        latent_name = f"{self.__model_cls_name.lower()}_latent_qzm"
 
 
         qzm = self._reference_adata.obsm[latent_name]
