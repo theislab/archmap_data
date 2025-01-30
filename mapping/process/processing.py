@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 import numpy as np
 from scvi.data._constants import _SETUP_METHOD_NAME
+import ast
 
 class Preprocess:
     def __init__(self):
@@ -813,6 +814,7 @@ class Postprocess:
 
     def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, store_file_in_cloud=True):
         output_type = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
+        output_type = ast.literal_eval(output_type)
 
         if(output_type.get("csv")):
             #TODO: Change implementation of dropping unnecessary labels?

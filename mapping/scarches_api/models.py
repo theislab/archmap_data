@@ -14,6 +14,7 @@ from anndata import experimental
 from scarches_api.utils import utils
 import scanpy as sc
 from scvi.dataloaders import BatchDistributedSampler
+import ast
 
 from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
@@ -99,14 +100,16 @@ class ArchmapBaseModel():
             del self._query_adata.obs[self.batch_key_input]
 
         classifier_type=get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE)
-        print(classifier_type)
-        import ast
         classifier_type = ast.literal_eval(classifier_type)
 
+        self._clf_native = classifier_type.pop("Native")
+        self._clf_xgb = classifier_type.pop("XGBoost")
+        self._clf_knn = classifier_type.pop("kNN")
 
-        self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
-        self._clf_xgb = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
-        self._clf_knn = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
+
+        # self._clf_native = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("Native")
+        # self._clf_xgb = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("XGBoost")
+        # self._clf_knn = get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE).pop("kNN")
         
         end_time = time.time() 
         print(f"time {end_time-start_time}")
@@ -668,6 +671,7 @@ class ScVI(ArchmapBaseModel):
 
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCVI_QUERY_MAX_EPOCHS)
+        self._max_epochs = int(self._max_epochs)
 
         super()._map_query()
 
@@ -726,6 +730,7 @@ class ScANVI(ArchmapBaseModel):
         self._model = model
 
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCANVI_MAX_EPOCHS_QUERY)
+        self._max_epochs = int(self._max_epochs)
 
         super()._map_query()
 
@@ -771,6 +776,7 @@ class ScPoli(ArchmapBaseModel):
 
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
+        self._max_epochs = int(self._max_epochs)
         
         try:
             self._model.train(
