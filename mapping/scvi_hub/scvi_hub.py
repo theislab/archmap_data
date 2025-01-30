@@ -210,8 +210,9 @@ class ScviHub:
         utils.notify_backend(self._webhook_metrics, {"clust_pres_score":self.clust_pres_score, "query_with_anchor":self.query_with_anchor, "percentage_unknown": self.percent_unknown})
         
         # save adata for user download
-        self.temp_output_combined = tempfile.mktemp( suffix=".h5ad")
-        self._combined_adata.write(self.temp_output_combined)
+        self.temp_output_combined = "finetuned_model/adata.h5ad"
+        
+        os.makedirs("finetuned_model/", exist_ok=True)
         
         #Save output
         data_cxg = Postprocess.output(None, self._combined_adata, self.__configuration)
