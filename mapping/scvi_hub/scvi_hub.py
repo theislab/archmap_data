@@ -29,7 +29,7 @@ class ScviHub:
         self.__training_data_url = None
         self.__model_parent_module = None
         self.__model_cls_name = None
-        self.__model = None
+        self._model = None
         self.batch_key_input = "batch"
 
         #Classifier setup
@@ -107,7 +107,7 @@ class ScviHub:
             scarches.models.SCVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key)
 
             #Load scvi model with query
-            self.__model = scarches.models.SCVI.load_query_data(
+            self._model = scarches.models.SCVI.load_query_data(
                 self._query_adata,
                 "../scvi_hub/model/",
                 freeze_dropout=True,
@@ -123,14 +123,14 @@ class ScviHub:
             scarches.models.SCANVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key, unlabeled_category=self._unlabeled_key)
 
             #Load scanvi model with query
-            self.__model = scarches.models.SCANVI.load_query_data(
+            self._model = scarches.models.SCANVI.load_query_data(
                 self._query_adata,
                 "../scvi_hub/model/",
                 freeze_dropout=True,
             )
 
         print("train")
-        self.__model.train(
+        self._model.train(
             max_epochs=50,
             plan_kwargs=dict(weight_decay=0.0),
             check_val_every_n_epoch=10,
@@ -144,7 +144,7 @@ class ScviHub:
 
 
         #Save out the latent representation for QUERY
-        self._query_adata.obsm["latent_rep"] = self.__model.get_latent_representation(self._query_adata)
+        self._query_adata.obsm["latent_rep"] = self._model.get_latent_representation(self._query_adata)
 
         print("evaluate")
         self._eval_mapping()
@@ -316,7 +316,7 @@ class ScviHub:
 
         #Initialize and create classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self.__model, model_class)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, model_class)
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, model_class)
 
