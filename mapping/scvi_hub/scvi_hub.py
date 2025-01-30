@@ -17,6 +17,7 @@ from process.processing import Postprocess
 from classifiers.classifiers import Classifiers
 from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
 from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
+import ast
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 
@@ -391,12 +392,18 @@ class ScviHub:
         self._cell_type_key_list = None
         self._cell_type_key_classifier = None
 
-        self._batch_key = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.SCVI_HUB_ARGS).pop("batch_key")
-        self._cell_type_key = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.SCVI_HUB_ARGS).pop("labels_key")
+        model_setup_anndata_args = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.SCVI_HUB_ARGS)
+        model_setup_anndata_args = ast.literal_eval(model_setup_anndata_args)
 
-        self._clf_native = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("Native")
-        self._clf_xgb = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("XGBoost")
-        self._clf_knn = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE).pop("kNN")
+        self._batch_key = model_setup_anndata_args.pop("batch_key")
+        self._cell_type_key = model_setup_anndata_args.pop("labels_key")
+
+        classifier_type = utils.get_from_config(configuration=self.__configuration, key=utils.parameters.CLASSIFIER_TYPE)
+        classifier_type = ast.literal_eval(classifier_type)
+
+        self._clf_native = classifier_type.pop("Native")
+        self._clf_xgb = classifier_type.pop("XGBoost")
+        self._clf_knn = classifier_type.pop("kNN")
 
     def __cleanup(self):
         import shutil
