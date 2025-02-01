@@ -175,7 +175,7 @@ class ArchmapBaseModel():
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
             print("Data successfully loaded.")
         except Exception as e:
-            print(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap with a screenshot of this error and we can help resolve this.")
+            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap with a screenshot of this error and we can help resolve this.")
 
         try:
 
@@ -185,7 +185,7 @@ class ArchmapBaseModel():
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
-                raise
+                raise ValueError(f"Error message: {e}")
 
         # #convert batch values to string if not
         # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
