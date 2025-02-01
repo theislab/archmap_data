@@ -280,6 +280,8 @@ class ArchmapBaseModel():
         del self._query_adata.obsp
         del self._query_adata.varp
 
+        gc.collect()
+
         self._query_adata.layers['counts'] = self._query_adata.X
 
     def _eval_mapping(self):
