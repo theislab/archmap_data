@@ -263,6 +263,11 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
+        #subset query vars
+        ref_vars = self._reference_adata.var_names
+        self._query_adata_raw = self._query_adata_raw[:,ref_vars]
+
+
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
@@ -272,7 +277,7 @@ class ArchmapBaseModel():
 
         
         # save only necessary data for mapping to new adata
-        self._query_adata = self._query_adata_raw.copy()
+        self._query_adata = self._query_adata_raw
         del self._query_adata.varm
         del self._query_adata.obsm
         del self._query_adata.layers
@@ -282,7 +287,7 @@ class ArchmapBaseModel():
 
         gc.collect()
 
-        self._query_adata.layers['counts'] = self._query_adata.X
+        
 
     def _eval_mapping(self):
         # utils.notify_backend(self._webhook_progress, {"logs":"calculating mapping uncertainty scores"})
