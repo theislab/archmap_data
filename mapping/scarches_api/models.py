@@ -264,8 +264,7 @@ class ArchmapBaseModel():
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
         #subset query vars
-        ref_vars = self._reference_adata.var_names
-        self._query_adata_raw = self._query_adata_raw[:,ref_vars]
+        self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
         self._query_adata_raw.obs_names_make_unique()
