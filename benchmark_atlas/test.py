@@ -33,8 +33,8 @@ def main():
     print(f"atlaspath: {atlasPath}")
 
     #Get model and data
-    modelfile_gcp = "models/{modelPath}/model.pt"
-    adatafile_gcp = "atlas/{atlasPath}/data.h5ad"
+    modelfile_gcp = f"models/{modelPath}/model.pt"
+    adatafile_gcp = f"atlas/{atlasPath}/data.h5ad"
 
     modelfile_local = "model/model.pt"
     adatafile_local = "model/adata.h5ad"

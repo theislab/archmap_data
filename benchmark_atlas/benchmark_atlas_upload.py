@@ -14,6 +14,36 @@ import h5py
 from anndata.experimental import write_elem, read_elem
 from scipy import sparse
 from classifiers import Classifiers
+import numpy as np
+
+
+def subset_data(adata, celltype_key):
+
+    if adata.n_obs>200000:
+
+        total_ref_cells_to_sample=200000
+
+        celltypes = adata.obs[celltype_key].unique()
+
+        # Calculate the proportion of each cell type in the reference data
+        celltype_proportions = {celltype: np.sum(adata.obs[celltype_key] == celltype) / len(adata) for celltype in celltypes}
+
+        # Sample cells from each cell type according to its proportion
+        sampled_cell_index = []
+        for celltype, proportion in celltype_proportions.items():
+            cell_indices = np.where(adata.obs[celltype_key] == celltype)[0]
+            sample_size = int(total_ref_cells_to_sample * proportion)
+            
+            # Adjust sample size if it exceeds the number of available cells
+            if sample_size > len(cell_indices):
+                sample_size = len(cell_indices)
+            
+            sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
+            sampled_cell_index.extend(sampled_cells)
+    
+
+
+
 
 
 def store_file_in_s3(path, key):
@@ -103,7 +133,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
 
     elif modelName == "scanvi":
-        model = scvi.model.SCVI.load(modelpath_local)
+        model = scvi.model.SCANVI.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
     else:
         raise ValueError(f"The model '{modelName}' is not available.")
