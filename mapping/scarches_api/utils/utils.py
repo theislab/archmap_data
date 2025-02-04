@@ -601,6 +601,8 @@ def translate_atlas_to_directory(configuration):
         return "plaque1"
     elif atlas == "Plaque (refined cell type level)":
         return "plaque2"
+    else:
+        return atlas.lower().replace(" ", "_")
 
 
 def rename_duplicate_columns(df):
