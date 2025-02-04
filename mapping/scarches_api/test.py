@@ -1,6 +1,6 @@
 import os
 import boto3
-from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results
+from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results, subset_data
 import scanpy as sc
 import requests
 
@@ -59,14 +59,15 @@ def main():
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
+    modelpath_benchmarking = "model_benchmarking" #subset of data for benchmarking if atlas very large.
 
 
-    # TODO: 
-    # Check that data is not minified
-
+    #subset adata if needed
+    # subsetted = subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltypekey, batchkey)
+    subsetted=False
     # benchmark integration
-    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
-    benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath)
+    benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, batchkey, celltypekey, modelPath, subsetted)
+    benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath, subsetted)
     
     # minify
     minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)

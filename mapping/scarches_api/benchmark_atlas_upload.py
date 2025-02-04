@@ -15,58 +15,77 @@ from scipy import sparse
 from classifiers import Classifiers
 import pandas as pd
 import shutil
-
+from pathlib import Path
 from sklearn.mixture import GaussianMixture
+import numpy as np
 
-# def sample_cells(adata, celltype_key):
-#     if adata.n_obs>200000:
-
-#         total_ref_cells_to_sample=200000
-
-#         celltypes = adata.obs[celltype_key].unique()
-
-#         # Calculate the proportion of each cell type in the reference data
-#         celltype_proportions = {celltype: np.sum(adata.obs[celltype_key] == celltype) / len(adata) for celltype in celltypes}
-
-#         # Sample cells from each cell type according to its proportion
-#         sampled_cell_index = []
-#         for celltype, proportion in celltype_proportions.items():
-#             cell_indices = np.where(adata.obs[celltype_key] == celltype)[0]
-#             sample_size = int(total_ref_cells_to_sample * proportion)
-            
-#             # Adjust sample size if it exceeds the number of available cells
-#             if sample_size > len(cell_indices):
-#                 sample_size = len(cell_indices)
-            
-#             sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
-#             sampled_cell_index.extend(sampled_cells)
-
-#         return sampled_cell_index
-
-
-# def subset_data(adata, celltype_key, batch_key):
-        
-#         sampled_cell_index = sample_cells(adata, celltype_key)
-
-#         # Create downsampled AnnData object
-#         adata_downsample = adata[sampled_cell_index].copy()
-
-#         # check if all batches are present
-#         batches = adata.obs[batch_key].unique()
-#         batches_sub = adata_downsample.obs[batch_key].unique()
-
-#         missing_batches = set(batches).difference(set(batches_sub))
-#         missing_batches_len = len(missing_batches)
-#         if missing_batches_len>0:
-#             print("missing batches in adata downsample. sampling missing batches")
-
-#             for batch in list(missing_batches):
-
-#                 sampled_cell_index_sub = sample_cells(adata_downsample, celltype_key)
+def sample_cells(adata, celltype_key):
     
 
+    total_ref_cells_to_sample=200000
+
+    celltypes = adata.obs[celltype_key].unique()
+
+    # Calculate the proportion of each cell type in the reference data
+    celltype_proportions = {celltype: np.sum(adata.obs[celltype_key] == celltype) / len(adata) for celltype in celltypes}
+
+    # Sample cells from each cell type according to its proportion
+    sampled_cell_index = []
+    for celltype, proportion in celltype_proportions.items():
+        cell_indices = np.where(adata.obs[celltype_key] == celltype)[0]
+        sample_size = int(total_ref_cells_to_sample * proportion)
+        
+        # Adjust sample size if it exceeds the number of available cells
+        if sample_size > len(cell_indices):
+            sample_size = len(cell_indices)
+        
+        sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
+        sampled_cell_index.extend(sampled_cells)
+
+    return sampled_cell_index
 
 
+def subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltype_key, batch_key):
+        
+        adata = sc.read(f"{adatafile_local}")
+        
+        if adata.n_obs>200000:
+
+            # subset adata and make a new copy of the model to new directory
+
+            sampled_cell_index = sample_cells(adata, celltype_key)
+
+            # Create downsampled AnnData object
+            adata_downsample = adata[sampled_cell_index].copy()
+
+
+            # check if all batches are present
+            batches = adata.obs[batch_key].unique()
+            batches_sub = adata_downsample.obs[batch_key].unique()
+
+            missing_batches = set(batches).difference(set(batches_sub))
+            missing_batches_len = len(missing_batches)
+            if missing_batches_len>0:
+                print("missing batches in adata downsample. sampling missing batches")
+
+            path = Path(modelpath_benchmarking)
+            path.mkdir(parents=True, exist_ok=True)
+            source = f"{modelpath_local}/model.pt"
+            destination = f"{modelpath_benchmarking}/model.pt"
+            shutil.copy(source, destination)
+
+            adata_downsample.write(f"{modelpath_benchmarking}/adata.h5ad")
+
+            return True
+
+            #     for batch in list(missing_batches):
+
+            #         adata_batch_sub = adata[adata.obs[batch_key]==batch]
+
+            #         sampled_cell_index_sub = sample_cells(adata_downsample, celltype_key)
+        
+        else:
+            return False
 
 
 def store_file_in_s3(path, key):
@@ -159,22 +178,29 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
 
 
 # benchmark atlas integration
-def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath):
+def benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, batchkey, celltypekey, modelPath, subsetted):
+
+    if subsetted:
+        modelpath = modelpath_benchmarking
+    #     adata = sc.read(f"{modelpath_benchmarking}/adata.h5ad")
+    else:
+        modelpath = modelpath_local
+        # adata = model.adata
 
     modelName = modelName.lower()
     
     # read model and get embedding
     if modelName == "scpoli":
-        convert_scpoli(modelpath_local,modelpath_local, modelPath)
-        model = sca.models.scPoli.load(modelpath_local)
+        convert_scpoli(modelpath_local,modelpath, modelPath)
+        model = sca.models.scPoli.load(modelpath)
         model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
     elif modelName == "scvi":
-        model = scvi.model.SCVI.load(modelpath_local)
+        model = scvi.model.SCVI.load(modelpath)
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
 
     elif modelName == "scanvi":
-        model = scvi.model.SCANVI.load(modelpath_local)
+        model = scvi.model.SCANVI.load(modelpath)
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
     else:
         raise ValueError(f"The model '{modelName}' is not available.")
@@ -326,7 +352,7 @@ def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
     df_t = df.transpose()
     df_t.to_csv("benchmark_results/integration_comparison.csv")
 
-    from pathlib import Path
+    
     benchmark_results_min_max ="benchmark_results/scib_min_max_scale/"
     path = Path(benchmark_results_min_max)
     path.mkdir(parents=True, exist_ok=True)
