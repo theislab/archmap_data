@@ -63,7 +63,7 @@ def main():
 
 
     #subset adata if needed
-    # subsetted = subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltypekey, batchkey)
+    subsetted = subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltypekey, batchkey)
     subsetted=False
     # benchmark integration
     benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, batchkey, celltypekey, modelPath, subsetted)
