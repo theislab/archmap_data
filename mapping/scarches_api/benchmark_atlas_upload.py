@@ -5,7 +5,6 @@ import scvi
 import pickle
 import scarches as sca
 from scib_metrics.benchmark import Benchmarker
-import pickle
 import torch 
 import os
 import boto3
@@ -14,8 +13,10 @@ import h5py
 from anndata.experimental import write_elem, read_elem
 from scipy import sparse
 from classifiers import Classifiers
-import numpy as np
+import pandas as pd
+import shutil
 
+from sklearn.mixture import GaussianMixture
 
 # def sample_cells(adata, celltype_key):
 #     if adata.n_obs>200000:
@@ -90,7 +91,7 @@ def store_file_in_s3(path, key):
     return 0
 
 
-def convert_scpoli(input_path, output_path):
+def convert_scpoli(input_path, output_path, modelPath):
     model = torch.load(f"{input_path}/model.pt")
 
     torch.save(model["model_state_dict"],f"{output_path}/model_params.pt")
@@ -98,12 +99,13 @@ def convert_scpoli(input_path, output_path):
     with open(f"{output_path}/attr.pkl","wb") as f:
             pickle.dump(model["attr_dict"], f, pickle.HIGHEST_PROTOCOL)
 
-    pd.Series(model["var_names"]).to_csv(f"{output_path}/var_names.csv")
+    pd.Series(model["var_names"]).to_csv(f"{output_path}/var_names.csv", header=False, index=False)
+
 
 #minify
-def minify(modelName, atlasName, modelpath_local):
+def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
      
-    model_type = modelName
+    model_type = modelName.lower()
     model_name = modelpath_local
     model_minified_path = "model_minified"
     atlas = atlasName.replace(" ", "_").lower()
@@ -118,9 +120,13 @@ def minify(modelName, atlasName, modelpath_local):
         adata_count.write(f"data_only_count_{atlas}.h5ad")
         print(adata_count.X)
 
+    print("storing count data to GCP")
+    store_file_in_s3(f"data_only_count_{atlas}.h5ad",f"atlas/{atlasPath}/data_only_count.h5ad")
+
      # minify
     if model_type=="scpoli":
-            tm = sca.models.scPoli.load(model_name)
+            tm = sca.models.scPoli.load(model_name, map_location="cpu")
+            tm.get_latent(tm.adata)
             tm.minify_adata()
     elif model_type=="scanvi":
         tm = scvi.model.SCANVI.load(model_name)
@@ -134,19 +140,32 @@ def minify(modelName, atlasName, modelpath_local):
     tm.save(model_minified_path, save_anndata=True, overwrite=True)
 
     # zero out counts for minified version
-    with h5py.File(f"{model_minified_path}/adata.h5ad", mode="r") as store1:
+    with h5py.File(f"{model_minified_path}/adata.h5ad", mode="r+") as store1:
         all_zeros = sparse.csr_matrix(X.shape)
         write_elem(store1, "X", all_zeros)
 
+    if model_type=="scpoli":
+        print("storing minified scPoli model to GCP storage")
+        store_file_in_s3(f"{model_minified_path}/model_params.pt", f"models/{modelPath}/model_params.pt")
+        store_file_in_s3(f"{model_minified_path}/attr.pkl", f"models/{modelPath}/attr.pkl")
+        store_file_in_s3(f"{model_minified_path}/var_names.csv", f"models/{modelPath}/var_names.csv")
+
+    else:
+        print("storing minified model to GCP storage")
+        store_file_in_s3(f"{model_minified_path}/model.pt",f"model/{modelPath}/model.pt")
+
+    print("storing minified data to GCP storage")
+    store_file_in_s3(f"{model_minified_path}/adata.h5ad",f"atlas/{atlasPath}/data.h5ad")
+
 
 # benchmark atlas integration
-def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
+def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath):
 
     modelName = modelName.lower()
     
     # read model and get embedding
     if modelName == "scpoli":
-        convert_scpoli(modelpath_local,modelpath_local)
+        convert_scpoli(modelpath_local,modelpath_local, modelPath)
         model = sca.models.scPoli.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
@@ -183,7 +202,14 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
 
     # run scanvi
     if modelName!="scanvi":
-        scvi.model.SCANVI.setup_anndata(adata, batch_key=condition_key)
+        for key in ["unlabeled", "unknown"]:
+            if key in adata.obs[cell_type_key].str.lower().values:
+                unlabeled_key = key
+                break
+            else:
+                unlabeled_key = "unknown"
+            
+        scvi.model.SCANVI.setup_anndata(adata, batch_key=condition_key, labels_key=cell_type_key, unlabeled_category=unlabeled_key)
         vae = scvi.model.SCANVI(adata, gene_likelihood="nb")
         vae.train(max_epochs=500)
         adata.obsm["X_scanvi"] = vae.get_latent_representation()
@@ -236,18 +262,20 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey):
         print("2nd scpoli trained")
 
 
-        from pathlib import Path
-        benchmark_results ="benchmark_results"
-        path = Path(benchmark_results)
-        path.mkdir(parents=True, exist_ok=True)
-        adata.write(f"benchmark_results/adata_{atlas}_{cell_type_key}_integrated.h5ad")
+    from pathlib import Path
+    benchmark_results ="benchmark_results"
+    path = Path(benchmark_results)
+    path.mkdir(parents=True, exist_ok=True)
+    adata.write(f"benchmark_results/adata_{atlas}_{cell_type_key}_integrated.h5ad")
 
+    return adata
 
 
 # plot benchmarking results
-def benchmark_plot(atlasName, batchkey, celltypekey):
+def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
 
     cell_type_key = celltypekey
+    modelName = modelName.lower()
     
     atlas = atlasName.replace(" ", "_").lower()
 
@@ -257,13 +285,30 @@ def benchmark_plot(atlasName, batchkey, celltypekey):
 
 
     # run scib metrics
-    bm = Benchmarker(
-        adata,
-        batch_key=condition_key,
-        label_key=cell_type_key,
-        embedding_obsm_keys=["X_pca", "X_scvi", "X_scpoli_no_prototype","X_scpoli_with_prototype", "X_user_integrated"],
-        n_jobs=4,
-    )
+    if modelName=="scpoli":
+        bm = Benchmarker(
+            adata,
+            batch_key=condition_key,
+            label_key=cell_type_key,
+            embedding_obsm_keys=["X_pca", "X_scvi","X_scanvi", "X_user_integrated"],
+            n_jobs=4,
+        )
+    elif modelName=="scanvi":
+        bm = Benchmarker(
+            adata,
+            batch_key=condition_key,
+            label_key=cell_type_key,
+            embedding_obsm_keys=["X_pca", "X_scvi", "X_scpoli_no_prototype","X_scpoli_with_prototype", "X_user_integrated"],
+            n_jobs=4,
+        )
+    else:
+        bm = Benchmarker(
+            adata,
+            batch_key=condition_key,
+            label_key=cell_type_key,
+            embedding_obsm_keys=["X_pca", "X_scanvi", "X_scpoli_no_prototype","X_scpoli_with_prototype", "X_user_integrated"],
+            n_jobs=4,
+        )
 
 
     bm.benchmark()
@@ -280,18 +325,21 @@ def benchmark_plot(atlasName, batchkey, celltypekey):
     df = bm.get_results(min_max_scale=False)
     df_t = df.transpose()
     df_t.to_csv("benchmark_results/integration_comparison.csv")
-    store_file_in_s3("benchmark_results/integration_comparison.csv", "benchmark_results/integration_comparison.csv")
 
-    bm.plot_results_table(save_dir=f"benchmark_results/results_min_max_scale.png")
-    store_file_in_s3("benchmark_results/results_min_max_scale.png", "benchmark_results/results_min_max_scale.png")
+    from pathlib import Path
+    benchmark_results_min_max ="benchmark_results/scib_min_max_scale/"
+    path = Path(benchmark_results_min_max)
+    path.mkdir(parents=True, exist_ok=True)
 
-    bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/results.png")
-    store_file_in_s3("benchmark_results/results.png", "benchmark_results/results.png")
+    bm.plot_results_table(save_dir=benchmark_results_min_max)
+
+    bm.plot_results_table(min_max_scale=False, save_dir=f"benchmark_results/")
+    
         
 
 
 
-def classify(atlas, modelName, label):
+def classify(atlas, modelName, label, modelPath):
 
     model_minified_path = "model_minified"
     modelName = modelName.lower()
@@ -317,14 +365,143 @@ def classify(atlas, modelName, label):
     for l in label:
         #create knn classifier
         clf = Classifiers(False, True, None)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
 
         #create xgb classifier
         clf = Classifiers(True, False, None)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
 
-        #create native
-        clf = Classifiers(False, False, model, model.__class__)
-        clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}/{atlas}_{l}")
+        # #create native
+        # clf = Classifiers(False, False, model, model.__class__)
+        # clf.create_classifier(reference_latent, adata, True, "", l, f"classifier_models/{atlas}_{l}")
+
+        files = ["classifier_encoding.pickle",
+        "classifier_knn.pickle",
+        "classifier_knn_report.csv",
+        "classifier_knn_report.png",
+        "classifier_xgb.ubj",
+        "classifier_xgb_report.csv",
+        "classifier_xgb_report.png"]
 
 
+        for file in files:
+            store_file_in_s3(f"classifier_models/{atlas}_{l}/{file}", f"models/{modelPath}/{l}/{file}")
+
+        #store scores 
+
+    return adata
+
+def store_results(atlas, label, modelPath):
+    results_path = f"models/{modelPath}/"
+
+
+    files = [
+        "classifier_knn_report.csv",
+        "classifier_knn_report.png",
+        "classifier_xgb_report.csv",
+        "classifier_xgb_report.png"]
+    
+    if not isinstance(label, list):
+        label = [label]
+
+    results_dir = "benchmark_results"
+    for l in label:
+        for file in files:
+            shutil.copy(f"classifier_models/{atlas}_{l}/{file}", results_dir)
+
+    
+    # create tar.gz from results_dir
+    import tarfile
+    output_filename=f"{results_dir}.tar.gz"
+    source_dir=f"{results_dir}/"
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+    print(f"Created tar archive: {output_filename}")
+
+    store_file_in_s3(output_filename, results_path + f"{results_dir}.tar.gz")
+
+
+
+
+
+
+
+def train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key, pretrained=True):
+
+
+    num_clusters = adata_ref.obs[cell_type_key].nunique()
+    print(num_clusters)
+
+    train_emb = adata_ref.obsm[embedding_name]
+
+    #Required too much RAM
+    gmm = GaussianMixture(n_components=num_clusters)
+    gmm.fit(train_emb)
+
+    #Less RAM alternative
+    # kmeans = KMeans(n_clusters=num_clusters)
+    # kmeans.fit(train_emb)
+
+    #Save or return model
+    if pretrained:
+
+        directory="models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        
+        with open(directory + cell_type_key + "_mahalanobis_distance.pickle", "wb") as file:
+            pickle.dump(gmm, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return gmm
+    
+def train_euclidian(atlas, adata_ref, embedding_name, pretrained =True, n_neighbors = 15):
+
+    trainer = sca.utils.weighted_knn_trainer(
+    adata_ref,
+    embedding_name,
+    n_neighbors = n_neighbors
+    )
+
+    #Save model
+    if pretrained:
+
+        directory="models_uncert/" + atlas + "/"
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+
+        with open(directory + "euclidian_distance.pickle", "wb") as file:
+            pickle.dump(trainer, file, pickle.HIGHEST_PROTOCOL)
+    else:
+        return trainer
+
+def uncertainty_train(atlas, adata_ref, modelName, cell_type_key_list, modelPath):
+
+    modelName=modelName.lower()
+
+    if modelName=="scpoli":
+        embedding_name = "X_latent_qzm_scpoli"
+    else:
+        embedding_name = "X_latent_qzm"
+
+
+    if isinstance(cell_type_key_list,str):
+        cell_type_key_list = [cell_type_key_list]
+
+    files = ["euclidian_distance.pickle"]
+
+    for cell_type_key in cell_type_key_list:
+        print(cell_type_key)
+        train_euclidian(atlas, adata_ref, embedding_name)
+        train_mahalanobis(atlas, adata_ref, embedding_name, cell_type_key)
+
+        files.append(cell_type_key + "_mahalanobis_distance.pickle")
+
+   
+    
+
+
+    for file in files:
+        for label in cell_type_key_list:
+            store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{label}_{file}")
+
+        store_file_in_s3("models_uncert/" + atlas + "/" + file, f"models/{modelPath}/uncertainty/{file}")
