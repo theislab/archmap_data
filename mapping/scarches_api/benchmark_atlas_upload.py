@@ -44,8 +44,20 @@ def sample_cells(adata, celltype_key):
 
     return sampled_cell_index
 
+def subset_vars(input_path):
+    model = torch.load(f"{input_path}/model.pt")
+
+    adata = sc.read(f"{input_path}/adata.h5ad")
+
+    adata[:,pd.Series(model["var_names"]).values]
+
+    adata.write(f"{input_path}/adata.h5ad")
+
 
 def subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltype_key, batch_key):
+        
+        # make sure adata vars match model vars
+        subset_vars(modelpath_local)
         
         adata = sc.read(f"{adatafile_local}")
         
