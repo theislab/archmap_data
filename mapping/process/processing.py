@@ -435,7 +435,8 @@ class Preprocess:
         else:
             batch_key = utils.get_from_config(configuration, parameters.BATCH_KEY)
             cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-            cell_type_key = [cell_type_key]
+            cell_type_key = [cell_type_key, "uploaded"]
+
             
 
         

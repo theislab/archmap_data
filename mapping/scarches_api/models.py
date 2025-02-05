@@ -333,6 +333,8 @@ class ArchmapBaseModel():
 
                 if len(self._cell_type_key_list) > 1:
                     self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
+                elif self._cell_type_key_list[-1]=="uploaded":
+                    self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
                 else:
                     self._clf_encoding_path = self._clf_path + "classifier_encoding.pickle"
 
@@ -342,6 +344,8 @@ class ArchmapBaseModel():
                 if self._clf_xgb:
 
                     if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
+                    elif self._cell_type_key_list[-1]=="uploaded":
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
                     else:
                         self._clf_model_path = self._clf_path + "classifier_xgb.ubj"
@@ -355,6 +359,8 @@ class ArchmapBaseModel():
                 elif self._clf_knn:
 
                     if len(self._cell_type_key_list) > 1:
+                        self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
+                    elif self._cell_type_key_list[-1]=="uploaded":
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
                     else:
                         self._clf_model_path = self._clf_path + "classifier_knn.pickle"
