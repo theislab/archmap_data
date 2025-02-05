@@ -366,6 +366,7 @@ class Preprocess:
         cell_type_key_classifier = None
         batch_key = None
         cell_type_key = None
+        uploaded = False
 
         if atlas == 'pbmc':
             cell_type_key = 'cell_type_for_integration'
@@ -435,7 +436,8 @@ class Preprocess:
         else:
             batch_key = utils.get_from_config(configuration, parameters.BATCH_KEY)
             cell_type_key = utils.get_from_config(configuration, parameters.CELL_TYPE_KEY)
-            cell_type_key = [cell_type_key, "uploaded"]
+            cell_type_key = [cell_type_key]
+            uploaded = True
 
             
 
@@ -493,7 +495,7 @@ class Preprocess:
             # raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
         
 
-        return cell_type_key, cell_type_key_classifier, cell_type_key_list, batch_key, unlabeled_key_model
+        return cell_type_key, cell_type_key_classifier, cell_type_key_list, batch_key, unlabeled_key_model, uploaded
 
     def __get_keys_user(configuration):
         #Get parameters from user input

@@ -78,7 +78,7 @@ class ArchmapBaseModel():
         self._query_adata.X=self._query_adata.X.tocsr()
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
-        self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
+        self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key, self._uploaded = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
 
         if isinstance(self._cell_type_key,list):
             for key in self._cell_type_key:
@@ -333,7 +333,7 @@ class ArchmapBaseModel():
 
                 if len(self._cell_type_key_list) > 1:
                     self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
-                elif self._cell_type_key_list[-1]=="uploaded":
+                elif self._uploaded:
                     self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
                 else:
                     self._clf_encoding_path = self._clf_path + "classifier_encoding.pickle"
@@ -345,7 +345,7 @@ class ArchmapBaseModel():
 
                     if len(self._cell_type_key_list) > 1:
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
-                    elif self._cell_type_key_list[-1]=="uploaded":
+                    elif self._uploaded:
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_xgb.ubj"
                     else:
                         self._clf_model_path = self._clf_path + "classifier_xgb.ubj"
@@ -360,7 +360,7 @@ class ArchmapBaseModel():
 
                     if len(self._cell_type_key_list) > 1:
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
-                    elif self._cell_type_key_list[-1]=="uploaded":
+                    elif self._uploaded:
                         self._clf_model_path = self._clf_path + cell_type_key + "/classifier_knn.pickle"
                     else:
                         self._clf_model_path = self._clf_path + "classifier_knn.pickle"
