@@ -186,6 +186,12 @@ class ArchmapBaseModel():
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
                 raise ValueError(f"Error message: {e}")
+            
+
+        if self._query_adata_raw.n_obs>200000:
+            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
+
+
 
         # #convert batch values to string if not
         # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
@@ -324,11 +330,13 @@ class ArchmapBaseModel():
 
             # self.percent_unknown = []
             for cell_type_key in self._cell_type_key_list:
-                
+
                 if len(self._cell_type_key_list) > 1:
                     self._clf_encoding_path = self._clf_path + cell_type_key + "/classifier_encoding.pickle"
                 else:
                     self._clf_encoding_path = self._clf_path + "classifier_encoding.pickle"
+
+                print(self._clf_encoding_path)
 
                 #Download classifiers and encoding from GCP if kNN or XGBoost
                 if self._clf_xgb:
