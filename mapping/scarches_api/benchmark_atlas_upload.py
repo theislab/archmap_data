@@ -68,6 +68,7 @@ def subset_data(adatafile_local, modelpath_local, celltype_key, batch_key):
         del adata.varm
         del adata.layers
         del adata.varp
+        del adata.raw
 
         # delete adata file to save memory
         os.remove(adatafile_local)
@@ -172,6 +173,7 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
     del adata.varm
     del adata.layers
     del adata.varp
+    del adata.raw
 
     adata.write()
     adata.file.close()
@@ -286,7 +288,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
             "mode": "min",
             "threshold": 0,
             "patience": 20,
-            "reduce_l": True,
+            "reduce_lr": True,
             "lr_patience": 13,
             "lr_factor": 0.1,
         }
