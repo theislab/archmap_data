@@ -18,6 +18,7 @@ import shutil
 from pathlib import Path
 from sklearn.mixture import GaussianMixture
 import numpy as np
+import gc
 
 def sample_cells(adata, celltype_key):
     
@@ -54,12 +55,23 @@ def subset_vars(input_path):
     adata.write(f"{input_path}/adata.h5ad")
 
 
-def subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltype_key, batch_key):
+def subset_data(adatafile_local, modelpath_local, celltype_key, batch_key):
         
         # make sure adata vars match model vars
         subset_vars(modelpath_local)
         
         adata = sc.read(f"{adatafile_local}")
+
+        del adata.uns
+        del adata.obsm
+        del adata.obsp
+        del adata.varm
+        del adata.layers
+        del adata.varp
+
+        # delete adata file to save memory
+        os.remove(adatafile_local)
+
         
         if adata.n_obs>200000:
 
@@ -80,15 +92,8 @@ def subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, cellty
             if missing_batches_len>0:
                 print("missing batches in adata downsample. sampling missing batches")
 
-            path = Path(modelpath_benchmarking)
-            path.mkdir(parents=True, exist_ok=True)
-            source = f"{modelpath_local}/model.pt"
-            destination = f"{modelpath_benchmarking}/model.pt"
-            shutil.copy(source, destination)
+            adata_downsample.write(f"{modelpath_local}/adata.h5ad")
 
-            adata_downsample.write(f"{modelpath_benchmarking}/adata.h5ad")
-
-            return True
 
             #     for batch in list(missing_batches):
 
@@ -97,7 +102,9 @@ def subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, cellty
             #         sampled_cell_index_sub = sample_cells(adata_downsample, celltype_key)
         
         else:
-            return False
+
+            adata.write(f"{modelpath_local}/adata.h5ad")
+
 
 
 def store_file_in_s3(path, key):
@@ -135,6 +142,7 @@ def convert_scpoli(input_path, output_path, modelPath):
 
 #minify
 def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
+
      
     model_type = modelName.lower()
     model_name = modelpath_local
@@ -154,6 +162,20 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
     print("storing count data to GCP")
     store_file_in_s3(f"data_only_count_{atlas}.h5ad",f"atlas/{atlasPath}/data_only_count.h5ad")
 
+    os.remove(f"data_only_count_{atlas}.h5ad")
+
+    adata = sc.read(f"{model_name}/adata.h5ad", backed="r+")
+
+    del adata.uns
+    del adata.obsm
+    del adata.obsp
+    del adata.varm
+    del adata.layers
+    del adata.varp
+
+    adata.write()
+    adata.file.close()
+
      # minify
     if model_type=="scpoli":
             tm = sca.models.scPoli.load(model_name, map_location="cpu")
@@ -168,7 +190,15 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
         qzm, qzv = tm.get_latent_representation(give_mean=False, return_dist=True)
         tm.adata.obsm["X_latent_qzm"] = qzm
 
+    # delete files to save memory
+    os.remove(f"{model_name}/adata.h5ad")
+    os.remove(f"{model_name}/model.pt")
+
     tm.save(model_minified_path, save_anndata=True, overwrite=True)
+
+    del tm
+    del adata
+    gc.collect()
 
     # zero out counts for minified version
     with h5py.File(f"{model_minified_path}/adata.h5ad", mode="r+") as store1:
@@ -189,33 +219,30 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
     store_file_in_s3(f"{model_minified_path}/adata.h5ad",f"atlas/{atlasPath}/data.h5ad")
 
 
-# benchmark atlas integration
-def benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, batchkey, celltypekey, modelPath, subsetted):
 
-    if subsetted:
-        modelpath = modelpath_benchmarking
-    #     adata = sc.read(f"{modelpath_benchmarking}/adata.h5ad")
-    else:
-        modelpath = modelpath_local
-        # adata = model.adata
+# benchmark atlas integration
+def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath, subsetted):
 
     modelName = modelName.lower()
     
     # read model and get embedding
     if modelName == "scpoli":
-        convert_scpoli(modelpath_local,modelpath, modelPath)
-        model = sca.models.scPoli.load(modelpath)
+        convert_scpoli(modelpath_local,modelpath_local, modelPath)
+        model = sca.models.scPoli.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
     elif modelName == "scvi":
-        model = scvi.model.SCVI.load(modelpath)
+        model = scvi.model.SCVI.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
 
     elif modelName == "scanvi":
-        model = scvi.model.SCANVI.load(modelpath)
+        model = scvi.model.SCANVI.load(modelpath_local)
         model.adata.obsm["X_user_integrated"] = model.get_latent_representation()
     else:
         raise ValueError(f"The model '{modelName}' is not available.")
+    
+    # delete files to save memory
+    os.remove(f"{modelpath_local}/adata.h5ad")
 
 
     # get cell type key
@@ -310,7 +337,7 @@ def benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, bat
 
 
 # plot benchmarking results
-def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
+def benchmark_plot(atlasName, modelName, batchkey, celltypekey):
 
     cell_type_key = celltypekey
     modelName = modelName.lower()
@@ -320,6 +347,9 @@ def benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath):
     condition_key = batchkey
 
     adata = sc.read(f"benchmark_results/adata_{atlas}_{cell_type_key}_integrated.h5ad")
+
+    # delete adata file to save memory
+    os.remove(f"benchmark_results/adata_{atlas}_{cell_type_key}_integrated.h5ad")
 
 
     # run scib metrics

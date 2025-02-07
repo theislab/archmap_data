@@ -59,15 +59,15 @@ def main():
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
-    modelpath_benchmarking = "model_benchmarking" #subset of data for benchmarking if atlas very large.
-
 
     #subset adata if needed
-    subsetted = subset_data(adatafile_local, modelpath_local, modelpath_benchmarking, celltypekey, batchkey)
-    subsetted=False
+    subset_data(adatafile_local, modelpath_local, celltypekey, batchkey)
     # benchmark integration
-    benchmark(modelName, atlasName, modelpath_local, modelpath_benchmarking, batchkey, celltypekey, modelPath, subsetted)
-    benchmark_plot(atlasName, modelName, batchkey, celltypekey, modelPath, subsetted)
+    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
+    benchmark_plot(atlasName, modelName, batchkey, celltypekey)
+
+    # recollect the full data after benchmarking
+    fetch_file_from_s3(adatafile_gcp, adatafile_local)
     
     # minify
     minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)
