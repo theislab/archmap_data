@@ -221,7 +221,7 @@ def minify(modelName, atlasName, modelpath_local, modelPath, atlasPath):
 
 
 # benchmark atlas integration
-def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath, subsetted):
+def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath):
 
     modelName = modelName.lower()
     
