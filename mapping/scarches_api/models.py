@@ -49,7 +49,7 @@ class ArchmapBaseModel():
         self._query_adata_path = get_from_config(configuration=configuration, key=parameters.QUERY_DATA_PATH)
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
-        # self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
+        self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
