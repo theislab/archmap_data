@@ -46,7 +46,7 @@ def sample_cells(adata, celltype_key):
     return sampled_cell_index
 
 def subset_vars(input_path):
-    model = torch.load(f"{input_path}/model.pt")
+    model = torch.load(f"{input_path}/model.pt", map_location="cpu")
 
     adata = sc.read(f"{input_path}/adata.h5ad")
 
@@ -131,7 +131,7 @@ def store_file_in_s3(path, key):
 
 
 def convert_scpoli(input_path, output_path, modelPath):
-    model = torch.load(f"{input_path}/model.pt")
+    model = torch.load(f"{input_path}/model.pt", map_location="cpu")
 
     torch.save(model["model_state_dict"],f"{output_path}/model_params.pt")
 
@@ -230,7 +230,7 @@ def benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, mode
     # read model and get embedding
     if modelName == "scpoli":
         convert_scpoli(modelpath_local,modelpath_local, modelPath)
-        model = sca.models.scPoli.load(modelpath_local)
+        model = sca.models.scPoli.load(modelpath_local, map_location="cpu")
         model.adata.obsm["X_user_integrated"] = model.get_latent(model.adata, mean=True)
 
     elif modelName == "scvi":
