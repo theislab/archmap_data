@@ -86,6 +86,71 @@ def percent_query_with_anchor( adj_r2q, adj_q2r):
     return round(percentage, 2)
 
 
+import numpy as np
+import scanpy as sc
+import random
+
+def compute_anchor_rate(query_adata, reference_adata, num_samples=20, query_size=10000, reference_size=200000):
+    """
+    Computes the Subsampled Anchor Rate per Reference Cell.
+    
+    Parameters:
+    - query_adata: AnnData object of query dataset
+    - reference_adata: AnnData object of reference dataset
+    - num_samples: Number of times to subsample
+    - query_size: Number of query cells to subsample per iteration
+    - reference_size: Number of reference cells to subsample per iteration
+    
+    Returns:
+    - Mean and standard deviation of the anchor rate across subsamples
+    """
+    anchor_rates = []
+
+    for i in range(num_samples):
+        print(f"Iteration {i+1}/{num_samples}...")
+
+        # Randomly sample query cells
+        query_subsample_idx = np.random.choice(query_adata.obs.index, min(query_size, query_adata.n_obs), replace=False)
+        query_subsample = query_adata[query_subsample_idx]
+
+        # Randomly sample reference cells
+        reference_subsample_idx = np.random.choice(reference_adata.obs.index, min(reference_size, reference_adata.n_obs), replace=False)
+        reference_subsample = reference_adata[reference_subsample_idx]
+
+        # Compute mutual nearest neighbors (MNN) or nearest neighbors
+        sc.pp.neighbors(query_subsample, use_rep="X_pca")  # Compute neighbors on query
+        sc.pp.neighbors(reference_subsample, use_rep="X_pca")  # Compute neighbors on reference
+
+        # Find mutual nearest neighbors
+        mnn_counts = 0
+        for query_idx in range(query_subsample.n_obs):
+            # Get nearest neighbors from the query dataset
+            query_neighbors = query_subsample.obsp['distances'][query_idx].argsort()[:10]  # Top 10 neighbors
+
+            for ref_idx in query_neighbors:
+                # Check if the reference cell also considers the query cell a neighbor
+                ref_neighbors = reference_subsample.obsp['distances'][ref_idx].argsort()[:10]
+                if query_idx in ref_neighbors:
+                    mnn_counts += 1
+                    break  # Stop if at least one anchor is found
+
+        # Compute percentage of query cells with anchors
+        anchor_percentage = (mnn_counts / query_subsample.n_obs) * 100
+
+        # Normalize by reference size
+        anchor_rate_per_ref = mnn_counts / reference_subsample.n_obs
+
+        anchor_rates.append(anchor_rate_per_ref)
+
+    # Compute final mean and standard deviation
+    mean_anchor_rate = np.mean(anchor_rates)
+    std_anchor_rate = np.std(anchor_rates)
+
+    print(f"Final Anchor Rate: {mean_anchor_rate:.6f} ± {std_anchor_rate:.6f}")
+    return mean_anchor_rate, std_anchor_rate
+
+
+
 def get_transition_prob_mat(dat, k=50, symm=True):
     adj = build_nn(dat, k=k)
     if symm:
