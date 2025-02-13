@@ -56,15 +56,15 @@ def main():
     adatafile_local = "model/adata.h5ad"
 
     fetch_file_from_s3(modelfile_gcp, modelfile_local)
-    # fetch_file_from_s3(adatafile_gcp, adatafile_local)
+    fetch_file_from_s3(adatafile_gcp, adatafile_local)
 
     modelpath_local = "model"
 
-    # #subset adata if needed
-    # subset_data(adatafile_local, modelpath_local, celltypekey, batchkey)
-    # # benchmark integration
-    # benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
-    # benchmark_plot(atlasName, modelName, batchkey, celltypekey)
+    #subset adata if needed
+    subset_data(adatafile_local, modelpath_local, celltypekey, batchkey)
+    # benchmark integration
+    benchmark(modelName, atlasName, modelpath_local, batchkey, celltypekey, modelPath)
+    benchmark_plot(atlasName, modelName, batchkey, celltypekey)
 
     # recollect the full data after benchmarking
     fetch_file_from_s3(adatafile_gcp, adatafile_local)
