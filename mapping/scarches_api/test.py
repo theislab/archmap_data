@@ -33,12 +33,12 @@ def main():
 
     print(os.environ) # show all environment variables and their values.
 
-    modelPath = os.getenv('modelpath')
-    atlasPath = os.getenv('atlaspath')
-    modelName = os.getenv('modelname')
-    batchkey = os.getenv('batchkey')
-    celltypekey = os.getenv('celltypekey')
-    atlasName = os.getenv('atlasname')
+    modelPath = os.getenv('modelPath')
+    atlasPath = os.getenv('atlasPath')
+    modelName = os.getenv('modelName')
+    batchkey = os.getenv('batchKey')
+    celltypekey = os.getenv('cellTypeKey')
+    atlasName = os.getenv('atlasName')
     webhook = os.getenv('webhook')
 
     print(f"modelpath: {modelPath}")
