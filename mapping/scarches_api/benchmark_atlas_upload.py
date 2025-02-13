@@ -50,6 +50,11 @@ def subset_vars(input_path):
 
     adata = sc.read(f"{input_path}/adata.h5ad")
 
+    # check that adata is not already minified
+    if (adata.X is None or not adata.X.sum()>0):
+        raise ValueError(f"The uploaded h5ad file does not have count data saved in the .X attribute. Please reupload your atlas with count data in .X.")
+    
+
     adata[:,pd.Series(model["var_names"]).values]
 
     adata.write(f"{input_path}/adata.h5ad")
