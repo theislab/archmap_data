@@ -175,7 +175,7 @@ class ArchmapBaseModel():
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
             print("Data successfully loaded.")
         except Exception as e:
-            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap with a screenshot of this error and we can help resolve this.")
+            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
         try:
 
@@ -188,8 +188,8 @@ class ArchmapBaseModel():
                 raise ValueError(f"Error message: {e}")
             
 
-        if self._query_adata_raw.n_obs>200000:
-            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
+        # if self._query_adata_raw.n_obs>200000:
+        #     raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
 
 
 
