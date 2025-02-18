@@ -40,6 +40,7 @@ def main():
     celltypekey = os.getenv('cellTypeKey')
     atlasName = os.getenv('atlasName')
     webhook = os.getenv('webhook')
+    classifierLabels = os.getenv('classifierLabels')
 
     print(f"modelpath: {modelPath}")
     print(f"atlaspath: {atlasPath}")
@@ -73,11 +74,11 @@ def main():
     minify(modelName, atlasName, modelpath_local, modelPath, atlasPath)
 
     # get classifiers and uncert
-    adata = classify(atlasName, modelName, celltypekey, modelPath)
-    store_results(atlasName, celltypekey, modelPath)
+    adata = classify(atlasName, modelName, classifierLabels, modelPath)
+    store_results(atlasName, classifierLabels, modelPath)
 
 
-    uncertainty_train(atlasName, adata, modelName, celltypekey, modelPath)
+    uncertainty_train(atlasName, adata, modelName, classifierLabels, modelPath)
 
     # notify backend that benchmarking completed
     notify_backend(webhook, {})
