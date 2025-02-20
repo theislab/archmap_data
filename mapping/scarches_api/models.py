@@ -216,12 +216,12 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
+        self._query_adata_raw.obs_names_make_unique()
+        self._query_adata_raw.var_names_make_unique()
+
         #subset query vars
         self._query_adata_raw = self._query_adata_raw[:,intersection]
 
-
-        self._query_adata_raw.obs_names_make_unique()
-        self._query_adata_raw.var_names_make_unique()
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
