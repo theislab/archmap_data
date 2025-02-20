@@ -188,8 +188,8 @@ class ArchmapBaseModel():
                 raise ValueError(f"Error message: {e}")
             
 
-        if self._query_adata_raw.n_obs>200000:
-            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
+        if self._query_adata_raw.n_obs>250000:
+            raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
 
 
 
