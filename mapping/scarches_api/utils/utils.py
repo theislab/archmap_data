@@ -764,3 +764,81 @@ def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix
 
     return temp_combined.name
 
+def gene_ensembl_conversion(reference_adata, query_adata_raw):
+    """
+    Convert gene symbols to ensembl IDs and vice versa to match query and ref vars.
+    """
+
+    ensembl_ref = True
+    for var_name in reference_adata.var_names[:5]:
+        if "ENS" in var_name:
+            continue
+
+        else:
+            ensembl_ref = False
+            break
+    
+    # check format of emsembl id and reformat if needed
+    if ensembl_ref:
+        if  "." in reference_adata.var_names[0]:
+            new_var = []
+            for i in reference_adata.var_names:
+                new_var.append(i.split(".")[0])
+            reference_adata.var_names = new_var
+
+    ensembl_query = True
+    for var_name in query_adata_raw.var_names[:5]:
+        if "ENS" in var_name: 
+            continue
+        else:
+            ensembl_query = False
+            break
+
+    # check format of emsembl id and reformat if needed
+    if ensembl_query:
+        if  "." in query_adata_raw.var_names[0]:
+            new_var = []
+            for i in query_adata_raw.var_names:
+                new_var.append(i.split(".")[0])
+            query_adata_raw.var_names = new_var
+
+
+    if ensembl_query != ensembl_ref: 
+        import pickle
+        # convert query var_names to match ref
+
+        if ensembl_ref == True:
+            if "ENSMUS" in reference_adata.var_names[0]:
+
+                #fetch mouse conversions
+                fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_mouse.pkl", f"genesymbol_to_ensembl_mouse.pkl")
+
+                with open(f"genesymbol_to_ensembl_mouse.pkl", "rb") as file:
+                    dict_conversions = pickle.load(file)
+
+            else:
+                #fetch human conversions
+                fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_human.pkl", f"genesymbol_to_ensembl_human.pkl")
+
+                with open(f"genesymbol_to_ensembl_human.pkl", "rb") as file:
+                    dict_conversions = pickle.load(file)
+                
+    
+        else:
+            if "ENSMUS" in query_adata_raw.var_names[0]:
+                #fetch mouse conversions
+                fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_mouse.pkl", f"ensembl_to_genesymbol_mouse.pkl")
+
+                with open(f"ensembl_to_genesymbol_mouse.pkl", "rb") as file:
+                    dict_conversions = pickle.load(file)
+
+            else:
+                #fetch human conversions
+                fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_human.pkl", f"ensembl_to_genesymbol_human.pkl")
+
+                with open(f"ensembl_to_genesymbol_human.pkl", "rb") as file:
+                    dict_conversions = pickle.load(file)
+
+        query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in query_adata_raw.var_names])
+
+

@@ -18,7 +18,7 @@ import ast
 
 from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import get_from_config
+from scarches_api.utils.utils import get_from_config, gene_ensembl_conversion
 from scarches_api.utils.utils import fetch_file_from_s3
 from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
 import pandas as pd
@@ -188,8 +188,8 @@ class ArchmapBaseModel():
                 raise ValueError(f"Error message: {e}")
             
 
-        # if self._query_adata_raw.n_obs>200000:
-        #     raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
+        if self._query_adata_raw.n_obs>200000:
+            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
 
 
 
@@ -200,60 +200,7 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs["type"] = "query"
 
 
-        ensembl_ref = True
-        for var_name in self._reference_adata.var_names[:5]:
-            if "ENS" in var_name: 
-                continue
-            else:
-                ensembl_ref = False
-                break
-
-        ensembl_query = True
-        for var_name in self._query_adata_raw.var_names[:5]:
-            if "ENS" in var_name: 
-                continue
-            else:
-                ensembl_query = False
-                break
-
-
-        if ensembl_query != ensembl_ref: 
-            import pickle
-            # convert query var_names to match ref
-
-            if ensembl_ref == True:
-                if "ENSMUS" in self._reference_adata.var_names[0]:
-
-                    #fetch mouse conversions
-                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_mouse.pkl", f"genesymbol_to_ensembl_mouse.pkl")
-
-                    with open(f"genesymbol_to_ensembl_mouse.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-                else:
-                    #fetch human conversions
-                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_human.pkl", f"genesymbol_to_ensembl_human.pkl")
-
-                    with open(f"genesymbol_to_ensembl_human.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-                    
-        
-            else:
-                if "ENSMUS" in self._query_adata_raw.var_names[0]:
-                    #fetch mouse conversions
-                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_mouse.pkl", f"ensembl_to_genesymbol_mouse.pkl")
-
-                    with open(f"ensembl_to_genesymbol_mouse.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-                else:
-                    #fetch human conversions
-                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_human.pkl", f"ensembl_to_genesymbol_human.pkl")
-
-                    with open(f"ensembl_to_genesymbol_human.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-            self._query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in self._query_adata_raw.var_names])
+        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw)
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata_raw.var_names

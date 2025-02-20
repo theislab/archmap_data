@@ -21,7 +21,7 @@ import ast
 import pandas as pd
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import fetch_file_from_s3
+from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:
@@ -49,7 +49,28 @@ class ScviHub:
 
         print("get data")
         self._reference_adata = scanpy.read_h5ad("../scvi_hub/atlas/atlas.h5ad")
-        self._query_adata = scanpy.read_h5ad("../scvi_hub/query/query.h5ad")
+
+        try:
+            self._query_adata = scanpy.read_h5ad("../scvi_hub/query/query.h5ad")
+            print("Data successfully loaded.")
+        except Exception as e:
+            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+
+        try:
+
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self._query_adata.write_h5ad(temp_query.name)
+        except ValueError as e:
+            if "is also used by a column whose values are different" in str(e):
+                raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
+            else:
+                raise ValueError(f"Error message: {e}")
+            
+
+        if self._query_adata.n_obs>200000:
+            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
+
+
 
         # rename duplicate column names
         self._reference_adata.obs = utils.rename_duplicate_columns(self._reference_adata.obs)
@@ -57,62 +78,7 @@ class ScviHub:
         self._query_adata.obs = utils.rename_duplicate_columns(self._query_adata.obs)
         self._query_adata.var = utils.rename_duplicate_columns(self._query_adata.var)
 
-        ensembl_ref = True
-        for var_name in self._reference_adata.var_names[:5]:
-            if "ENS" in var_name: 
-                continue
-            else:
-                ensembl_ref = False
-                break
-
-        ensembl_query = True
-        for var_name in self._query_adata.var_names[:5]:
-            if "ENS" in var_name: 
-                continue
-            else:
-                ensembl_query = False
-                break
-
-
-        if ensembl_query != ensembl_ref: 
-            import pickle
-            # convert query var_names to match ref
-
-            if ensembl_ref == True:
-                if "ENSMUS" in self._reference_adata.var_names[0]:
-
-                    #fetch mouse conversions
-                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_mouse.pkl", f"genesymbol_to_ensembl_mouse.pkl")
-
-                    with open(f"genesymbol_to_ensembl_mouse.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-                else:
-                    #fetch human conversions
-                    fetch_file_from_s3(f"gene_conversions/genesymbol_to_ensembl_human.pkl", f"genesymbol_to_ensembl_human.pkl")
-
-                    with open(f"genesymbol_to_ensembl_human.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-                    
-        
-            else:
-                if "ENSMUS" in self._query_adata.var_names[0]:
-                    #fetch mouse conversions
-                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_mouse.pkl", f"ensembl_to_genesymbol_mouse.pkl")
-
-                    with open(f"ensembl_to_genesymbol_mouse.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-                else:
-                    #fetch human conversions
-                    fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_human.pkl", f"ensembl_to_genesymbol_human.pkl")
-
-                    with open(f"ensembl_to_genesymbol_human.pkl", "rb") as file:
-                        dict_conversions = pickle.load(file)
-
-            self._query_adata.var_names = pd.Index([dict_conversions.get(item, item) for item in self._query_adata.var_names])
-
-
+        gene_ensembl_conversion(self._reference_adata, self._query_adata)
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata.var_names
@@ -121,6 +87,11 @@ class ScviHub:
         inter_len = len(intersection)
         ratio = (inter_len / len(ref_vars))*100
         print(ratio)
+
+
+        if int(ratio)<50:
+            raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
@@ -187,11 +158,17 @@ class ScviHub:
             )
 
         print("train")
-        self._model.train(
-            max_epochs=50,
-            plan_kwargs=dict(weight_decay=0.0),
-            check_val_every_n_epoch=10,
-        )
+        try:
+            self._model.train(
+                max_epochs=50,
+                plan_kwargs=dict(weight_decay=0.0),
+                check_val_every_n_epoch=10,
+            )
+        except ValueError as e:
+            if "Expected parameter loc" in str(e):
+                raise ValueError("Please check that your anndata object has raw counts (not normalized) saved in adata.X. Mapping can only occur with raw count data.") from e
+            else:
+                raise
 
         latent_name = f"{self.__model_cls_name.lower()}_latent_qzm"
 
