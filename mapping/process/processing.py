@@ -810,6 +810,9 @@ class Postprocess:
             elif combined_downsample.obs[col].dtype.kind in ["i","u"]:
                 combined_downsample.obs[col].fillna(0, inplace=True)
                 combined_downsample.obs[col]=combined_downsample.obs[col].astype(np.int32)
+            elif combined_downsample.obs[col].dtype.kind in ["b"]:  # Boolean
+                combined_downsample.obs[col].fillna(False, inplace=True)  # Replace NaN with False
+                combined_downsample.obs[col] = combined_downsample.obs[col].astype(np.bool_)  # Convert to numpy bool
 
         
 

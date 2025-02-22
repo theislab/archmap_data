@@ -20,7 +20,7 @@ from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 from scarches_api.utils.utils import get_from_config, gene_ensembl_conversion
 from scarches_api.utils.utils import fetch_file_from_s3
-from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk 
+from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, check_h5ad_format
 import pandas as pd
 
 from process.processing import Preprocess
@@ -170,6 +170,7 @@ class ArchmapBaseModel():
         #Download query and reference from GCP
         self._reference_adata = read_h5ad_file_from_s3(self._reference_adata_path)
         self._reference_adata.obs["type"] = "reference"
+        del self._reference_adata.layers
 
         try:
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
@@ -177,6 +178,8 @@ class ArchmapBaseModel():
         except Exception as e:
             raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
+        check_h5ad_format(self._query_adata_raw)
+        
         try:
 
             temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")

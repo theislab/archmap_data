@@ -842,3 +842,19 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw):
         query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in query_adata_raw.var_names])
 
 
+def check_h5ad_format(query):
+
+    #check "_index is not in column in obs or var"
+    if "_index" in query.obs.columns:
+        query.obs = query.obs.rename(columns={"_index": "_index_column"})
+
+    if "_index" in query.var.columns:
+        query.var = query.var.rename(columns={"_index": "_index_column"})
+
+    # Convert only non-string columns to strings
+        for col in query.obs.columns:
+            if query.obs[col].dtype != "O":  # "O" means object (string)
+                query.obs[col] = query.obs[col].astype(str)
+
+
+

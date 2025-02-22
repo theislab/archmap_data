@@ -21,7 +21,7 @@ import ast
 import pandas as pd
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion
+from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, check_h5ad_format
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:
@@ -55,6 +55,8 @@ class ScviHub:
             print("Data successfully loaded.")
         except Exception as e:
             raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+
+        check_h5ad_format(self._query_adata)
 
         try:
 
