@@ -185,7 +185,7 @@ class ArchmapBaseModel():
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
-                raise ValueError(f"Error message: {e}")
+                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
 
         if self._query_adata_raw.n_obs>250000:
