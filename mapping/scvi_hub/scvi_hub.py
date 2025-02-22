@@ -73,6 +73,13 @@ class ScviHub:
             raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately.")
 
 
+        # Check if provided query contains batch labels
+        if self.batch_key_input not in self._query_adata.obs.columns:
+            if self._batch_key in self._query_adata.obs.columns:
+                self._query_adata.obs["batch"]=self._query_adata.obs[self._batch_key]
+            else:
+                self._query_adata.obs["batch"]="mapped_batch"*len(self._query_adata)
+
 
         # rename duplicate column names
         self._reference_adata.obs = utils.rename_duplicate_columns(self._reference_adata.obs)
