@@ -844,6 +844,13 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw):
 
 def check_h5ad_format(query):
 
+    del query.varm
+    del query.obsm
+    del query.layers
+    del query.uns
+    del query.obsp
+    del query.varp
+
     #check "_index is not in column in obs or var"
     if "_index" in query.obs.columns:
         query.obs = query.obs.rename(columns={"_index": "_index_column"})

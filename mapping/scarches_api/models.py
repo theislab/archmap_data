@@ -233,12 +233,6 @@ class ArchmapBaseModel():
         
         # save only necessary data for mapping to new adata
         self._query_adata = self._query_adata_raw
-        del self._query_adata.varm
-        del self._query_adata.obsm
-        del self._query_adata.layers
-        del self._query_adata.uns
-        del self._query_adata.obsp
-        del self._query_adata.varp
 
         gc.collect()
 
