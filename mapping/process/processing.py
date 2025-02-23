@@ -814,6 +814,10 @@ class Postprocess:
                 combined_downsample.obs[col].fillna(False, inplace=True)  # Replace NaN with False
                 combined_downsample.obs[col] = combined_downsample.obs[col].astype(np.bool_)  # Convert to numpy bool
 
+        #remove columns with both bool and nan values
+        cols_to_drop = [col for col in combined_downsample.obs.columns if combined_downsample.obs[col].isin([True, False]).any() and combined_downsample.obs[col].isna().any()]
+        combined_downsample.obs.drop(columns=cols_to_drop, inplace=True)
+
         
 
         return combined_downsample
