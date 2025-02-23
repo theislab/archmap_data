@@ -152,11 +152,6 @@ def query(user_config):
  
         output_model_path = get_from_config(configuration, parameters.OUTPUT_PATH)
 
-        # Convert only non-string columns to strings
-        for col in mapping.data_cxg.obs.columns:
-            if mapping.data_cxg.obs[col].dtype != "O":  # "O" means object (string)
-                mapping.data_cxg.obs[col] = mapping.data_cxg.obs[col].astype(str)
-
         #Save as .h5ad
         data_cxg = mapping.data_cxg
         output_path = get_from_config(configuration, parameters.OUTPUT_CXG_PATH)
