@@ -291,9 +291,9 @@ class ScviHub:
         for cell_type_key in self._cell_type_key_list:
             self._reference_adata.obs[cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
             self._reference_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-            self._reference_adata.obs[cell_type_key + 'prediction_xgb'] = pandas.Series(dtype="category")
-            self._reference_adata.obs[cell_type_key + 'prediction_knn'] = pandas.Series(dtype="category")
-            self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = pandas.Series(dtype="category")
+            self._reference_adata.obs[cell_type_key + 'prediction_xgb'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + 'prediction_knn'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = self._reference_adata.obs[cell_type_key]
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
 
@@ -359,7 +359,7 @@ class ScviHub:
 
         #Initialize and create classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, model_class)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, model_class)
 
