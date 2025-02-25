@@ -81,12 +81,6 @@ class Classifiers:
 
              
 
-        if f"{cell_type_key}_uncertainty_euclidean" in query.obs:
-                    percent_unknown = percentage_unknown(query, cell_type_key, prediction_label)
-                    percent_unknown=round(percent_unknown, 2)
-        else:
-            percent_unknown="Na"
-
         if self.__classifier_native is not None:
             if "SCANVI" in str(self.__model_class):
                 query.obs[f"{cell_type_key}_prediction_scanvi"] = self.__classifier_native.predict(query)
@@ -119,6 +113,7 @@ class Classifiers:
             percent_unknown=round(percent_unknown, 2)
         else:
             percent_unknown="Na"
+
 
         return percent_unknown
 

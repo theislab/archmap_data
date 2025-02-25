@@ -359,7 +359,7 @@ class ScviHub:
 
         #Initialize and create classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self._model.__class__)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, model_class)
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, model_class)
 
