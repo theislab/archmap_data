@@ -3,6 +3,7 @@ import boto3
 from benchmark_atlas_upload import benchmark, benchmark_plot, minify, classify, uncertainty_train, store_results, subset_data
 import scanpy as sc
 import requests
+import ast
 
 def fetch_file_from_s3(key, path):
     """
@@ -41,6 +42,10 @@ def main():
     atlasName = os.getenv('atlasName')
     webhook = os.getenv('webhook')
     classifierLabels = os.getenv('classifierLabels')
+
+    classifierLabels = ast.literal_eval(classifierLabels)
+
+    print(classifierLabels)
 
     print(f"modelpath: {modelPath}")
     print(f"atlaspath: {atlasPath}")
