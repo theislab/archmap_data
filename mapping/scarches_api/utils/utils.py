@@ -858,10 +858,6 @@ def check_h5ad_format(query):
     if "_index" in query.var.columns:
         query.var = query.var.rename(columns={"_index": "_index_column"})
 
-    # Convert only non-string columns to strings
-        for col in query.obs.columns:
-            if query.obs[col].dtype != "O":  # "O" means object (string)
-                query.obs[col] = query.obs[col].astype(str)
 
 
 
