@@ -357,9 +357,12 @@ class ScviHub:
         if self.__model_cls_name == "SCANVI":
             model_class = scarches.models.SCANVI.__class__
 
+        print(self._clf_native)
+        print(self.__model_cls_name)
+
         #Initialize and create classifier
         if self._clf_native:
-            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, model_class)
+            clf = Classifiers(self._clf_xgb, self._clf_knn, self._model, self.__model_cls_name)
         else:
             clf = Classifiers(self._clf_xgb, self._clf_knn, None, model_class)
 
