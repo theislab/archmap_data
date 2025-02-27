@@ -579,7 +579,7 @@ class ArchmapBaseModel():
             celltype_key = self._cell_type_key_classifier
 
         # Check if 10% of reference is less than query size times the ratio
-        if len(ref_adata) * 0.1 < len(query_adata_index) * query_ratio:
+        if True or len(ref_adata) * 0.1 < len(query_adata_index) * query_ratio:
             # New approach: Proportional sampling based on cell type proportions
             # Calculate total number of cells to sample from reference
             total_ref_cells_to_sample = len(query_adata_index) * query_ratio
@@ -605,13 +605,13 @@ class ArchmapBaseModel():
                 
                 sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
                 sampled_cell_index.extend(sampled_cells)
-        else:
-            # Old approach: Sample 10% from each cell type in the reference data
-            celltypes = self._combined_adata.obs[celltype_key].unique()
-            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
-            percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
+        # else:
+        #     # Old approach: Sample 10% from each cell type in the reference data
+        #     celltypes = self._combined_adata.obs[celltype_key].unique()
+        #     # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+        #     percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
         
-            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[celltype_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[celltype_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
+        #     sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[celltype_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[celltype_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
 
         # Combine sampled reference cells with query cells
         sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
