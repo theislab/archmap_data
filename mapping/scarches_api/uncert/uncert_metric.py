@@ -19,20 +19,39 @@ import scarches_api.utils.parameters
 
 from sklearn.mixture import GaussianMixture
 
+import numpy as np
+
 def mahalanobis(v, data):
     """Computes the Mahalanobis distance from a query cell to all the centroids
-
+    using the inverse covariance matrix.
+    
+    Args:
+        v (numpy array): Query cell embedding (1D vector).
+        data (numpy array): Centroids of clusters (2D array, shape [num_centroids, num_features]).
+        
     Returns:
-        vector: All the distances to the centroids
+        numpy array: Mahalanobis distances to each centroid.
     """
-    vector = np.zeros(len(data))
+    vector = np.zeros(len(data))  # Initialize an array to store distances
+    
+    # Compute the covariance matrix of the centroids
+    covariance_matrix = np.cov(data, rowvar=False)  # Ensure features are in columns
+    
+    # Compute the inverse covariance matrix
+    try:
+        inv_cov = np.linalg.inv(covariance_matrix)
+    except Exception as e:  # Catch all exceptions
+        print(f"Warning: Covariance matrix inversion failed. Using pseudo-inverse instead. Error: {e}")
+        inv_cov = np.linalg.pinv(covariance_matrix)  # Use pseudo-inverse if singular
+    
+    # Compute Mahalanobis distance for each centroid
     for centroid_index in range(len(data)):
-        v_mu = v - np.mean(data[centroid_index])
-        inv_cov = np.eye(len(data[centroid_index]))
-        left = np.dot(v_mu, inv_cov)
-        mahal = np.dot(left, v_mu.T)
+        v_mu = v - data[centroid_index]  # Difference from centroid
+        mahal = np.sqrt(np.dot(np.dot(v_mu, inv_cov), v_mu.T))  # Mahalanobis distance
         vector[centroid_index] = mahal
+    
     return vector
+
 
 # def classification_uncert_mahalanobis(
 #         configuration, 
