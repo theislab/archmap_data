@@ -407,13 +407,19 @@ class ArchmapBaseModel():
         if self.batch_key_input != self._batch_key:
             self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
 
-        print("adding X from cloud")
-        count_matrix_size_gb = self.add_X_from_cloud()
-
-        if count_matrix_size_gb<40:
+        # if number of genes larger than 10 000, dont concatenate reference counts
+        if self._combined_adata.n_var > 10000:
+            print("n genes larger than 10 000, not adding reference counts.")
             combined_downsample = self.downsample_adata()
+
         else:
-            combined_downsample = self._combined_adata.copy() 
+            print("adding X from cloud")
+            count_matrix_size_gb = self.add_X_from_cloud()
+
+            if count_matrix_size_gb<40:
+                combined_downsample = self.downsample_adata()
+            else:
+                combined_downsample = self._combined_adata.copy() 
 
         # Calculate presence score
 
@@ -541,10 +547,7 @@ class ArchmapBaseModel():
     def downsample_adata(self, query_ratio=5):
         """
         Downsamples the reference data to be proportional to the query data.
-        
-        If 10% of the reference data is less than the query data size times the query_ratio, 
-        use a proportional sampling method. Otherwise, sample 10% from each cell type in 
-        the reference data.
+        Proportional sampling based on cell type proportions.
 
         Parameters:
         query_ratio (int, optional): The ratio of reference to query data size. Default is 5.
@@ -561,41 +564,32 @@ class ArchmapBaseModel():
         else:
             celltype_key = self._cell_type_key_classifier
 
-        # Check if 10% of reference is less than query size times the ratio
-        if len(ref_adata) * 0.1 < len(query_adata_index) * query_ratio:
-            # New approach: Proportional sampling based on cell type proportions
-            # Calculate total number of cells to sample from reference
-            total_ref_cells_to_sample = len(query_adata_index) * query_ratio
+        # New approach: Proportional sampling based on cell type proportions
+        # Calculate total number of cells to sample from reference
+        total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
-            # Get unique cell types
-            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
+        # Get unique cell types
+        # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
 
 
-            celltypes = self._combined_adata.obs[celltype_key].unique()
+        celltypes = self._combined_adata.obs[celltype_key].unique()
 
-            # Calculate the proportion of each cell type in the reference data
-            celltype_proportions = {celltype: np.sum(ref_adata.obs[celltype_key] == celltype) / len(ref_adata) for celltype in celltypes}
+        # Calculate the proportion of each cell type in the reference data
+        celltype_proportions = {celltype: np.sum(ref_adata.obs[celltype_key] == celltype) / len(ref_adata) for celltype in celltypes}
 
-            # Sample cells from each cell type according to its proportion
-            sampled_cell_index = []
-            for celltype, proportion in celltype_proportions.items():
-                cell_indices = np.where(ref_adata.obs[celltype_key] == celltype)[0]
-                sample_size = int(total_ref_cells_to_sample * proportion)
-                
-                # Adjust sample size if it exceeds the number of available cells
-                if sample_size > len(cell_indices):
-                    sample_size = len(cell_indices)
-                
-                sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
-                sampled_cell_index.extend(sampled_cells)
-        else:
-            # Old approach: Sample 10% from each cell type in the reference data
-            celltypes = self._combined_adata.obs[celltype_key].unique()
-            # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
-            percentage = 0.02 if ref_adata.n_obs> 3000000 else 0.1 # max 1
+        # Sample cells from each cell type according to its proportion
+        sampled_cell_index = []
+        for celltype, proportion in celltype_proportions.items():
+            cell_indices = np.where(ref_adata.obs[celltype_key] == celltype)[0]
+            sample_size = int(total_ref_cells_to_sample * proportion)
+            
+            # Adjust sample size if it exceeds the number of available cells
+            if sample_size > len(cell_indices):
+                sample_size = len(cell_indices)
+            
+            sampled_cells = np.random.choice(cell_indices, size=sample_size, replace=False)
+            sampled_cell_index.extend(sampled_cells)
         
-            sampled_cell_index = np.concatenate([np.random.choice(np.where(ref_adata.obs[celltype_key] == celltype)[0], size=int(len(np.where(ref_adata.obs[celltype_key] == celltype)[0]) * percentage), replace=False) for celltype in celltypes])
-
         # Combine sampled reference cells with query cells
         sampled_cell_index = np.concatenate([sampled_cell_index, query_adata_index])
 
