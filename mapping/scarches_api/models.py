@@ -236,19 +236,6 @@ class ArchmapBaseModel():
 
         gc.collect()
 
-        # save counts if counts atrr_key is saved in reference model registry
-        import torch
-        model = torch.load(f"{self._temp_model_path}/model.pt", map_location="cpu")
-        if (
-            model.get("attr_dict", {})
-            .get("registry_", {})
-            .get("field_registries", {})
-            .get("X", {})
-            .get("data_registry", {})
-            .get("attr_key") == "counts"
-        ):
-            self._query_adata.layers["counts"] = self._query_adata.X
-
         
 
     def _eval_mapping(self):
@@ -654,6 +641,18 @@ class ScVI(ArchmapBaseModel):
         #Download model from GCP
         fetch_file_from_s3(self._model_path, "./model.pt")
 
+        # save counts if counts atrr_key is saved in reference model registry
+        model = torch.load("./model.pt", map_location="cpu")
+        if (
+            model.get("attr_dict", {})
+            .get("registry_", {})
+            .get("field_registries", {})
+            .get("X", {})
+            .get("data_registry", {})
+            .get("attr_key") == "counts"
+        ):
+            self._query_adata.layers["counts"] = self._query_adata.X
+
         # #load model
         # model = scarches.models.SCVI.load(".",adata=self._reference_adata)
 
@@ -712,6 +711,18 @@ class ScANVI(ArchmapBaseModel):
         
         #Download model from GCP
         fetch_file_from_s3(self._model_path, "./model.pt")
+
+        # save counts if counts atrr_key is saved in reference model registry
+        model = torch.load("./model.pt", map_location="cpu")
+        if (
+            model.get("attr_dict", {})
+            .get("registry_", {})
+            .get("field_registries", {})
+            .get("X", {})
+            .get("data_registry", {})
+            .get("attr_key") == "counts"
+        ):
+            self._query_adata.layers["counts"] = self._query_adata.X
 
         # #load model
         # model = scarches.models.SCANVI.load(".",adata=self._reference_adata)
