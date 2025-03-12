@@ -236,8 +236,18 @@ class ArchmapBaseModel():
 
         gc.collect()
 
-        # save counts
-        self._query_adata.layers["counts"] = self._query_adata.X
+        # save counts if counts atrr_key is saved in reference model registry
+        import torch
+        model = torch.load(f"{self._temp_model_path}/model.pt", map_location="cpu")
+        if (
+            model.get("attr_dict", {})
+            .get("registry_", {})
+            .get("field_registries", {})
+            .get("X", {})
+            .get("data_registry", {})
+            .get("attr_key") == "counts"
+        ):
+            self._query_adata.layers["counts"] = self._query_adata.X
 
         
 
@@ -616,6 +626,8 @@ class ArchmapBaseModel():
 
 class ScVI(ArchmapBaseModel):
     def _map_query(self):
+
+
         #Align genes and gene order to model 
         self._query_adata.var_names_make_unique()
         scarches.models.SCVI.prepare_query_anndata(self._query_adata, self._temp_model_path)
