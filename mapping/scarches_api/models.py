@@ -236,6 +236,9 @@ class ArchmapBaseModel():
 
         gc.collect()
 
+        # save counts
+        self._query_adata.layers["counts"] = self._query_adata.X
+
         
 
     def _eval_mapping(self):
