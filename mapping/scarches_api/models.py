@@ -408,7 +408,7 @@ class ArchmapBaseModel():
             self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
 
         # if number of genes larger than 10 000, dont concatenate reference counts
-        if self._combined_adata.n_var > 10000:
+        if self._combined_adata.n_vars > 10000:
             print("n genes larger than 10 000, not adding reference counts.")
             combined_downsample = self.downsample_adata()
 
