@@ -410,7 +410,7 @@ class ArchmapBaseModel():
         # if number of genes larger than 10 000, dont concatenate reference counts
         if self._combined_adata.n_vars > 10000:
             print("n genes larger than 10 000, not adding reference counts.")
-            combined_downsample = self.downsample_adata()
+            combined_downsample = self._combined_adata
 
         else:
             print("adding X from cloud")
@@ -451,6 +451,8 @@ class ArchmapBaseModel():
         combined_downsample.obs["presence_score"] = self.presence_score
         print(f"presence_score: {self.presence_score}")
 
+        print(f"query downsample: {query_downsample.X.sum()}")
+
         self.clust_pres_score=cluster_preservation_score(query_downsample)
         print(f"clust_pres_score: {self.clust_pres_score}")
         
@@ -474,7 +476,7 @@ class ArchmapBaseModel():
 
 
     def add_X_from_cloud(self):
-        if True or get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
+        if get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
                 get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
             
             utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
