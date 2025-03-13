@@ -860,7 +860,7 @@ def check_h5ad_format(query):
 
     # make sure query count does not contain all zeros
 
-    if not query.X.sum > 0:
+    if not query.X.sum() > 0:
         if query.raw is None:
             raise ValueError("The count matrix of the query contains only zeros. Please make sure that the count matrix is stored in the .X attribute of your h5ad file.")
 
