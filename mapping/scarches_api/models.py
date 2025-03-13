@@ -410,6 +410,10 @@ class ArchmapBaseModel():
         # if number of genes larger than 10 000, dont concatenate reference counts
         if self._combined_adata.n_vars > 10000:
             print("n genes larger than 10 000, not adding reference counts.")
+            count_matrix = scanpy.AnnData(self._reference_adata.X)
+            count_matrix.var_names = self._reference_adata.var_names
+            combined_data_X = count_matrix.concatenate(self.adata_query_X)
+            self._combined_adata.X = combined_data_X.X
             combined_downsample = self._combined_adata
 
         else:
