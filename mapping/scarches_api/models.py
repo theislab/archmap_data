@@ -372,7 +372,6 @@ class ArchmapBaseModel():
         columns_only_query = query_obs_columns.difference(ref_obs_columns)
         query_obs = self._query_adata.obs[columns_only_query].copy()
 
-        del self._reference_adata
         del self._query_adata
         gc.collect()
 
@@ -424,6 +423,10 @@ class ArchmapBaseModel():
                 combined_downsample = self.downsample_adata()
             else:
                 combined_downsample = self._combined_adata.copy() 
+
+        del self._reference_adata
+        del count_matrix
+        gc.collect()
 
         # Calculate presence score
 
