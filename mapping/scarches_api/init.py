@@ -165,7 +165,7 @@ def query(user_config):
         
         #save model and adata as tar file
         import tarfile
-
+        os.makedirs("finetuned_model/", exist_ok=True)
         mapping._combined_adata.write("finetuned_model/adata.h5ad")
         mapping._model.save("finetuned_model/", save_anndata=False, overwrite=True)
         output_filename="query_model.tar.gz"
