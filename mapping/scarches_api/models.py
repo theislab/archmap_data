@@ -425,7 +425,6 @@ class ArchmapBaseModel():
                 combined_downsample = self._combined_adata.copy() 
 
         del self._reference_adata
-        del count_matrix
         gc.collect()
 
         # Calculate presence score
