@@ -824,7 +824,8 @@ class Postprocess:
 
     def output(latent_adata: sc.AnnData, combined_adata: sc.AnnData, configuration, store_file_in_cloud=True):
         output_type = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
-        output_type = ast.literal_eval(output_type)
+        if isinstance(output_type, str):
+            output_type = ast.literal_eval(output_type)
 
         if(output_type.get("csv")):
             #TODO: Change implementation of dropping unnecessary labels?
