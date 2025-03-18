@@ -406,7 +406,8 @@ class ArchmapBaseModel():
         if self.batch_key_input != self._batch_key:
             self._combined_adata.obs = self._combined_adata.obs.rename(columns={self._batch_key : self.batch_key_input})
 
-        # if number of genes larger than 10 000, dont concatenate reference counts
+        # if number of genes larger than 10 000 or number of obs larger than 5 million, dont concatenate reference counts
+        # if self._combined_adata.n_vars >= 10000 or self._combined_adata.n_obs >= 5000000:
         if self._combined_adata.n_vars >= 10000:
             print("n genes larger than 10 000, not adding reference counts.")
             count_matrix = scanpy.AnnData(self._reference_adata.X)
@@ -784,7 +785,7 @@ class ScPoli(ArchmapBaseModel):
         
 
         #Compute sample embeddings on query
-        self._sample_embeddings()
+        # self._sample_embeddings()
 
         #make separate if statements based on the key that is available in atlas. 
         if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
