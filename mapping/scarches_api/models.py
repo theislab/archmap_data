@@ -775,7 +775,8 @@ class ScPoli(ArchmapBaseModel):
             self._model.train(
                 n_epochs=self._max_epochs,
                 pretraining_epochs=40,
-                eta=10
+                eta=10,
+                unlabeled_prototype_training=False
             )
         except ValueError as e:
             if "Expected parameter loc" in str(e):
