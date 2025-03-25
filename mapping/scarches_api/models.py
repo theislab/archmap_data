@@ -213,8 +213,8 @@ class ArchmapBaseModel():
         ratio = (inter_len / len(ref_vars))*100
 
         print(ratio)
-        if int(ratio)<50:
-            raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+        if int(ratio)<5:
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
 
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
