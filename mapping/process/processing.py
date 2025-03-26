@@ -382,8 +382,8 @@ class Preprocess:
             cell_type_key = 'ann_finest_level'
             batch_key = 'sample'
         elif atlas == 'retina':
-            cell_type_key = 'CellType'
-            batch_key = 'batch'
+            cell_type_key = 'celltype'
+            batch_key = 'sampleid'
         elif atlas == 'fetal_immune':
             cell_type_key = 'celltype_annotation'
             batch_key = 'bbk'
