@@ -582,7 +582,12 @@ class ArchmapBaseModel():
 
         # New approach: Proportional sampling based on cell type proportions
         # Calculate total number of cells to sample from reference
-        total_ref_cells_to_sample = len(query_adata_index) * query_ratio
+
+        #change query ratio depending on query size
+        if len(query_adata_index)<50000:
+            total_ref_cells_to_sample = min(len(ref_adata),250000)
+        else:
+            total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
         # Get unique cell types
         # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
