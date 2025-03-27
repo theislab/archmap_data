@@ -417,6 +417,7 @@ class ArchmapBaseModel():
             combined_downsample = self.downsample_adata()
 
             del count_matrix
+            del self.adata_query_X
             gc.collect()
 
         else:
@@ -462,6 +463,9 @@ class ArchmapBaseModel():
         print(f"presence_score: {self.presence_score}")
 
         print(f"query downsample: {query_downsample.X.sum()}")
+
+        del wknn
+        gc.collect()
 
         self.clust_pres_score=cluster_preservation_score(query_downsample)
         print(f"clust_pres_score: {self.clust_pres_score}")
