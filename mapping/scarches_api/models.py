@@ -414,7 +414,7 @@ class ArchmapBaseModel():
             count_matrix.var_names = self._reference_adata.var_names
             combined_data_X = count_matrix.concatenate(self.adata_query_X)
             self._combined_adata.X = combined_data_X.X
-            combined_downsample = self._combined_adata
+            combined_downsample = self.downsample_adata()
 
             del count_matrix
             gc.collect()
