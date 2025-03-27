@@ -416,6 +416,9 @@ class ArchmapBaseModel():
             self._combined_adata.X = combined_data_X.X
             combined_downsample = self._combined_adata
 
+            del count_matrix
+            gc.collect()
+
         else:
             print("adding X from cloud")
             count_matrix_size_gb = self.add_X_from_cloud()
