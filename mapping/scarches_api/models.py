@@ -415,9 +415,10 @@ class ArchmapBaseModel():
             count_matrix.var_names = self._reference_adata.var_names
             combined_data_X = count_matrix.concatenate(self.adata_query_X)
             self._combined_adata.X = combined_data_X.X
-            combined_downsample = self._combined_adata
+            combined_downsample = self.downsample_adata()
 
             del count_matrix
+            del self.adata_query_X
             gc.collect()
 
         else:
@@ -463,6 +464,9 @@ class ArchmapBaseModel():
         print(f"presence_score: {self.presence_score}")
 
         print(f"query downsample: {query_downsample.X.sum()}")
+
+        del wknn
+        gc.collect()
 
         self.clust_pres_score=cluster_preservation_score(query_downsample)
         print(f"clust_pres_score: {self.clust_pres_score}")
@@ -579,7 +583,12 @@ class ArchmapBaseModel():
 
         # New approach: Proportional sampling based on cell type proportions
         # Calculate total number of cells to sample from reference
-        total_ref_cells_to_sample = len(query_adata_index) * query_ratio
+
+        #change query ratio depending on query size
+        if len(query_adata_index)<50000:
+            total_ref_cells_to_sample = min(len(ref_adata),250000)
+        else:
+            total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
         # Get unique cell types
         # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])

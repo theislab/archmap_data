@@ -104,6 +104,8 @@ def query(user_config):
     print("got config " + str(user_config))
     start_time = time.time()
     configuration = merge_configs(user_config)
+
+    print("running dev branch")
     #Sets the correct condition and cell_type key
     #configuration = utils.set_keys(configuration)
 
