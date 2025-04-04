@@ -764,7 +764,7 @@ def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix
 
     return temp_combined.name
 
-def gene_ensembl_conversion(reference_adata, query_adata_raw):
+def gene_ensembl_conversion(reference_adata, query_adata_raw, webhook):
     """
     Convert gene symbols to ensembl IDs and vice versa to match query and ref vars.
     """
@@ -808,6 +808,9 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw):
         # convert query var_names to match ref
 
         if ensembl_ref == True:
+
+            notify_backend(webhook, {"gene_conversion":"Gene symbols in the query dataset were converted to Ensembl IDs before mapping to ensure compatibility with the reference atlas."})
+
             if "ENSMUS" in reference_adata.var_names[0]:
 
                 #fetch mouse conversions
@@ -825,6 +828,8 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw):
                 
     
         else:
+            notify_backend(webhook, {"gene_conversion":"Ensembl IDs in the query dataset were converted to gene symbols before mapping to ensure compatibility with the reference atlas."})
+
             if "ENSMUS" in query_adata_raw.var_names[0]:
                 #fetch mouse conversions
                 fetch_file_from_s3(f"gene_conversions/ensembl_to_genesymbol_mouse.pkl", f"ensembl_to_genesymbol_mouse.pkl")
@@ -840,6 +845,8 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw):
                     dict_conversions = pickle.load(file)
 
         query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in query_adata_raw.var_names])
+
+
 
 
 def check_h5ad_format(query):

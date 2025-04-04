@@ -40,6 +40,7 @@ class ScviHub:
 
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
+        self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
 
         self.__download_data()
 
@@ -87,7 +88,7 @@ class ScviHub:
         self._query_adata.obs = utils.rename_duplicate_columns(self._query_adata.obs)
         self._query_adata.var = utils.rename_duplicate_columns(self._query_adata.var)
 
-        gene_ensembl_conversion(self._reference_adata, self._query_adata)
+        gene_ensembl_conversion(self._reference_adata, self._query_adata, self._webhook_gene_conversion)
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata.var_names

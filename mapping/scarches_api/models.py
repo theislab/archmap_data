@@ -50,6 +50,7 @@ class ArchmapBaseModel():
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
+        self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
@@ -203,7 +204,7 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs["type"] = "query"
 
 
-        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw)
+        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata_raw.var_names
