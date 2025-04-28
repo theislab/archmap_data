@@ -176,10 +176,13 @@ class ArchmapBaseModel():
         try:
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
             print("Data successfully loaded.")
+
+            check_h5ad_format(self._query_adata_raw)
+            
         except Exception as e:
             raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
-        check_h5ad_format(self._query_adata_raw)
+        
         
         try:
 

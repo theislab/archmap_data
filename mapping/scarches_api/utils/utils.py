@@ -874,5 +874,5 @@ def check_h5ad_format(query):
             raise ValueError("The count matrix of the query contains only zeros. Please make sure that the count matrix is stored in the .X attribute of your h5ad file.")
 
 
-
+    del query.raw
 
