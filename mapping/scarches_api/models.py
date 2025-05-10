@@ -355,6 +355,11 @@ class ArchmapBaseModel():
             self._reference_adata.obs[cell_type_key + '_prediction_knn'] = self._reference_adata.obs[cell_type_key]
             self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = self._reference_adata.obs[cell_type_key]
             self._reference_adata.obs[cell_type_key + "_prediction_scpoli"] = self._reference_adata.obs[cell_type_key]
+            reference_adata.obs[cell_type_key + "_prediction_scpoli_filtered_by_uncert>0.5"] = reference_adata.obs[cell_type_key]
+            reference_adata.obs[cell_type_key + "_prediction_scanvi_filtered_by_uncert>0.5"] = reference_adata.obs[cell_type_key]
+            reference_adata.obs[cell_type_key + "_prediction_xgb_filtered_by_uncert>0.5"] = reference_adata.obs[cell_type_key]
+            reference_adata.obs[cell_type_key + "_prediction_knn_filtered_by_uncert>0.5"] = reference_adata.obs[cell_type_key]
+
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
 
