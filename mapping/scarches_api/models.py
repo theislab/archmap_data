@@ -362,6 +362,9 @@ class ArchmapBaseModel():
 
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].cat.add_categories(["Unknown"])
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].fillna("Unknown").astype('category')
+
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
