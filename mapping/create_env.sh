@@ -5,7 +5,7 @@ set -e
 
 # Variables
 ENV_NAME="archmap_env"  # Name of the Conda environment
-REQ_FILE="scarches_api/requirements_local.txt"  # Path to the requirements file
+REQ_FILE="scarches_api/requirements.txt"  # Path to the requirements file
 
 # Function to create a Conda environment
 create_conda_env() {
