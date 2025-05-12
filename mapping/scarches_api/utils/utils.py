@@ -847,6 +847,24 @@ def gene_ensembl_conversion(reference_adata, query_adata_raw, webhook):
         query_adata_raw.var_names = pd.Index([dict_conversions.get(item, item) for item in query_adata_raw.var_names])
 
 
+def correct_dtypes(df):
+    for col in df.columns:
+        col_data = df[col].dropna()
+
+        # Skip empty columns
+        if col_data.empty:
+            continue
+
+        if pd.api.types.is_categorical_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
+            
+            unique_vals = set(col_data.unique())
+
+            # If values are all booleans
+            if unique_vals.issubset({True, False, "True", "False"}):
+                df[col] = df[col].astype(bool)
+
+
+    return df
 
 
 def check_h5ad_format(query):
@@ -875,4 +893,6 @@ def check_h5ad_format(query):
 
 
     del query.raw
+
+    query.obs = correct_dtypes(query.obs)
 
