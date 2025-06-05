@@ -76,7 +76,11 @@ class ArchmapBaseModel():
         self.cell_type_key_input = "user_cell_type"
         self.batch_key_input = "batch"
 
-        self._query_adata.X=self._query_adata.X.tocsr()
+        if isinstance(self._query_adata.X, np.ndarray):
+            self._query_adata.X = csr_matrix(self._query_adata.X)
+        else:
+            self._query_adata.X=self._query_adata.X.tocsr()
+
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key, self._uploaded = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
