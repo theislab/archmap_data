@@ -104,6 +104,21 @@ class ArchmapBaseModel():
             self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
             del self._query_adata.obs[self.batch_key_input]
 
+        self._query_adata.obs[self._batch_key] = self._query_adata.obs[self._batch_key].astype(str).astype('category')
+
+        print("__________getting shape info of batch___________")
+        print(self._query_adata.obs[self._batch_key].shape)
+        print(self._query_adata.obs[self._batch_key])
+
+        if isinstance(self._query_adata.X, np.ndarray):
+            print("__________getting shape info of .X___________")
+            print(self._query_adata.X.shape)
+        else:
+            print("__________getting shape and type info of .X___________")
+            print(self._query_adata.X.toarray().shape)
+            print(type(self._query_adata.X))
+
+
         classifier_type=get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE)
         classifier_type = ast.literal_eval(classifier_type)
 
