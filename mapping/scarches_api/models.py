@@ -521,74 +521,71 @@ class ArchmapBaseModel():
 
 
     def add_X_from_cloud(self):
-        if get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
-                get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
+
+        if not self._reference_adata_path.endswith("data.h5ad"):
+            raise ValueError("The reference data should be named data.h5ad")
+        else:
+            count_matrix_path = self._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+
+        combined_adata = self._combined_adata
+        count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
+        self.temp_output_combined = "finetuned_model/adata.h5ad"
+        os.makedirs("finetuned_model/", exist_ok=True)
+
+        if count_matrix_size_gb < 10:
+            print("Count matrix size less than 10 gb.")
+            count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+            #Added because concat_on_disk only allows csr concat
+            if count_matrix.X.format == "csc" or self.adata_query_X.X.format == "csc":
+                print("Concatenating query and reference count matrices in memory")
+                combined_data_X = count_matrix.concatenate(self.adata_query_X)
+
+                del count_matrix
+                del self.adata_query_X
+                gc.collect()
+
+            else:
+                print("Concatenating query and reference count matrices on disk")
+                #Create temp files on disk
+                temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+                #Write data to temp files
+                count_matrix.write_h5ad(temp_reference.name)
+                self.adata_query_X.write_h5ad(temp_query.name)
+
+                del count_matrix
+                del self.adata_query_X
+                gc.collect()
             
-            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
-            if not self._reference_adata_path.endswith("data.h5ad"):
-                raise ValueError("The reference data should be named data.h5ad")
-            else:
-                count_matrix_path = self._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+                experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+                combined_data_X = sc.read_h5ad(temp_combined.name)
 
-            combined_adata = self._combined_adata
-            count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
-            self.temp_output_combined = "finetuned_model/adata.h5ad"
-            os.makedirs("finetuned_model/", exist_ok=True)
+            combined_adata.X = combined_data_X.X
+            sc.write(self.temp_output_combined, combined_adata)
 
-            if count_matrix_size_gb < 10:
-                print("Count matrix size less than 10 gb.")
-                count_matrix = read_h5ad_file_from_s3(count_matrix_path)
-                #Added because concat_on_disk only allows csr concat
-                if count_matrix.X.format == "csc" or self.adata_query_X.X.format == "csc":
-                    print("Concatenating query and reference count matrices in memory")
-                    combined_data_X = count_matrix.concatenate(self.adata_query_X)
-
-                    del count_matrix
-                    del self.adata_query_X
-                    gc.collect()
-
-                else:
-                    print("Concatenating query and reference count matrices on disk")
-                    #Create temp files on disk
-                    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
-
-                    #Write data to temp files
-                    count_matrix.write_h5ad(temp_reference.name)
-                    self.adata_query_X.write_h5ad(temp_query.name)
-
-                    del count_matrix
-                    del self.adata_query_X
-                    gc.collect()
+        elif count_matrix_size_gb>=10 and count_matrix_size_gb<40:
+            print("Count matrix size larger than 10 gb.")
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self.adata_query_X.write_h5ad(temp_query.name)
+            del self.adata_query_X
+            gc.collect()
+            self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
+            combined_adata = sc.read(self.temp_output_combined)
+        else:
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self.adata_query_X.write_h5ad(temp_query.name)
+            del self.adata_query_X
+            gc.collect()
+            count_matrix_downsample_path = self._reference_adata_path[:-len("data.h5ad")] + "data_count_downsample.h5ad" 
+            # download downsampled counts from cloud and concat
+            self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_downsample_path, use_downsample=True)
+            combined_adata = sc.read(self.temp_output_combined)
                 
-                    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-                    combined_data_X = sc.read_h5ad(temp_combined.name)
+        self._combined_adata = combined_adata
 
-                combined_adata.X = combined_data_X.X
-                sc.write(self.temp_output_combined, combined_adata)
-
-            elif count_matrix_size_gb>=10 and count_matrix_size_gb<40:
-                print("Count matrix size larger than 10 gb.")
-                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                self.adata_query_X.write_h5ad(temp_query.name)
-                del self.adata_query_X
-                gc.collect()
-                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
-                combined_adata = sc.read(self.temp_output_combined)
-            else:
-                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                self.adata_query_X.write_h5ad(temp_query.name)
-                del self.adata_query_X
-                gc.collect()
-                count_matrix_downsample_path = self._reference_adata_path[:-len("data.h5ad")] + "data_count_downsample.h5ad" 
-                # download downsampled counts from cloud and concat
-                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_downsample_path, use_downsample=True)
-                combined_adata = sc.read(self.temp_output_combined)
-                 
-            self._combined_adata = combined_adata
-
-            return count_matrix_size_gb
+        return count_matrix_size_gb
 
 
     def downsample_adata(self, query_ratio=5):
