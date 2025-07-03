@@ -189,7 +189,7 @@ def query(user_config):
             # Step 2: Upload the 'done' file after the main file upload is confirmed
             with open('done.txt', 'w') as f:
                 pass 
-            utils.store_file_in_s3('done.txt', output_model_path)
+            utils.store_file_in_s3('done.txt', output_model_path[:-len("query_model.tar.gz")] + 'done.txt')
 
 
     return configuration
