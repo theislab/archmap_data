@@ -491,7 +491,7 @@ class Preprocess:
             if batch_key in target_adata.obs.columns:
                 target_adata.obs["batch"]=target_adata.obs[batch_key]
             else:
-                target_adata.obs["batch"]="mapped_batch"*len(target_adata)
+                target_adata.obs["batch"]=["mapped_batch"]*len(target_adata)
                 #raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
         
 
