@@ -18,6 +18,10 @@ from anndata import experimental
 from anndata.experimental import write_elem, read_elem
 import h5py
 
+import scanpy as sc
+import numpy as np
+
+
 UNWANTED_LABELS = ['leiden', '', '_scvi_labels', '_scvi_batch']
 
 
@@ -893,4 +897,59 @@ def check_h5ad_format(query):
     del query.raw
 
     query.obs = correct_dtypes(query.obs)
+
+
+
+def validate_h5ad(adata):
+    """
+    Validate an .h5ad file for a wide range of structural issues.
+    Returns a (bool, message) tuple.
+    """
+
+    # 1. 0 cells
+    if adata.n_obs == 0:
+        return False, "File contains zero cells. Please make sure that your .h5ad file is not empty."
+
+    # 2. 0 genes
+    if adata.n_vars == 0:
+        return False, "File contains zero genes. Please make sure that your .h5ad file is not empty."
+
+    # 3. Missing .X
+    if adata.X is None:
+        return False, "Matrix (.X) is missing. Please make sure that your .h5ad file contains a valid matrix in the .X attribute."
+
+    # # 4. NaNs in .X
+    # try:
+    #     if np.any(pd.isnull(adata.X)):
+    #         return False, "Matrix contains NaN values. Please make sure that your .h5ad file does not contain NaN values in the matrix (.X)."
+    # except Exception:
+    #     return False, "Could not check for NaNs in matrix (.X). "
+
+
+    # 5. obs/X mismatch
+    if adata.obs.shape[0] != adata.X.shape[0]:
+        return False, "Number of cells in .obs does not match .X. Please make sure that your .h5ad file has the same number of cells in .obs and .X."
+
+    # 6. var/X mismatch
+    if adata.var.shape[0] != adata.X.shape[1]:
+        return False, "Number of genes in .var does not match .X. Please make sure that your .h5ad file has the same number of genes in .var and .X."
+
+    # 7. Missing .obs_names or .var_names
+    if adata.obs_names is None or len(adata.obs_names) == 0:
+        return False, "Cell IDs (.obs_names) are missing. Please make sure that your .h5ad file contains valid cell IDs in the .obs_names attribute."
+    if adata.var_names is None or len(adata.var_names) == 0:
+        return False, "Gene IDs (.var_names) are missing. Please make sure that your .h5ad file contains valid gene or Ensembl IDs in the .var_names attribute."
+
+
+    # 8. Non-string gene IDs
+    if not all(isinstance(g, str) for g in adata.var_names):
+        return False, "Gene IDs must be strings. Specifically either Ensembl IDs or gene symbols."
+
+
+    # # 9. Object dtype in .X
+    # if hasattr(adata.X, "dtype") and adata.X.dtype == object:
+    #     return False, "Matrix (.X) has object dtype — must be numeric"
+
+
+    return True, "File is valid"
 
