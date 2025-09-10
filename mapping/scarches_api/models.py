@@ -201,8 +201,10 @@ class ArchmapBaseModel():
             valid, message = validate_h5ad(self._query_adata_raw)
             if not valid:
                 raise ValueError(message)
-        except Exception as e:
-            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+            
+        except ValueError as e:
+            raise RuntimeError(f"Error message: {message}" 
+                               "There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
         
         
