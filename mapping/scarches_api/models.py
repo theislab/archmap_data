@@ -20,7 +20,7 @@ from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 from scarches_api.utils.utils import get_from_config, gene_ensembl_conversion
 from scarches_api.utils.utils import fetch_file_from_s3
-from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, check_h5ad_format, validate_h5ad
+from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, check_h5ad_format, validate_h5ad, handle_intersecting_columns
 import pandas as pd
 
 from process.processing import Preprocess
@@ -389,6 +389,8 @@ class ArchmapBaseModel():
             self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].cat.add_categories(["Unknown"])
             self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].fillna("Unknown").astype('category')
 
+        # intersecting columns with different types cause type errors during concat_on_disk (Can't implicitly convert non-string objects to strings)
+        handle_intersecting_columns(self._query_adata, self._reference_adata)
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")

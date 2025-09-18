@@ -870,6 +870,16 @@ def correct_dtypes(df):
 
     return df
 
+def handle_intersecting_columns(query, atlas):
+
+    intersecting_columns = set(query.obs.columns).intersection(set(atlas.obs.columns))
+    if intersecting_columns:
+        print("Warning: Intersecting columns found between adata and atlas:")
+        print("Converting intersecting columns to strings")
+        for col in intersecting_columns:
+            query.obs[col] = query.obs[col].astype(str)
+            atlas.obs[col] = atlas.obs[col].astype(str)
+
 
 def check_h5ad_format(query):
 
