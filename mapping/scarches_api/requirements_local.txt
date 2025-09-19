@@ -22,6 +22,10 @@ scipy>=1.13.1
 dask
 #anndata==0.1
 
+
+# for s3
+boto3
+
 #for uncertainty
 #pertpy instead installed with git for new features (rpy2 error)
 # pertpy
