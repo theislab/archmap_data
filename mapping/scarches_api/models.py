@@ -463,7 +463,10 @@ class ArchmapBaseModel():
             count_matrix_size_gb = self.add_X_from_cloud()
 
             if count_matrix_size_gb<40:
-                combined_downsample = self.downsample_adata()
+                if self._combined_adata.n_obs>3000000:
+                    combined_downsample = self.downsample_adata()
+                else:
+                    combined_downsample = self._combined_adata.copy()
             else:
                 combined_downsample = self._combined_adata.copy() 
 
