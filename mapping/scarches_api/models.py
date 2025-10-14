@@ -248,12 +248,6 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
-        if self._model_type=="scPoli":
-            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
-            print(scpoli_var_names)
-            self._query_adata_raw = _validate_var_names(self._query_adata_raw, scpoli_var_names)
-            print(self._query_adata_raw)
-
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
@@ -867,6 +861,12 @@ class ScPoli(ArchmapBaseModel):
         fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
         fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
         fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
+
+        if self._model_type=="scPoli":
+            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
+            print(scpoli_var_names)
+            self._query_adata_raw = _validate_var_names(self._query_adata_raw, scpoli_var_names)
+            print(self._query_adata_raw)
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
