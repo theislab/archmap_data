@@ -865,8 +865,8 @@ class ScPoli(ArchmapBaseModel):
         if self._model_type=="scPoli":
             scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
             print(scpoli_var_names)
-            self._query_adata_raw = _validate_var_names(self._query_adata_raw, scpoli_var_names)
-            print(self._query_adata_raw)
+            self._query_adata= _validate_var_names(self._query_adata, scpoli_var_names)
+            print(self._query_adata)
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
