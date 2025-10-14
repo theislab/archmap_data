@@ -28,6 +28,7 @@ from process.processing import Postprocess
 
 from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
 from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
+from scarches.models.base._utils import _validate_var_names
 
 from classifiers.classifiers import Classifiers
 
@@ -247,6 +248,12 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
+        if self._model_type=="scpoli":
+            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
+            print(scpoli_var_names)
+            self._query_adata_raw = _validate_var_names(self._query_adata_raw, scpoli_var_names)
+            print(self._query_adata_raw)
+
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
@@ -463,10 +470,7 @@ class ArchmapBaseModel():
             count_matrix_size_gb = self.add_X_from_cloud()
 
             if count_matrix_size_gb<40:
-                if self._combined_adata.n_obs>100000:
-                    combined_downsample = self.downsample_adata()
-                else:
-                    combined_downsample = self._combined_adata.copy()
+                combined_downsample = self.downsample_adata()
             else:
                 combined_downsample = self._combined_adata.copy() 
 
@@ -837,20 +841,9 @@ class ScPoli(ArchmapBaseModel):
 
         #Compute sample embeddings on query
         # self._sample_embeddings()
-
-        #make separate if statements based on the key that is available in atlas. 
-        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
-            print("__________getting X_latent_qzm_scpoli and X_latent_qzv_scpoli from minified atlas___________")
-            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
-            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
-            latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
-            self._reference_adata.obsm["latent_rep"] = latent
-
-            #Save out the latent representation for QUERY
-            self._compute_latent_representation(explicit_representation=self._query_adata)
         
         # in case the atlas provider stored mean for the latent space and want to use that for mapping
-        elif "X_latent_qzm_scpoli" in self._reference_adata.obsm:
+        if "X_latent_qzm_scpoli" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm_scpoli from minified atlas___________")
             qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
             self._reference_adata.obsm["latent_rep"] = qzm
