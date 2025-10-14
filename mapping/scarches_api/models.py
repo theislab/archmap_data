@@ -248,6 +248,19 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
+         
+
+        if self._model_type=="scPoli":
+            #Download model from GCP
+            fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
+            fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
+            fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
+            
+            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
+            print(scpoli_var_names)
+            self._query_adata= _validate_var_names(self._query_adata, scpoli_var_names)
+            print(self._query_adata)
+
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
@@ -854,19 +867,8 @@ class ScPoli(ArchmapBaseModel):
     def _compute_latent_representation(self, explicit_representation, mean=False):
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
 
-    def _acquire_data(self):
-        super()._acquire_data()
         
-        #Download model from GCP
-        fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
-        fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
-        fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
-
-        if self._model_type=="scPoli":
-            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
-            print(scpoli_var_names)
-            self._query_adata= _validate_var_names(self._query_adata, scpoli_var_names)
-            print(self._query_adata)
+       
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
