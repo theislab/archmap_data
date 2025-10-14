@@ -248,7 +248,7 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
-        if self._model_type=="scpoli":
+        if self._model_type=="scPoli":
             scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
             print(scpoli_var_names)
             self._query_adata_raw = _validate_var_names(self._query_adata_raw, scpoli_var_names)
