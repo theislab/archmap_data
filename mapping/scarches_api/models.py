@@ -209,15 +209,15 @@ class ArchmapBaseModel():
 
         
         
-        # try:
+        try:
 
-        #     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-        #     self._query_adata_raw.write_h5ad(temp_query.name)
-        # except ValueError as e:
-        #     if "is also used by a column whose values are different" in str(e):
-        #         raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
-        #     else:
-        #         raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self._query_adata_raw.write_h5ad(temp_query.name)
+        except ValueError as e:
+            if "is also used by a column whose values are different" in str(e):
+                raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
+            else:
+                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
 
         # #convert batch values to string if not
@@ -229,8 +229,6 @@ class ArchmapBaseModel():
 
         gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
 
-        ref_vars = self._reference_adata.var_names.copy()
-        query_vars = self._query_adata_raw.var_names.copy()
 
 
         if self._model_type=="scPoli":
@@ -257,7 +255,8 @@ class ArchmapBaseModel():
             raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
 
 
-
+        ref_vars = self._reference_adata.var_names.copy()
+        query_vars = self._query_adata_raw.var_names.copy()
         
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
