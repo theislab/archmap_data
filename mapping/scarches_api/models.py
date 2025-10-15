@@ -237,18 +237,6 @@ class ArchmapBaseModel():
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata_raw.var_names
-        
-        intersection = ref_vars.intersection(query_vars)
-        inter_len = len(intersection)
-        ratio = (inter_len / len(ref_vars))*100
-
-        print(ratio)
-        if int(ratio)<5:
-            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
-
-
-        utils.notify_backend(self._webhook, {"ratio":ratio})
-
 
         if self._model_type=="scPoli":
             #Download model from GCP
@@ -264,6 +252,18 @@ class ArchmapBaseModel():
             self._query_adata_raw.write_h5ad(temp_query.name)
 
             self._query_adata_raw=sc.read(temp_query.name)
+        
+        intersection = ref_vars.intersection(query_vars)
+        inter_len = len(intersection)
+        ratio = (inter_len / len(ref_vars))*100
+
+        print(ratio)
+        if int(ratio)<5:
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+
+
+        utils.notify_backend(self._webhook, {"ratio":ratio})
+
 
 
         self._query_adata_raw.obs_names_make_unique()
