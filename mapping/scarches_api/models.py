@@ -219,18 +219,6 @@ class ArchmapBaseModel():
             else:
                 raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
-
-        # #convert batch values to string if not
-        # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
-        # self._query_adata_raw.obs["batch"] = self._query_adata_raw.obs["batch"].astype('category')
-
-        
-
-
-        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
-
-
-
         if self._model_type=="scPoli":
             #Download model from GCP
             fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
@@ -246,6 +234,17 @@ class ArchmapBaseModel():
 
 
             self._query_adata_raw=sc.read(temp_query.name)
+
+        # #convert batch values to string if not
+        # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
+        # self._query_adata_raw.obs["batch"] = self._query_adata_raw.obs["batch"].astype('category')
+
+        
+
+
+        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
+
+
 
         self._query_adata_raw.obs["type"] = "query"
 
@@ -272,8 +271,8 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
-        # if self._model_type!="scPoli":
-        #     self._query_adata_raw = self._query_adata_raw[:,intersection]
+        if self._model_type!="scPoli":
+            self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
         #Convert bool to categorical to avoid write error during concatenation
