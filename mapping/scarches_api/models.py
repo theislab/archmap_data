@@ -220,20 +220,6 @@ class ArchmapBaseModel():
                 raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
 
-        if self._model_type=="scPoli":
-            #Download model from GCP
-            fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
-            fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
-            fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
-            
-            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
-            self._query_adata_raw= _validate_var_names(self._query_adata_raw, scpoli_var_names)
-            print(self._query_adata_raw)
-
-            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-            self._query_adata_raw.write_h5ad(temp_query.name)
-
-            self._query_adata_raw=sc.read(temp_query.name)
         
         if self._query_adata_raw.n_obs>250000:
             raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
@@ -263,9 +249,21 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
-         
 
-        
+        if self._model_type=="scPoli":
+            #Download model from GCP
+            fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
+            fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
+            fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
+            
+            scpoli_var_names = pd.read_csv("./var_names.csv", header=None)[0].tolist()
+            self._query_adata_raw= _validate_var_names(self._query_adata_raw, scpoli_var_names)
+            print(self._query_adata_raw)
+
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self._query_adata_raw.write_h5ad(temp_query.name)
+
+            self._query_adata_raw=sc.read(temp_query.name)
 
 
         self._query_adata_raw.obs_names_make_unique()
