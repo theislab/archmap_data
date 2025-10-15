@@ -251,7 +251,7 @@ class ArchmapBaseModel():
             temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
             self._query_adata_raw.write_h5ad(temp_query.name)
 
-            self._query_adata_raw=sc.read(temp_query.name)
+            self._query_adata=sc.read(temp_query.name)
         
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
@@ -266,21 +266,17 @@ class ArchmapBaseModel():
 
 
 
-        self._query_adata_raw.obs_names_make_unique()
-        self._query_adata_raw.var_names_make_unique()
+        self._query_adata.obs_names_make_unique()
+        self._query_adata.var_names_make_unique()
 
-        if self._model_type!="scPoli":
-            #subset query vars
-            self._query_adata_raw = self._query_adata_raw[:,intersection]
+        self._query_adata = self._query_adata[:,intersection]
 
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
-        Preprocess.bool_to_categorical(self._query_adata_raw)
+        Preprocess.bool_to_categorical(self._query_adata)
 
         
-        # save only necessary data for mapping to new adata
-        self._query_adata = self._query_adata_raw
 
         gc.collect()
 
