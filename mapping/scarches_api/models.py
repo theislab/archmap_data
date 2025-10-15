@@ -209,34 +209,29 @@ class ArchmapBaseModel():
 
         
         
-        try:
+        # try:
 
-            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-            self._query_adata_raw.write_h5ad(temp_query.name)
-        except ValueError as e:
-            if "is also used by a column whose values are different" in str(e):
-                raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
-            else:
-                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+        #     temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+        #     self._query_adata_raw.write_h5ad(temp_query.name)
+        # except ValueError as e:
+        #     if "is also used by a column whose values are different" in str(e):
+        #         raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
+        #     else:
+        #         raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
-
-        
-        if self._query_adata_raw.n_obs>250000:
-            raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
-
-
 
         # #convert batch values to string if not
         # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
         # self._query_adata_raw.obs["batch"] = self._query_adata_raw.obs["batch"].astype('category')
 
-        self._query_adata_raw.obs["type"] = "query"
+        
 
 
         gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
 
-        ref_vars = self._reference_adata.var_names
-        query_vars = self._query_adata_raw.var_names
+        ref_vars = self._reference_adata.var_names.copy()
+        query_vars = self._query_adata_raw.var_names.copy()
+
 
         if self._model_type=="scPoli":
             #Download model from GCP
@@ -251,7 +246,18 @@ class ArchmapBaseModel():
             temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
             self._query_adata_raw.write_h5ad(temp_query.name)
 
-            self._query_adata=sc.read(temp_query.name)
+            del self._query_adata_raw
+
+
+            self._query_adata_raw=sc.read(temp_query.name)
+
+        self._query_adata_raw.obs["type"] = "query"
+
+        if self._query_adata_raw.n_obs>250000:
+            raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
+
+
+
         
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
@@ -266,17 +272,20 @@ class ArchmapBaseModel():
 
 
 
-        self._query_adata.obs_names_make_unique()
-        self._query_adata.var_names_make_unique()
+        self._query_adata_raw.obs_names_make_unique()
+        self._query_adata_raw.var_names_make_unique()
 
-        self._query_adata = self._query_adata[:,intersection]
+        if self._model_type!="scPoli":
+            self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
         #Convert bool to categorical to avoid write error during concatenation
         Preprocess.bool_to_categorical(self._reference_adata)
-        Preprocess.bool_to_categorical(self._query_adata)
+        Preprocess.bool_to_categorical(self._query_adata_raw)
 
         
+        # save only necessary data for mapping to new adata
+        self._query_adata = self._query_adata_raw
 
         gc.collect()
 
