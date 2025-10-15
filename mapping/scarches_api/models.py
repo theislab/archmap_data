@@ -233,7 +233,7 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs["type"] = "query"
 
 
-        # gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
+        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
 
         ref_vars = self._reference_adata.var_names
         query_vars = self._query_adata_raw.var_names
@@ -269,8 +269,9 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
-        #subset query vars
-        self._query_adata_raw = self._query_adata_raw[:,intersection]
+        if self._model_type!="scPoli":
+            #subset query vars
+            self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
         #Convert bool to categorical to avoid write error during concatenation
