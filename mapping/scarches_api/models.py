@@ -271,8 +271,8 @@ class ArchmapBaseModel():
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
-        if self._model_type!="scPoli":
-            self._query_adata_raw = self._query_adata_raw[:,intersection]
+        # if self._model_type!="scPoli":
+        #     self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
         #Convert bool to categorical to avoid write error during concatenation
