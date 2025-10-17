@@ -862,7 +862,14 @@ class ScPoli(ArchmapBaseModel):
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
 
         
-       
+    def _acquire_data(self):
+        super()._acquire_data()
+        
+        #Download model from GCP
+        fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
+        fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
+        fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
+ 
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA
