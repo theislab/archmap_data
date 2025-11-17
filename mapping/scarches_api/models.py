@@ -204,8 +204,11 @@ class ArchmapBaseModel():
                 raise ValueError(message)
             
         except ValueError as e:
-            raise RuntimeError(f"Error message: {message}" 
-                               "There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+            raise RuntimeError(
+                f"Error message: {e}. "
+                "There is likely an issue with the way your data (anndata object) is formatted upon upload. "
+                "Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this."
+            )
 
         
         
