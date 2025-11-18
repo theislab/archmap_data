@@ -220,7 +220,7 @@ class ArchmapBaseModel():
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
-                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please check out our FAQs in the docs (https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#faqs) or reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
 
 
@@ -236,8 +236,8 @@ class ArchmapBaseModel():
 
         self._query_adata_raw.obs["type"] = "query"
 
-        if self._query_adata_raw.n_obs>250000:
-            raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
+        if self._query_adata_raw.n_obs>200000:
+            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately. Check out our FAQs in the docs for more information: https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#my-query-data-has-more-than-the-limit-of-200-000-cells-what-can-i-do")
 
 
         ref_vars = self._reference_adata.var_names.copy()
@@ -249,7 +249,7 @@ class ArchmapBaseModel():
 
         print(ratio)
         if int(ratio)<5:
-            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that either gene symbols or Ensembl IDs are stored in .var_names and you have chosen the correct atlas for your dataset. Currenty, the values in .var_names of your query are: {query_vars.tolist()[:10]}... Check out our FAQs in the docs for more information: https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#i-am-receiving-the-error-less-than-5-of-genes-in-your-query-overlap-with-the-reference-data-what-does-this-mean")
 
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
@@ -437,6 +437,10 @@ class ArchmapBaseModel():
         self._combined_adata.obs=pd.concat([self._combined_adata.obs,query_obs], axis=1)
 
         print("added latent rep to adata")
+
+        #convert uncertainty scores to float32 
+        self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'] = self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'].astype("float32")
+        self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'].astype("float32")
 
         return
 
