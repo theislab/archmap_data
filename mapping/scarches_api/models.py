@@ -220,7 +220,7 @@ class ArchmapBaseModel():
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
-                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please check out our FAQs in the docs (https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#faqs) or reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please check out our FAQs in the docs or reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
 
 
@@ -249,7 +249,7 @@ class ArchmapBaseModel():
 
         print(ratio)
         if int(ratio)<5:
-            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that either gene symbols or Ensembl IDs are stored in .var_names and you have chosen the correct atlas for your dataset. Currenty, the values in .var_names of your query are: {query_vars.tolist()[:10]}... Check out our FAQs in the docs for more information: https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#i-am-receiving-the-error-less-than-5-of-genes-in-your-query-overlap-with-the-reference-data-what-does-this-mean")
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that either gene symbols or Ensembl IDs are stored in .var_names and you have chosen the correct atlas for your dataset. Currenty, the values in .var_names of your query are: {query_vars.tolist()[:10]}... Check out our FAQs in the docs for more information.")
 
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
