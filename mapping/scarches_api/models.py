@@ -439,8 +439,9 @@ class ArchmapBaseModel():
         print("added latent rep to adata")
 
         #convert uncertainty scores to float32 
-        self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'] = self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'].astype("float32")
-        self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'].astype("float32")
+        for cell_type_key in self._cell_type_key_list:
+            self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'] = self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'].astype("float32")
+            self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'].astype("float32")
 
         return
 
