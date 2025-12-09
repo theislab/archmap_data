@@ -21,7 +21,7 @@ import ast
 import pandas as pd
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, check_h5ad_format
+from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, check_h5ad_format, handle_intersecting_columns, validate_h5ad
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:
@@ -41,8 +41,10 @@ class ScviHub:
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
+        self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
 
         self.__download_data()
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 1/6: fetching and preprocessing data"})
 
         
 
@@ -54,10 +56,21 @@ class ScviHub:
         try:
             self._query_adata = scanpy.read_h5ad("../scvi_hub/query/query.h5ad")
             print("Data successfully loaded.")
-        except Exception as e:
-            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
-        check_h5ad_format(self._query_adata)
+            check_h5ad_format(self._query_adata)
+
+            valid, message = validate_h5ad(self._query_adata)
+
+            if not valid:
+                raise ValueError(message)
+            
+        except ValueError as e:
+            raise RuntimeError(
+                f"Error message: {e}. "
+                "There is likely an issue with the way your data (anndata object) is formatted upon upload. "
+                "Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this."
+            )
+        
 
         try:
 
@@ -79,7 +92,7 @@ class ScviHub:
             if self._batch_key in self._query_adata.obs.columns:
                 self._query_adata.obs["batch"]=self._query_adata.obs[self._batch_key]
             else:
-                self._query_adata.obs["batch"]="mapped_batch"*len(self._query_adata)
+                self._query_adata.obs["batch"]="mapped_batch"
 
 
         # rename duplicate column names
@@ -99,8 +112,8 @@ class ScviHub:
         print(ratio)
 
 
-        if int(ratio)<50:
-            raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+        if int(ratio)<5:
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that either gene symbols or Ensembl IDs are stored in .var_names and you have chosen the correct atlas for your dataset. Currenty, the values in .var_names of your query are: {query_vars.tolist()[:10]}... Check out our FAQs in the docs for more information.")
 
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
@@ -132,6 +145,7 @@ class ScviHub:
             self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
             del self._query_adata.obs[self.batch_key_input]
 
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 2/6: mapping query"})
 
 
         #Conform vars to model for query and reference
@@ -191,15 +205,19 @@ class ScviHub:
         self._query_adata.obsm["latent_rep"] = self._model.get_latent_representation(self._query_adata)
 
         print("evaluate")
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 3/6: calculating mapping uncertainty scores"})
         self._eval_mapping()
         print("classify")
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 4/6: transferring labels from reference to query"})
         #Set up classification
         self.classification(ref=self._reference_adata, ref_latent=scanpy.AnnData(self._reference_adata.obsm["latent_rep"], obs=self._reference_adata.obs), query=self._query_adata, query_latent=scanpy.AnnData(self._query_adata.obsm["latent_rep"],obs=self._query_adata.obs))
 
         print("concat")
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 5/6: concatenating reference and query results"})
         self._concat_data()
 
         print("save")
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 6/6: calculating mapping evaluation metrics and saving results"})
         self._save_data()
     
 
@@ -292,11 +310,21 @@ class ScviHub:
         for cell_type_key in self._cell_type_key_list:
             self._reference_adata.obs[cell_type_key + '_uncertainty_euclidean'] = pandas.Series(dtype="float32")
             self._reference_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = pandas.Series(dtype="float32")
-            self._reference_adata.obs[cell_type_key + 'prediction_xgb'] = self._reference_adata.obs[cell_type_key]
-            self._reference_adata.obs[cell_type_key + 'prediction_knn'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + '_prediction_xgb'] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + '_prediction_knn'] = self._reference_adata.obs[cell_type_key]
             self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scanvi_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_xgb_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_knn_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].cat.add_categories(["Unknown"])
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].fillna("Unknown").astype('category')
+
+        
+        # intersecting columns with different types cause type errors during concat_on_disk (Can't implicitly convert non-string objects to strings)
+        handle_intersecting_columns(self._query_adata, self._reference_adata)
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -332,6 +360,12 @@ class ScviHub:
         self._combined_adata.obs=pandas.concat([self._combined_adata.obs,query_obs], axis=1)
 
         print("added latent rep to adata")
+
+        #convert uncertainty scores to float32 
+        for cell_type_key in self._cell_type_key_list:
+            self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'] = self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'].astype("float32")
+            self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'].astype("float32")
+
 
         return
 
