@@ -768,7 +768,7 @@ def replace_X_on_disk(combined_adata,temp_output, query_X_file, ref_count_matrix
 
     return temp_combined.name
 
-def gene_ensembl_conversion(reference_adata, query_adata_raw, webhook):
+def gene_ensembl_conversion(reference_adata, query_adata_raw, webhook=None):
     """
     Convert gene symbols to ensembl IDs and vice versa to match query and ref vars.
     """
@@ -881,33 +881,6 @@ def handle_intersecting_columns(query, atlas):
             atlas.obs[col] = atlas.obs[col].astype(str)
 
 
-def check_h5ad_format(query):
-
-    del query.varm
-    del query.obsm
-    del query.layers
-    del query.uns
-    del query.obsp
-    del query.varp
-
-    #check "_index is not in column in obs or var"
-    if "_index" in query.obs.columns:
-        query.obs = query.obs.rename(columns={"_index": "_index_column"})
-
-    if "_index" in query.var.columns:
-        query.var = query.var.rename(columns={"_index": "_index_column"})
-
-    # make sure query count does not contain all zeros
-
-    if not query.X.sum() > 0:
-        if query.raw is None:
-            raise ValueError("The count matrix of the query contains only zeros. Please make sure that the count matrix is stored in the .X attribute of your h5ad file.")
-
-
-    del query.raw
-
-    query.obs = correct_dtypes(query.obs)
-
 
 
 def validate_h5ad(adata):
@@ -954,11 +927,41 @@ def validate_h5ad(adata):
     # 8. Non-string gene IDs
     if not all(isinstance(g, str) for g in adata.var_names):
         return False, "Gene IDs must be strings. Specifically either Ensembl IDs or gene symbols."
+    
+    # # 8. Check that gene IDs are not string integers
+    # if not all(isinstance(g, str) for g in adata.var_names):
+    #     return False, "Gene IDs must be strings. Specifically either Ensembl IDs or gene symbols."
 
 
     # # 9. Object dtype in .X
     # if hasattr(adata.X, "dtype") and adata.X.dtype == object:
     #     return False, "Matrix (.X) has object dtype — must be numeric"
+
+    del adata.varm
+    del adata.obsm
+    del adata.layers
+    del adata.uns
+    del adata.obsp
+    del adata.varp
+
+
+    #check "_index is not in column in obs or var"
+    if "_index" in adata.obs.columns:
+        adata.obs = adata.obs.rename(columns={"_index": "_index_column"})
+
+    if "_index" in adata.var.columns:
+        adata.var = adata.var.rename(columns={"_index": "_index_column"})
+
+    # make sure query count does not contain all zeros
+
+    if not adata.X.sum() > 0:
+        if adata.raw is None:
+            raise ValueError("The count matrix of the query contains only zeros. Please make sure that the count matrix is stored in the .X attribute of your h5ad file.")
+
+
+    del adata.raw
+
+    adata.obs = correct_dtypes(adata.obs)
 
 
     return True, "File is valid"

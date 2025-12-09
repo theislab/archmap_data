@@ -20,7 +20,7 @@ from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 from scarches_api.utils.utils import get_from_config, gene_ensembl_conversion
 from scarches_api.utils.utils import fetch_file_from_s3
-from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, check_h5ad_format, validate_h5ad, handle_intersecting_columns
+from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, validate_h5ad, handle_intersecting_columns
 import pandas as pd
 
 from process.processing import Preprocess
@@ -196,8 +196,6 @@ class ArchmapBaseModel():
         try:
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
             print("Data successfully loaded.")
-
-            check_h5ad_format(self._query_adata_raw)
 
             valid, message = validate_h5ad(self._query_adata_raw)
             if not valid:

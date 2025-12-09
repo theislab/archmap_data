@@ -21,7 +21,7 @@ import ast
 import pandas as pd
 
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, check_h5ad_format, handle_intersecting_columns, validate_h5ad
+from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, handle_intersecting_columns, validate_h5ad
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:
@@ -56,8 +56,6 @@ class ScviHub:
         try:
             self._query_adata = scanpy.read_h5ad("../scvi_hub/query/query.h5ad")
             print("Data successfully loaded.")
-
-            check_h5ad_format(self._query_adata)
 
             valid, message = validate_h5ad(self._query_adata)
 
