@@ -651,7 +651,7 @@ class ScVI(ArchmapBaseModel):
         fetch_file_from_s3(self._model_path, "./model.pt")
 
         # save counts if counts atrr_key is saved in reference model registry
-        model = torch.load("./model.pt", map_location="cpu")
+        model = torch.load("./model.pt", map_location="cpu", weights_only=False)
         if (
             model.get("attr_dict", {})
             .get("registry_", {})
@@ -722,7 +722,7 @@ class ScANVI(ArchmapBaseModel):
         fetch_file_from_s3(self._model_path, "./model.pt")
 
         # save counts if counts atrr_key is saved in reference model registry
-        model = torch.load("./model.pt", map_location="cpu")
+        model = torch.load("./model.pt", map_location="cpu", weights_only=False)
         if (
             model.get("attr_dict", {})
             .get("registry_", {})

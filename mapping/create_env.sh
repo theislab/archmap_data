@@ -10,7 +10,7 @@ REQ_FILE="scarches_api/requirements_local.txt"  # Path to the requirements file
 # Function to create a Conda environment
 create_conda_env() {
     echo "Creating Conda environment: $ENV_NAME..."
-    conda create -y -n $ENV_NAME python=3.10
+    conda create -y -n $ENV_NAME python=3.12
     echo "Conda environment '$ENV_NAME' created successfully."
 }
 

@@ -419,7 +419,7 @@ class ScviHub:
 
         model_path = "../scvi_hub/download/model.pt"
         
-        model = torch.load(model_path, map_location="cpu")
+        model = torch.load(model_path, map_location="cpu", weights_only=False)
         attr_dict = model["attr_dict"]
 
         registry = attr_dict.pop("registry_")
