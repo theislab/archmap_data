@@ -339,7 +339,7 @@ class ScviHub:
 
         query_obs_columns=set(self._query_adata.obs.columns)
         ref_obs_columns=set(self._reference_adata.obs.columns)
-        columns_only_query = query_obs_columns.difference(ref_obs_columns)
+        columns_only_query = list(query_obs_columns.difference(ref_obs_columns))
         query_obs = self._query_adata.obs[columns_only_query].copy()
 
         print("successfully concatenated")

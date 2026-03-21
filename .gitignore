@@ -332,3 +332,4 @@ po/*~
 /mapping/process/convert_legacy*
 /benchmark_atlas/models
 /classifier_data/
+/mapping/revisions/
