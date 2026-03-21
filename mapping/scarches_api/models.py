@@ -20,7 +20,7 @@ from scarches_api.utils import parameters
 from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
 from scarches_api.utils.utils import get_from_config, gene_ensembl_conversion
 from scarches_api.utils.utils import fetch_file_from_s3
-from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, check_h5ad_format
+from scarches_api.utils.utils import read_h5ad_file_from_s3, get_file_size_in_gb, replace_X_on_disk, validate_h5ad, handle_intersecting_columns
 import pandas as pd
 
 from process.processing import Preprocess
@@ -28,6 +28,7 @@ from process.processing import Postprocess
 
 from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
 from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
+from scarches.models.base._utils import _validate_var_names
 
 from classifiers.classifiers import Classifiers
 
@@ -50,6 +51,7 @@ class ArchmapBaseModel():
         self._webhook = utils.get_from_config(configuration, parameters.WEBHOOK_RATIO)
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
+        self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
@@ -63,7 +65,7 @@ class ArchmapBaseModel():
         self._combined_adata = None
         self.percent_unknown = "n/a"
 
-        utils.notify_backend(self._webhook_progress, {"logs":"fetching and preprocessing data"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 1/6: fetching and preprocessing data"})
 
         #Load and process required data
         self._acquire_data()
@@ -75,7 +77,11 @@ class ArchmapBaseModel():
         self.cell_type_key_input = "user_cell_type"
         self.batch_key_input = "batch"
 
-        self._query_adata.X=self._query_adata.X.tocsr()
+        if isinstance(self._query_adata.X, np.ndarray):
+            self._query_adata.X = csr_matrix(self._query_adata.X)
+        else:
+            self._query_adata.X=self._query_adata.X.tocsr()
+
 
         # self._cell_type_key, self._batch_key, self._unlabeled_key = Preprocess.get_keys(self._atlas, self._query_adata) 
         self._cell_type_key, self._cell_type_key_classifier, self._cell_type_key_list, self._batch_key, self._unlabeled_key, self._uploaded = Preprocess.get_keys(self._atlas, self._query_adata, configuration) 
@@ -98,6 +104,21 @@ class ArchmapBaseModel():
         if self.batch_key_input != self._batch_key:
             self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
             del self._query_adata.obs[self.batch_key_input]
+
+        self._query_adata.obs[self._batch_key] = self._query_adata.obs[self._batch_key].astype(str).astype('category')
+
+        print("__________getting shape info of batch___________")
+        print(self._query_adata.obs[self._batch_key].shape)
+        print(self._query_adata.obs[self._batch_key])
+
+        if isinstance(self._query_adata.X, np.ndarray):
+            print("__________getting shape info of .X___________")
+            print(self._query_adata.X.shape)
+        else:
+            print("__________getting shape and type info of .X___________")
+            print(self._query_adata.X.toarray().shape)
+            print(type(self._query_adata.X))
+
 
         classifier_type=get_from_config(configuration=self._configuration, key=parameters.CLASSIFIER_TYPE)
         classifier_type = ast.literal_eval(classifier_type)
@@ -127,7 +148,7 @@ class ArchmapBaseModel():
 
     def _map_query(self):
         #Map the query onto reference
-        utils.notify_backend(self._webhook_progress, {"logs":"mapping query"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 2/6: mapping query"})
         
 
         # threshold = 10000
@@ -175,10 +196,19 @@ class ArchmapBaseModel():
         try:
             self._query_adata_raw = read_h5ad_file_from_s3(self._query_adata_path) 
             print("Data successfully loaded.")
-        except Exception as e:
-            raise RuntimeError(f"Error message: {e}, There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
 
-        check_h5ad_format(self._query_adata_raw)
+            valid, message = validate_h5ad(self._query_adata_raw)
+            if not valid:
+                raise ValueError(message)
+            
+        except ValueError as e:
+            raise RuntimeError(
+                f"Error message: {e}. "
+                "There is likely an issue with the way your data (anndata object) is formatted upon upload. "
+                "Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this."
+            )
+
+        
         
         try:
 
@@ -188,41 +218,45 @@ class ArchmapBaseModel():
             if "is also used by a column whose values are different" in str(e):
                 raise ValueError(f"Error message: {e}, Please check your anndata object for columns in .obs and .var that have matching names and delete duplicates") from e
             else:
-                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
+                raise ValueError(f"Error message: {e}. There is likely an issue with the way your data (anndata object) is formatted upon upload. Please check out our FAQs in the docs or reach out to ArchMap (archmap.bio@gmail.com) with a screenshot of this error and we can help resolve this.")
             
-
-        if self._query_adata_raw.n_obs>250000:
-            raise ValueError(f"The number of cells in the query is over the limit of 250 000 cells. Please divide your data in batches and map the batches separately.")
-
 
 
         # #convert batch values to string if not
         # self._query_adata_raw.obs["batch"]=self._query_adata_raw.obs["batch"].apply(lambda x: str(x) if not isinstance(x, str) else x)
         # self._query_adata_raw.obs["batch"] = self._query_adata_raw.obs["batch"].astype('category')
 
+
+
+        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw, self._webhook_gene_conversion)
+
+
+
         self._query_adata_raw.obs["type"] = "query"
 
+        if self._query_adata_raw.n_obs>200000:
+            raise ValueError(f"The number of cells in the query is over the limit of 200 000 cells. Please divide your data in batches and map the batches separately. Check out our FAQs in the docs for more information: https://archmap-docu.readthedocs.io/en/latest/faqs/index.html#my-query-data-has-more-than-the-limit-of-200-000-cells-what-can-i-do")
 
-        gene_ensembl_conversion(self._reference_adata, self._query_adata_raw)
 
-        ref_vars = self._reference_adata.var_names
-        query_vars = self._query_adata_raw.var_names
+        ref_vars = self._reference_adata.var_names.copy()
+        query_vars = self._query_adata_raw.var_names.copy()
         
         intersection = ref_vars.intersection(query_vars)
         inter_len = len(intersection)
         ratio = (inter_len / len(ref_vars))*100
 
         print(ratio)
-        if int(ratio)<50:
-            raise ValueError(f"Less than 50% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that the correct information is stored in .var_names and you have chosen the correct atlas for your dataset.")
+        if int(ratio)<5:
+            raise ValueError(f"Less than 5% of genes (exactly {ratio}%) in your query overlap with the reference data. This will result in a poor mapping quality. Please make sure that either gene symbols or Ensembl IDs are stored in .var_names and you have chosen the correct atlas for your dataset. Currenty, the values in .var_names of your query are: {query_vars.tolist()[:10]}... Check out our FAQs in the docs for more information.")
 
 
         utils.notify_backend(self._webhook, {"ratio":ratio})
 
+
+
         self._query_adata_raw.obs_names_make_unique()
         self._query_adata_raw.var_names_make_unique()
 
-        #subset query vars
         self._query_adata_raw = self._query_adata_raw[:,intersection]
 
 
@@ -239,7 +273,7 @@ class ArchmapBaseModel():
         
 
     def _eval_mapping(self):
-        utils.notify_backend(self._webhook_progress, {"logs":"calculating mapping uncertainty scores"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 3/6: calculating mapping uncertainty scores"})
         #Create AnnData objects off the latent representation
         query_latent = scanpy.AnnData(self._query_adata.obsm["latent_rep"])
         reference_latent = scanpy.AnnData(self._reference_adata.obsm["latent_rep"])
@@ -255,7 +289,7 @@ class ArchmapBaseModel():
             stress_score(self._query_adata)
 
     def _transfer_labels(self):
-        utils.notify_backend(self._webhook_progress, {"logs":"transferring labels from reference to query"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 4/6: transferring labels from reference to query"})
         if not self._clf_native and not self._clf_knn and not self._clf_xgb:
             return
         
@@ -326,7 +360,7 @@ class ArchmapBaseModel():
                         os.remove(self._temp_clf_encoding_path)
 
     def _concat_data(self):
-        utils.notify_backend(self._webhook_progress, {"logs":"concatenating reference and query results"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 5/6: concatenating reference and query results"})
         #save .X and var_names of query in new adata for later concatenation after cellxgene
         self.adata_query_X = scanpy.AnnData(self._query_adata.X.copy())
         self.adata_query_X.var_names = self._query_adata.var_names
@@ -351,8 +385,18 @@ class ArchmapBaseModel():
             self._reference_adata.obs[cell_type_key + '_prediction_knn'] = self._reference_adata.obs[cell_type_key]
             self._reference_adata.obs[cell_type_key + "_prediction_scanvi"] = self._reference_adata.obs[cell_type_key]
             self._reference_adata.obs[cell_type_key + "_prediction_scpoli"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scpoli_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_scanvi_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_xgb_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+            self._reference_adata.obs[cell_type_key + "_prediction_knn_filtered_by_uncert>0.5"] = self._reference_adata.obs[cell_type_key]
+
 
             self._query_adata.obs[cell_type_key] = pandas.Series(dtype="category")
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].cat.add_categories(["Unknown"])
+            self._query_adata.obs[cell_type_key] = self._query_adata.obs[cell_type_key].fillna("Unknown").astype('category')
+
+        # intersecting columns with different types cause type errors during concat_on_disk (Can't implicitly convert non-string objects to strings)
+        handle_intersecting_columns(self._query_adata, self._reference_adata)
 
         #Create temp files on disk
         temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
@@ -392,6 +436,11 @@ class ArchmapBaseModel():
 
         print("added latent rep to adata")
 
+        #convert uncertainty scores to float32 
+        for cell_type_key in self._cell_type_key_list:
+            self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'] = self._combined_adata.obs[cell_type_key + '_uncertainty_euclidean'].astype("float32")
+            self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'] = self._combined_adata.obs[cell_type_key + '_uncertainty_mahalanobis'].astype("float32")
+
         return
 
 
@@ -400,7 +449,7 @@ class ArchmapBaseModel():
         explicit_representation.obsm["latent_rep"] = self._model.get_latent_representation(explicit_representation)
 
     def _save_data(self):
-        utils.notify_backend(self._webhook_progress, {"logs":"calculating mapping evaluation metrics and saving results"})
+        utils.notify_backend(self._webhook_progress, {"logs":"Step 6/6: calculating mapping evaluation metrics and saving results"})
         # add .X to self._combined_adata
 
         if self.batch_key_input != self._batch_key:
@@ -414,7 +463,11 @@ class ArchmapBaseModel():
             count_matrix.var_names = self._reference_adata.var_names
             combined_data_X = count_matrix.concatenate(self.adata_query_X)
             self._combined_adata.X = combined_data_X.X
-            combined_downsample = self._combined_adata
+            combined_downsample = self.downsample_adata()
+
+            del count_matrix
+            del self.adata_query_X
+            gc.collect()
 
         else:
             print("adding X from cloud")
@@ -460,6 +513,9 @@ class ArchmapBaseModel():
 
         print(f"query downsample: {query_downsample.X.sum()}")
 
+        del wknn
+        gc.collect()
+
         self.clust_pres_score=cluster_preservation_score(query_downsample)
         print(f"clust_pres_score: {self.clust_pres_score}")
         
@@ -483,74 +539,71 @@ class ArchmapBaseModel():
 
 
     def add_X_from_cloud(self):
-        if get_from_config(self._configuration, parameters.WEBHOOK) is not None and len(
-                get_from_config(self._configuration, parameters.WEBHOOK)) > 0:
+
+        if not self._reference_adata_path.endswith("data.h5ad"):
+            raise ValueError("The reference data should be named data.h5ad")
+        else:
+            count_matrix_path = self._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+
+        combined_adata = self._combined_adata
+        count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
+        self.temp_output_combined = "finetuned_model/adata.h5ad"
+        os.makedirs("finetuned_model/", exist_ok=True)
+
+        if count_matrix_size_gb < 10:
+            print("Count matrix size less than 10 gb.")
+            count_matrix = read_h5ad_file_from_s3(count_matrix_path)
+            #Added because concat_on_disk only allows csr concat
+            if count_matrix.X.format == "csc" or self.adata_query_X.X.format == "csc":
+                print("Concatenating query and reference count matrices in memory")
+                combined_data_X = count_matrix.concatenate(self.adata_query_X)
+
+                del count_matrix
+                del self.adata_query_X
+                gc.collect()
+
+            else:
+                print("Concatenating query and reference count matrices on disk")
+                #Create temp files on disk
+                temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+                temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
+
+                #Write data to temp files
+                count_matrix.write_h5ad(temp_reference.name)
+                self.adata_query_X.write_h5ad(temp_query.name)
+
+                del count_matrix
+                del self.adata_query_X
+                gc.collect()
             
-            utils.notify_backend(get_from_config(self._configuration, parameters.WEBHOOK), self._configuration)
-            if not self._reference_adata_path.endswith("data.h5ad"):
-                raise ValueError("The reference data should be named data.h5ad")
-            else:
-                count_matrix_path = self._reference_adata_path[:-len("data.h5ad")] + "data_only_count.h5ad"
+                experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
+                combined_data_X = sc.read_h5ad(temp_combined.name)
 
-            combined_adata = self._combined_adata
-            count_matrix_size_gb = get_file_size_in_gb(count_matrix_path)
-            self.temp_output_combined = "finetuned_model/adata.h5ad"
-            os.makedirs("finetuned_model/", exist_ok=True)
+            combined_adata.X = combined_data_X.X
+            sc.write(self.temp_output_combined, combined_adata)
 
-            if count_matrix_size_gb < 10:
-                print("Count matrix size less than 10 gb.")
-                count_matrix = read_h5ad_file_from_s3(count_matrix_path)
-                #Added because concat_on_disk only allows csr concat
-                if count_matrix.X.format == "csc" or self.adata_query_X.X.format == "csc":
-                    print("Concatenating query and reference count matrices in memory")
-                    combined_data_X = count_matrix.concatenate(self.adata_query_X)
-
-                    del count_matrix
-                    del self.adata_query_X
-                    gc.collect()
-
-                else:
-                    print("Concatenating query and reference count matrices on disk")
-                    #Create temp files on disk
-                    temp_reference = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                    temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                    temp_combined = tempfile.NamedTemporaryFile(suffix=".h5ad")
-
-                    #Write data to temp files
-                    count_matrix.write_h5ad(temp_reference.name)
-                    self.adata_query_X.write_h5ad(temp_query.name)
-
-                    del count_matrix
-                    del self.adata_query_X
-                    gc.collect()
+        elif count_matrix_size_gb>=10 and count_matrix_size_gb<40:
+            print("Count matrix size larger than 10 gb.")
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self.adata_query_X.write_h5ad(temp_query.name)
+            del self.adata_query_X
+            gc.collect()
+            self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
+            combined_adata = sc.read(self.temp_output_combined)
+        else:
+            temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
+            self.adata_query_X.write_h5ad(temp_query.name)
+            del self.adata_query_X
+            gc.collect()
+            count_matrix_downsample_path = self._reference_adata_path[:-len("data.h5ad")] + "data_count_downsample.h5ad" 
+            # download downsampled counts from cloud and concat
+            self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_downsample_path, use_downsample=True)
+            combined_adata = sc.read(self.temp_output_combined)
                 
-                    experimental.concat_on_disk([temp_reference.name, temp_query.name], temp_combined.name)
-                    combined_data_X = sc.read_h5ad(temp_combined.name)
+        self._combined_adata = combined_adata
 
-                combined_adata.X = combined_data_X.X
-                sc.write(self.temp_output_combined, combined_adata)
-
-            elif count_matrix_size_gb>=10 and count_matrix_size_gb<40:
-                print("Count matrix size larger than 10 gb.")
-                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                self.adata_query_X.write_h5ad(temp_query.name)
-                del self.adata_query_X
-                gc.collect()
-                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_path)
-                combined_adata = sc.read(self.temp_output_combined)
-            else:
-                temp_query = tempfile.NamedTemporaryFile(suffix=".h5ad")
-                self.adata_query_X.write_h5ad(temp_query.name)
-                del self.adata_query_X
-                gc.collect()
-                count_matrix_downsample_path = self._reference_adata_path[:-len("data.h5ad")] + "data_count_downsample.h5ad" 
-                # download downsampled counts from cloud and concat
-                self.temp_output_combined =replace_X_on_disk(combined_adata,self.temp_output_combined, temp_query.name, count_matrix_downsample_path, use_downsample=True)
-                combined_adata = sc.read(self.temp_output_combined)
-                 
-            self._combined_adata = combined_adata
-
-            return count_matrix_size_gb
+        return count_matrix_size_gb
 
 
     def downsample_adata(self, query_ratio=5):
@@ -575,7 +628,12 @@ class ArchmapBaseModel():
 
         # New approach: Proportional sampling based on cell type proportions
         # Calculate total number of cells to sample from reference
-        total_ref_cells_to_sample = len(query_adata_index) * query_ratio
+
+        #change query ratio depending on query size
+        if len(query_adata_index)<50000:
+            total_ref_cells_to_sample = min(len(ref_adata),250000)
+        else:
+            total_ref_cells_to_sample = len(query_adata_index) * query_ratio
 
         # Get unique cell types
         # celltypes = np.unique(self._combined_adata.obs[self._cell_type_key])
@@ -765,7 +823,10 @@ class ScPoli(ArchmapBaseModel):
             map_location=torch.device("cpu")
         )
 
-        self._query_adata = model.adata
+        model.adata=model.adata[:,self._reference_adata.var_names]
+    
+        self._query_adata=model.adata
+
 
         self._model = model
         self._max_epochs = get_from_config(configuration=self._configuration, key=parameters.SCPOLI_MAX_EPOCHS)
@@ -775,7 +836,8 @@ class ScPoli(ArchmapBaseModel):
             self._model.train(
                 n_epochs=self._max_epochs,
                 pretraining_epochs=40,
-                eta=10
+                eta=10,
+                unlabeled_prototype_training=False
             )
         except ValueError as e:
             if "Expected parameter loc" in str(e):
@@ -786,20 +848,9 @@ class ScPoli(ArchmapBaseModel):
 
         #Compute sample embeddings on query
         # self._sample_embeddings()
-
-        #make separate if statements based on the key that is available in atlas. 
-        if "X_latent_qzm_scpoli" in self._reference_adata.obsm and "X_latent_qzv_scpoli" in self._reference_adata.obsm:
-            print("__________getting X_latent_qzm_scpoli and X_latent_qzv_scpoli from minified atlas___________")
-            qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
-            qzv = self._reference_adata.obsm["X_latent_qzv_scpoli"]
-            latent = self._model.model.sampling(torch.tensor(qzm), torch.tensor(qzv)).numpy()
-            self._reference_adata.obsm["latent_rep"] = latent
-
-            #Save out the latent representation for QUERY
-            self._compute_latent_representation(explicit_representation=self._query_adata)
         
         # in case the atlas provider stored mean for the latent space and want to use that for mapping
-        elif "X_latent_qzm_scpoli" in self._reference_adata.obsm:
+        if "X_latent_qzm_scpoli" in self._reference_adata.obsm:
             print("__________getting X_latent_qzm_scpoli from minified atlas___________")
             qzm = self._reference_adata.obsm["X_latent_qzm_scpoli"]
             self._reference_adata.obsm["latent_rep"] = qzm
@@ -816,6 +867,7 @@ class ScPoli(ArchmapBaseModel):
     def _compute_latent_representation(self, explicit_representation, mean=False):
         explicit_representation.obsm["latent_rep"] = self._model.get_latent(explicit_representation, mean=mean)
 
+        
     def _acquire_data(self):
         super()._acquire_data()
         
@@ -823,6 +875,7 @@ class ScPoli(ArchmapBaseModel):
         fetch_file_from_s3(self._scpoli_model_params, "./model_params.pt")
         fetch_file_from_s3(self._scpoli_attr, "./attr.pkl")
         fetch_file_from_s3(self._scpoli_var_names, "./var_names.csv")
+ 
 
     def _sample_embeddings(self):
         from sklearn.decomposition import KernelPCA

@@ -382,8 +382,8 @@ class Preprocess:
             cell_type_key = 'ann_finest_level'
             batch_key = 'sample'
         elif atlas == 'retina':
-            cell_type_key = 'CellType'
-            batch_key = 'batch'
+            cell_type_key = 'celltype'
+            batch_key = 'sampleid'
         elif atlas == 'fetal_immune':
             cell_type_key = 'celltype_annotation'
             batch_key = 'bbk'
@@ -413,8 +413,8 @@ class Preprocess:
                                     'annot_ntt_rev2',]
             batch_key = "batch"
         elif atlas == "heoca":
-            cell_type_key = "cell_type"
-            cell_type_key_classifier = ['level_2']
+            cell_type_key = ["level_1",'level_2']
+            cell_type_key_classifier = ["level_1",'level_2']
             batch_key = "sample_id"
         elif atlas == "fetal_brain":
             cell_type_key = "subregion_class"
@@ -491,7 +491,7 @@ class Preprocess:
             if batch_key in target_adata.obs.columns:
                 target_adata.obs["batch"]=target_adata.obs[batch_key]
             else:
-                target_adata.obs["batch"]="mapped_batch"*len(target_adata)
+                target_adata.obs["batch"]=["mapped_batch"]*len(target_adata)
                 #raise ValueError("Batch key information not specified. Please make sure your batch key is labelled 'batch' in your query data.")
         
 

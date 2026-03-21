@@ -4,7 +4,7 @@ import tempfile
 import scanpy as sc
 
 from scarches_api.utils import utils, parameters
-
+import json
 from scvi_hub.scvi_hub import ScviHub
 from models import ScANVI
 from models import ScVI
@@ -104,6 +104,8 @@ def query(user_config):
     print("got config " + str(user_config))
     start_time = time.time()
     configuration = merge_configs(user_config)
+
+    print("running dev branch")
     #Sets the correct condition and cell_type key
     #configuration = utils.set_keys(configuration)
 
@@ -176,12 +178,19 @@ def query(user_config):
 
         #store model to gcp
         print("storing model to gcp with output path: " + output_model_path)
-        utils.store_file_in_s3("query_model.tar.gz", output_model_path)
+        upload_size=utils.store_file_in_s3("query_model.tar.gz", output_model_path)
         # print("Stored adata with counts on cloud")
         # print("storing fine-tuned model to gcp with output path: " + output_model_path)
         # utils.store_file_in_s3(mapping._model, output_model_path)
         print("Stored finetuned model on cloud")
         utils.notify_backend(get_from_config(configuration, parameters.WEBHOOK), configuration)
+        if int(upload_size) > 0:
+            
+            # Step 2: Upload the 'done' file after the main file upload is confirmed
+            with open('done.txt', 'w') as f:
+                pass 
+            utils.store_file_in_s3('done.txt', output_model_path[:-len("query_model.tar.gz")] + 'done.txt')
+
 
     return configuration
 
