@@ -12,6 +12,8 @@ SCVI_HUB_ID = "scviHubId"
 SCVI_HUB_ARGS = "model_setup_anndata_args"
 #where to store result for cxg launch
 OUTPUT_CXG_PATH = "output_cxg_path"
+#where to prediction labels txt file
+OUTPUT_PREDICTION_LABELS_PATH = "output_prediction_labels_path"
 # sets the model
 MODEL = 'model'
 # sets if minified version
@@ -74,6 +76,7 @@ WEBHOOK_RATIO = 'webhook_ratio'
 WEBHOOK_METRICS = 'webhook_metrics'
 WEBHOOK_PROGRESS = 'webhook_progress'
 WEBHOOK_GENE_CONVERSION = "webhook_gene_conversion"
+WEBHOOK_PREDICTION_LABELS = "webhook_prediction_labels"
 # sets the path/s3 key of the pretrained model
 PRETRAINED_MODEL_PATH = 'model_path'
 # set scpoli model attr key

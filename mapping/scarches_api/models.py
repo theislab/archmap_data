@@ -52,6 +52,7 @@ class ArchmapBaseModel():
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
         self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
+        self._webhook_prediction_labels_file = utils.get_from_config(configuration, parameters.WEBHOOK_PREDICTION_LABELS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
@@ -359,6 +360,31 @@ class ArchmapBaseModel():
                     if os.path.exists(self._temp_clf_encoding_path):
                         os.remove(self._temp_clf_encoding_path)
 
+        self._write_query_prediction_labels()
+
+    def _write_query_prediction_labels(self):
+        filename = os.path.join(os.getcwd(), "query_prediction_labels.txt")
+
+        pred_cols = [col for col in self._query_adata.obs.columns
+                     if (col.endswith('_pred') or '_prediction_' in col)
+                     and 'uncertainty' not in col]
+
+        if not pred_cols:
+            utils.notify_backend(self._webhook_progress, {"logs": "No prediction columns found in query. Skipping prediction label export."})
+            return
+
+        df = self._query_adata.obs[pred_cols].astype(str).copy()
+        df.index.name = 'obs_index'
+        df.to_csv(filename, sep='\t')
+
+        utils.notify_backend(self._webhook_progress, {"logs": f"Saved query prediction labels to {filename}"})
+
+        upload_key = None
+        output_path = utils.get_from_config(self._configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
+        upload_size = utils.store_file_in_s3(filename, output_path)
+        utils.notify_backend(self._webhook_prediction_labels_file, {"prediction_labels_file": upload_key, "size": upload_size})
+
+        
     def _concat_data(self):
         utils.notify_backend(self._webhook_progress, {"logs":"Step 5/6: concatenating reference and query results"})
         #save .X and var_names of query in new adata for later concatenation after cellxgene
