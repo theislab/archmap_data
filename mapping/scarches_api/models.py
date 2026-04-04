@@ -379,10 +379,9 @@ class ArchmapBaseModel():
 
         utils.notify_backend(self._webhook_progress, {"logs": f"Saved query prediction labels to {filename}"})
 
-        upload_key = None
         output_path = utils.get_from_config(self._configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
         upload_size = utils.store_file_in_s3(filename, output_path)
-        utils.notify_backend(self._webhook_prediction_labels_file, {"prediction_labels_file": upload_key, "size": upload_size})
+        utils.notify_backend(self._webhook_prediction_labels_file, {"prediction_labels_file": output_path, "size": upload_size})
 
         
     def _concat_data(self):
