@@ -52,7 +52,7 @@ class ArchmapBaseModel():
         self._webhook_metrics = utils.get_from_config(configuration, parameters.WEBHOOK_METRICS)
         self._webhook_progress = utils.get_from_config(configuration, parameters.WEBHOOK_PROGRESS)
         self._webhook_gene_conversion = utils.get_from_config(configuration, parameters.WEBHOOK_GENE_CONVERSION)
-        self._webhook_prediction_labels_file = utils.get_from_config(configuration, parameters.WEBHOOK_PREDICTION_LABELS)
+        # self._webhook_prediction_labels_file = utils.get_from_config(configuration, parameters.WEBHOOK_PREDICTION_LABELS)
         # self._use_gpu = get_from_config(configuration=configuration, key=parameters.USE_GPU)
 
         print(f"model_id: {self._model_id}")
@@ -381,7 +381,7 @@ class ArchmapBaseModel():
 
         output_path = utils.get_from_config(self._configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
         upload_size = utils.store_file_in_s3(filename, output_path)
-        utils.notify_backend(self._webhook_prediction_labels_file, {"prediction_labels_file": output_path, "size": upload_size})
+        # utils.notify_backend(self._webhook_prediction_labels_file, {"prediction_labels_file": output_path, "size": upload_size})
 
         
     def _concat_data(self):
