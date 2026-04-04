@@ -439,7 +439,7 @@ class ArchmapBaseModel():
 
         query_obs_columns=set(self._query_adata.obs.columns)
         ref_obs_columns=set(self._reference_adata.obs.columns)
-        columns_only_query = query_obs_columns.difference(ref_obs_columns)
+        columns_only_query = list(query_obs_columns.difference(ref_obs_columns))
         query_obs = self._query_adata.obs[columns_only_query].copy()
 
         del self._query_adata
@@ -735,7 +735,7 @@ class ScVI(ArchmapBaseModel):
         fetch_file_from_s3(self._model_path, "./model.pt")
 
         # save counts if counts atrr_key is saved in reference model registry
-        model = torch.load("./model.pt", map_location="cpu")
+        model = torch.load("./model.pt", map_location="cpu", weights_only=False)
         if (
             model.get("attr_dict", {})
             .get("registry_", {})
@@ -806,7 +806,7 @@ class ScANVI(ArchmapBaseModel):
         fetch_file_from_s3(self._model_path, "./model.pt")
 
         # save counts if counts atrr_key is saved in reference model registry
-        model = torch.load("./model.pt", map_location="cpu")
+        model = torch.load("./model.pt", map_location="cpu", weights_only=False)
         if (
             model.get("attr_dict", {})
             .get("registry_", {})
