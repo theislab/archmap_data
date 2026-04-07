@@ -2,7 +2,6 @@
 scanpy==1.12
 xgboost==3.2.0
 numpy==2.4.3
-gdown~=4.4.0
 torch~=2.10.0
 scikit-misc==0.5.2
 protobuf==7.34.1
@@ -19,7 +18,6 @@ dask
 # for the api
 Flask==2.1.1
 Werkzeug==2.2.2
-uWSGI==2.0.20
 gunicorn==20.1.0
 
 # for s3
