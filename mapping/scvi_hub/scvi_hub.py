@@ -143,6 +143,21 @@ class ScviHub:
             self._query_adata.obs[self._batch_key] = self._query_adata.obs[self.batch_key_input].copy()
             del self._query_adata.obs[self.batch_key_input]
 
+
+
+        # save counts if counts attr_key is saved in reference model registry
+        model_path = "../scvi_hub/download/model.pt"
+        model = torch.load(model_path, map_location="cpu", weights_only=False)
+        if (
+            model.get("attr_dict", {})
+            .get("registry_", {})
+            .get("field_registries", {})
+            .get("X", {})
+            .get("data_registry", {})
+            .get("attr_key") == "counts"
+        ):
+            self._query_adata.layers["counts"] = self._query_adata.X
+
         utils.notify_backend(self._webhook_progress, {"logs":"Step 2/6: mapping query"})
 
 
