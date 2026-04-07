@@ -69,7 +69,7 @@ def store_file_in_s3(path, key):
 
 
 def convert_scpoli(input_path, output_path):
-    model = torch.load(f"{input_path}/model.pt")
+    model = torch.load(f"{input_path}/model.pt", weights_only=False)
 
     torch.save(model["model_state_dict"],f"{output_path}/model_params.pt")
 

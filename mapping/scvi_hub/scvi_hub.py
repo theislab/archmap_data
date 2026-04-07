@@ -146,7 +146,7 @@ class ScviHub:
 
 
         # save counts if counts attr_key is saved in reference model registry
-        model_path = "../scvi_hub/download/model.pt"
+        model_path = "../scvi_hub/model/model.pt"
         model = torch.load(model_path, map_location="cpu", weights_only=False)
         if (
             model.get("attr_dict", {})
