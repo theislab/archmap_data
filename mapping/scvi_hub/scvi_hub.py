@@ -18,10 +18,10 @@ from classifiers.classifiers import Classifiers
 from scarches_api.uncert.uncert_metric import classification_uncert_euclidean
 from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
 import ast
-import pandas as pd
+import scvi
 
-from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, stress_score, get_wknn
-from scarches_api.utils.utils import fetch_file_from_s3, gene_ensembl_conversion, handle_intersecting_columns, validate_h5ad
+from scarches_api.utils.metrics import estimate_presence_score, cluster_preservation_score, percent_query_with_anchor, get_wknn
+from scarches_api.utils.utils import gene_ensembl_conversion, handle_intersecting_columns, validate_h5ad
 from scvi.data._constants import _SETUP_METHOD_NAME
 
 class ScviHub:
@@ -166,13 +166,14 @@ class ScviHub:
 
             #Align genes and gene order to model 
             self._query_adata.var_names_make_unique()
-            scarches.models.SCVI.prepare_query_anndata(self._query_adata, "../scvi_hub/model/")
+            
+            scvi.model.SCVI.prepare_query_anndata(self._query_adata, "../scvi_hub/model/")
 
             #Setup adata internals for mapping
-            scarches.models.SCVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key)
+            scvi.model.SCVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key)
 
             #Load scvi model with query
-            self._model = scarches.models.SCVI.load_query_data(
+            self._model = scvi.model.SCVI.load_query_data(
                 self._query_adata,
                 "../scvi_hub/model/",
                 freeze_dropout=True,
@@ -182,13 +183,13 @@ class ScviHub:
         if(self.__model_cls_name == "SCANVI"):
 
             self._query_adata.var_names_make_unique()
-            scarches.models.SCANVI.prepare_query_anndata(self._query_adata, "../scvi_hub/model/",)
+            scvi.model.SCANVI.prepare_query_anndata(self._query_adata, "../scvi_hub/model/",)
 
             #Setup adata internals for mapping
-            scarches.models.SCANVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key, unlabeled_category=self._unlabeled_key)
+            scvi.model.SCANVI.setup_anndata(self._query_adata, batch_key=self._batch_key, labels_key=self._cell_type_key, unlabeled_category=self._unlabeled_key)
 
             #Load scanvi model with query
-            self._model = scarches.models.SCANVI.load_query_data(
+            self._model = scvi.model.SCANVI.load_query_data(
                 self._query_adata,
                 "../scvi_hub/model/",
                 freeze_dropout=True,
