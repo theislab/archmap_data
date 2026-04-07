@@ -425,6 +425,29 @@ class ScviHub:
         else:
             self.percent_unknown=clf.predict_labels(query=query, query_latent=query_latent, classifier_path=None, encoding_path=None, cell_type_key=self._cell_type_key)
 
+        self._write_query_prediction_labels()
+
+        
+    def _write_query_prediction_labels(self):
+        filename = os.path.join(os.getcwd(), "query_prediction_labels.txt")
+
+        pred_cols = [col for col in self._query_adata.obs.columns
+                     if (col.endswith('_pred') or '_prediction_' in col)
+                     and 'uncertainty' not in col]
+
+        if not pred_cols:
+            utils.notify_backend(self._webhook_progress, {"logs": "No prediction columns found in query. Skipping prediction label export."})
+            return
+
+        df = self._query_adata.obs[pred_cols].astype(str).copy()
+        df.index.name = 'obs_index'
+        df.to_csv(filename, sep='\t')
+
+        utils.notify_backend(self._webhook_progress, {"logs": f"Saved query prediction labels to {filename}"})
+
+        output_path = utils.get_from_config(self._configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
+        upload_size = utils.store_file_in_s3(filename, output_path)
+    
     def __download_data(self):
         scvi_hub_id = utils.get_from_config(self.__configuration, parameters.SCVI_HUB_ID)
         # metadata_path = utils.get_from_config(self.__configuration, parameters.META_DATA_PATH)
