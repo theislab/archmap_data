@@ -445,7 +445,7 @@ class ScviHub:
 
         utils.notify_backend(self._webhook_progress, {"logs": f"Saved query prediction labels to {filename}"})
 
-        output_path = utils.get_from_config(self._configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
+        output_path = utils.get_from_config(self.__configuration, parameters.OUTPUT_PREDICTION_LABELS_PATH)
         upload_size = utils.store_file_in_s3(filename, output_path)
     
     def __download_data(self):
