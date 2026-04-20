@@ -58,8 +58,4 @@ def main():
 
 
 if __name__ == "__main__":
-    os.environ["AWS_BUCKET"] = "jst-2021-bucket-2022-dev"    
-    os.environ['AWS_ENDPOINT'] = 'https://storage.googleapis.com'    
-    os.environ['AWS_ACCESS_KEY'] = 'GOOG1EILWP3VDCDQAZ2A2YSSW3T2N6FZXONGNSVXN6GWOLWQHIWCEOS6WTAIS'    
-    os.environ['AWS_SECRET_KEY'] = 'G/vFPyejHpT3aZKsD/bVNikUpk7SIz3snS1kl9f1'
     main()
