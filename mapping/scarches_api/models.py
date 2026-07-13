@@ -4,6 +4,8 @@ import pandas
 import numpy as np
 import tempfile
 import os
+import sys
+import types
 import torch
 import gc
 import numpy as np
@@ -31,6 +33,18 @@ from scarches_api.uncert.uncert_metric import classification_uncert_mahalanobis
 from scarches.models.base._utils import _validate_var_names
 
 from classifiers.classifiers import Classifiers
+
+# Compat shim: pandas >=2.0 removed the `pandas.core.indexes.numeric` module
+# (Int64Index/UInt64Index/Float64Index were folded into `pandas.Index`), but
+# reference model checkpoints (model.pt) pickled under pandas <2.0 still
+# reference that module path, so torch.load(..., weights_only=False) fails
+# with ModuleNotFoundError when unpickling them under a newer pandas.
+if "pandas.core.indexes.numeric" not in sys.modules:
+    _pandas_indexes_numeric_shim = types.ModuleType("pandas.core.indexes.numeric")
+    _pandas_indexes_numeric_shim.Int64Index = pd.Index
+    _pandas_indexes_numeric_shim.UInt64Index = pd.Index
+    _pandas_indexes_numeric_shim.Float64Index = pd.Index
+    sys.modules["pandas.core.indexes.numeric"] = _pandas_indexes_numeric_shim
 
 
 class ArchmapBaseModel():
