@@ -181,7 +181,10 @@ def classification_uncert_euclidean(
     for cell_type_key in cell_type_key_list:
         cell_type_cols = adata_ref_latent.obs.columns[adata_ref_latent.obs.columns.str.startswith(cell_type_key)]
         for col in cell_type_cols:
-            adata_ref_latent.obs[col] = adata_ref_latent.obs[col].astype(str)
+            # .map(str) (not .astype(str)) so real NaNs become the literal string "nan" -
+            # under pandas's string dtype, .astype(str) leaves NaNs in place, which anndata's
+            # h5ad writer cannot serialize later on ("Can't implicitly convert non-string objects to strings").
+            adata_ref_latent.obs[col] = adata_ref_latent.obs[col].map(str)
 
         _, uncertainties, _ = sca.utils.weighted_knn_transfer(
             adata_query_latent,

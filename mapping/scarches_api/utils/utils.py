@@ -877,8 +877,11 @@ def handle_intersecting_columns(query, atlas):
         print("Warning: Intersecting columns found between adata and atlas:")
         print("Converting intersecting columns to strings")
         for col in intersecting_columns:
-            query.obs[col] = query.obs[col].astype(str)
-            atlas.obs[col] = atlas.obs[col].astype(str)
+            # .map(str) (not .astype(str)) so real NaNs become the literal string "nan" -
+            # under pandas's string dtype, .astype(str) leaves NaNs in place, which anndata's
+            # h5ad writer cannot serialize ("Can't implicitly convert non-string objects to strings").
+            query.obs[col] = query.obs[col].map(str)
+            atlas.obs[col] = atlas.obs[col].map(str)
 
 
 

@@ -2,6 +2,11 @@
 scanpy==1.12
 xgboost==3.2.0
 numpy==2.4.3
+# pandas 3.0 changed .astype(str) to leave real NaNs in place of the string "nan"
+# (future.infer_string default), which breaks anndata's h5ad string writer during
+# concat_on_disk (TypeError: Can't implicitly convert non-string objects to strings).
+# Keep on the pandas 2.x line until the writer path is confirmed compatible.
+pandas<3
 torch~=2.10.0
 scikit-misc==0.5.2
 protobuf==7.34.1
