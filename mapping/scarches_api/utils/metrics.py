@@ -381,7 +381,7 @@ def cluster_preservation_score(adata, ds_amount=5000, type='standard'):
 
     # Calculate entropy for each set of neighbors
     def entropy_of_labels(indices):
-        labels = adata.obs['leiden'][indices].to_numpy()
+        labels = adata.obs['leiden'].iloc[indices].to_numpy()
         _, counts = np.unique(labels, return_counts=True)
         return (counts*np.log(counts/(1/len(counts)))).sum()
 

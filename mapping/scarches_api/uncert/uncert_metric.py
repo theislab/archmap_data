@@ -124,11 +124,12 @@ def classification_uncert_mahalanobis(
         centroids = gmm.means_
         cluster_membership = gmm.predict_proba(adata_query_latent.X)
 
-        uncertainties = pd.DataFrame(columns=["uncertainty"], index=adata_query_latent.obs_names)
+        uncertainty_values = np.empty(adata_query_latent.n_obs, dtype="float64")
         for query_cell_index, query_cell in enumerate(adata_query_latent.X):
             distance = mahalanobis(query_cell, centroids)
             weighed_distance = np.multiply(cluster_membership[query_cell_index], distance)
-            uncertainties.iloc[query_cell_index]['uncertainty'] = np.mean(weighed_distance)
+            uncertainty_values[query_cell_index] = np.mean(weighed_distance)
+        uncertainties = pd.DataFrame({"uncertainty": uncertainty_values}, index=adata_query_latent.obs_names)
             
         max_distance = np.max(uncertainties["uncertainty"])
         min_distance = np.min(uncertainties["uncertainty"])
