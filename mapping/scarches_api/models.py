@@ -47,6 +47,27 @@ if "pandas.core.indexes.numeric" not in sys.modules:
     sys.modules["pandas.core.indexes.numeric"] = _pandas_indexes_numeric_shim
 
 
+# Compat shim: anndata >=0.11 removed the deprecated `dtype` argument from
+# AnnData.__init__(), but the pinned scarches fork still calls
+# `AnnData(new_target_X, dtype="float32")` inside _validate_var_names during
+# scPoli/scVI/scANVI load_query_data, raising
+#   TypeError: AnnData.__init__() got an unexpected keyword argument 'dtype'.
+# Wrap the constructor to strip `dtype` and cast X explicitly, preserving the
+# old semantics, so the vendored scarches code keeps working.
+import anndata as _anndata
+
+if not getattr(_anndata.AnnData.__init__, "_archmap_dtype_shim", False):
+    _orig_anndata_init = _anndata.AnnData.__init__
+
+    def _anndata_init_compat(self, X=None, *args, dtype=None, **kwargs):
+        if dtype is not None and X is not None and hasattr(X, "astype"):
+            X = X.astype(dtype)
+        return _orig_anndata_init(self, X, *args, **kwargs)
+
+    _anndata_init_compat._archmap_dtype_shim = True
+    _anndata.AnnData.__init__ = _anndata_init_compat
+
+
 class ArchmapBaseModel():
     def __init__(self, configuration) -> None:
         self._configuration = configuration
