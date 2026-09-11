@@ -14,6 +14,7 @@ import scipy
 from scipy.sparse import csr_matrix, csc_matrix
 from anndata import experimental
 from scarches_api.utils import utils
+from scarches_api.utils import compat  # noqa: F401  (applies the anndata/scarches compat shims)
 import scanpy as sc
 from scvi.dataloaders import BatchDistributedSampler
 import ast

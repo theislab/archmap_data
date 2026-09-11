@@ -18,7 +18,10 @@ scipy>=1.17.1
 
 #concatenation on disk
 dask
-#anndata==0.1
+# anndata >=0.13 makes `.X` addressable as `layers[None]`, which breaks the
+# zero-padding AnnData construction in scvi-tools <1.4.3 and in the pinned scarches
+# fork (ValueError: If you provide `layers[None]` and `X`, they must be identical).
+# Left unpinned deliberately: scarches_api/utils/compat.py patches around it.
 
 # for the api
 Flask==2.1.1

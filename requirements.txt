@@ -15,6 +15,13 @@ scikit-learn==1.5.2
 scvi-tools==1.2.0
 scipy>=1.13.1
 
+# anndata >=0.13 makes `.X` addressable as `layers[None]`, which breaks the
+# zero-padding AnnData construction in scvi-tools <1.4.3 and in the pinned scarches
+# fork (ValueError: If you provide `layers[None]` and `X`, they must be identical).
+# minify() -> scPoli.minify_adata() hits that path. Unlike the mapping service this
+# image cannot import scarches_api/utils/compat.py, so it has to be pinned instead.
+anndata<0.13
+
 #concatenation on disk
 dask
 

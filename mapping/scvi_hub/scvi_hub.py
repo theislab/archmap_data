@@ -2,6 +2,7 @@ import scarches
 import torch
 import scarches_api.utils.utils as utils
 import scarches_api.utils.parameters as parameters
+from scarches_api.utils import compat  # noqa: F401  (applies the anndata/scarches compat shims)
 from huggingface_hub import snapshot_download
 from anndata import experimental
 from pathlib import Path
