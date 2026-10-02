@@ -137,7 +137,7 @@ def surgery(reference_latent, source_adata, anndata, configuration):
     output_types = utils.get_from_config(configuration, parameters.OUTPUT_TYPE)
 
     #Combine reference and query data
-    combined_adata = source_adata.concatenate(anndata)
+    combined_adata = scanpy.concat([source_adata, anndata], label="batch", keys=["0", "1"], index_unique="-")
 
     latent_data = model.get_latent_representation(combined_adata)
 

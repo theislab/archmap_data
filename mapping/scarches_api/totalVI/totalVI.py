@@ -220,7 +220,7 @@ def latent_ref_representation(adata_query, adata_ref, vae_q):
     :param vae_q: trained model
     :return: concatenated query data, imputed proteins
     """
-    adata_full_new = adata_query.concatenate(adata_ref, batch_key="none")
+    adata_full_new = sc.concat([adata_query, adata_ref], label="none", keys=["0", "1"], index_unique="-")
     adata_full_new.obsm["X_totalVI"] = vae_q.get_latent_representation(adata=adata_full_new)
     sc.pp.neighbors(adata_full_new, use_rep="X_totalVI")
     sc.tl.umap(adata_full_new, min_dist=0.3)

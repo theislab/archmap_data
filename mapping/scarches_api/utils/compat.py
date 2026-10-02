@@ -59,3 +59,52 @@ def patch_anndata_layers_none():
 
 
 patch_anndata_layers_none()
+
+
+def patch_anndata_concatenate():
+    """Restore ``AnnData.concatenate``, removed in anndata 0.13.
+
+    It was deprecated in favour of ``anndata.concat`` and dropped in 0.13, but
+    the pipeline still calls it (e.g. ``models.ArchmapBaseModel._save_data``,
+    ``scvi_hub``, ``utils``), raising
+
+        AttributeError: 'AnnData' object has no attribute 'concatenate'
+
+    Re-add it as a thin wrapper over ``anndata.concat`` using the old method's
+    defaults: inner join, a ``"batch"`` obs column with categories
+    ``"0", "1", ...``, obs names made unique with a ``"-<category>"`` suffix,
+    and var columns kept where they agree across inputs.
+    """
+    if hasattr(anndata.AnnData, "concatenate"):
+        return
+
+    def concatenate(
+        self,
+        *adatas,
+        join="inner",
+        batch_key="batch",
+        batch_categories=None,
+        uns_merge=None,
+        index_unique="-",
+        fill_value=None,
+    ):
+        if len(adatas) == 1 and not isinstance(adatas[0], anndata.AnnData):
+            adatas = tuple(adatas[0])
+        all_adatas = (self, *adatas)
+        if batch_categories is None:
+            batch_categories = [str(i) for i in range(len(all_adatas))]
+        return anndata.concat(
+            all_adatas,
+            join=join,
+            label=batch_key,
+            keys=list(batch_categories),
+            index_unique=index_unique,
+            fill_value=fill_value,
+            merge="same",
+            uns_merge=uns_merge,
+        )
+
+    anndata.AnnData.concatenate = concatenate
+
+
+patch_anndata_concatenate()
